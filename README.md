@@ -26,7 +26,7 @@ It authenticates with JWTs issued by [identity-service](https://github.com/shell
 |------|------|
 | Health | `GET /hosting/v1/health` |
 | Access | `GET/POST /hosting/v1/access`, `POST /hosting/v1/access/request` |
-| Apps | `GET/POST /hosting/v1/apps`, `GET /hosting/v1/apps/{name\|uuid}` |
+| Apps | `GET/POST /hosting/v1/apps`, `GET/DELETE /hosting/v1/apps/{name\|uuid}` |
 | Deployments | `GET/POST /hosting/v1/apps/{app}/deployments` |
 | Upload | `PUT /hosting/v1/apps/{app}/deployments/{id}/upload` |
 | Finalize / rollback | `POST .../finalize`, `POST .../rollback` |

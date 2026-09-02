@@ -6,10 +6,11 @@ import tarfile
 from django.test import TestCase, override_settings
 from django.utils import timezone
 
-from apps.hosting.models import AccessStatus, CompanyHostingAccess
+from apps.hosting.models import AccessStatus, App, CompanyHostingAccess
 from apps.hosting.services import (
     create_deployment,
     create_preview_app,
+    delete_app,
     finalize_deployment,
     is_preview_expired,
     prepare_preview_deploy,
@@ -139,3 +140,9 @@ class PreviewDeployTests(TestCase):
         app.save(update_fields=['created_by_id', 'expires_at'])
         with self.assertRaises(Exception):
             renew_app_expiry(app)
+
+    def test_delete_app_removes_record(self):
+        app = create_preview_app(company_id=1, user_id=10, display_name='Gone')
+        app_id = app.id
+        delete_app(app)
+        self.assertFalse(App.objects.filter(id=app_id).exists())

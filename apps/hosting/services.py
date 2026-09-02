@@ -8,6 +8,7 @@ from typing import BinaryIO
 from datetime import timedelta
 
 from django.conf import settings
+from django.core.files.storage import default_storage
 from django.db import transaction
 from django.db.models import Q
 from django.utils import timezone
@@ -23,7 +24,15 @@ from .semver import SemVer
 from .slug import generate_public_slug, validate_app_name, validate_slug
 from .extract import extract_deployment_artifact
 from .public_urls import build_app_url
-from .storage import artifact_key, delete_artifact_prefix, save_artifact
+from .storage import (
+    artifact_key,
+    build_storage_key,
+    delete_artifact_prefix,
+    delete_extracted_prefix,
+    is_s3_backend,
+    save_artifact,
+    _delete_filesystem_tree,
+)
 
 
 class HostingError(Exception):
@@ -448,4 +457,20 @@ def rollback_deployment(*, deployment: Deployment) -> Deployment:
 
 def delete_app_artifacts(app: App) -> None:
     for deployment in app.deployments.all():
-        delete_artifact_prefix(deployment.storage_prefix)
+        delete_extracted_prefix(deployment.storage_prefix)
+        key = artifact_key(deployment)
+        try:
+            if default_storage.exists(key):
+                default_storage.delete(key)
+        except Exception:
+            pass
+        if is_s3_backend():
+            delete_artifact_prefix(deployment.storage_prefix)
+        else:
+            _delete_filesystem_tree(build_storage_key(deployment.storage_prefix.rstrip('/')))
+
+
+def delete_app(app: App) -> None:
+    """Remove a hosted app, its deployments, and stored artifacts."""
+    delete_app_artifacts(app)
+    app.delete()

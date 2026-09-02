@@ -40,6 +40,7 @@ from .services import (
     require_company_id,
     resolve_app_ref,
     rollback_deployment,
+    delete_app,
     serialize_access,
     serialize_app,
     serialize_deployment,
@@ -270,6 +271,20 @@ class AppDetailView(APIView):
         except HostingError as exc:
             return _error(exc)
         return Response(serialize_app(app))
+
+    @extend_schema(
+        tags=['apps'],
+        summary='Delete a hosted app and its deployments',
+        responses={204: None, **_SCHEMA_ERRORS},
+    )
+    def delete(self, request, app_ref):
+        try:
+            company_id = require_company_id(request.user)
+            app = resolve_app_ref(app_ref, company_id=company_id)
+            delete_app(app)
+        except HostingError as exc:
+            return _error(exc)
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 class AppRenewExpiryView(APIView):
