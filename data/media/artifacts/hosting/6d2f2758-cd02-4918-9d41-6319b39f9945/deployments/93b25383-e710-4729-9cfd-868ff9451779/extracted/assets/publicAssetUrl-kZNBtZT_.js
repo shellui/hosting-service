@@ -1,0 +1,2 @@
+function n(r){if(typeof r!="string")return;const t=r.trim();if(!t)return;if(/^https?:\/\//i.test(t)||t.startsWith("//")||t.startsWith("data:")||typeof window>"u")return t;const i=typeof window.__SHELLUI_BASENAME__=="string"&&window.__SHELLUI_BASENAME__.trim()?window.__SHELLUI_BASENAME__.trim():"";return i?t.startsWith("/")?`${i}${t}`:`${i}/${t}`:t}export{n as p};
+//# sourceMappingURL=publicAssetUrl-kZNBtZT_.js.map
