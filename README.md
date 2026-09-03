@@ -143,6 +143,14 @@ See `.env.example` for all settings. Key quotas:
 
 Deployment artifacts are stored at `{slug}/deployments/{id}/artifact.tar.gz` and extracted to `{prefix}extracted/` for static serving.
 
+## Tests
+
+```bash
+uv run python manage.py test
+```
+
+Pull requests and pushes to `main` / `develop` run [`.github/workflows/ci.yml`](.github/workflows/ci.yml): Django tests, lockfile check, dependency audit (`pip-audit`), secret scan (gitleaks), markdown link check (lychee), and a Docker image build.
+
 ## Docker
 
 ```bash
