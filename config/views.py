@@ -50,6 +50,9 @@ def root(request):
     if slug_from_host(request.get_host()):
         return AppServeView.as_view()(request, path='')
 
+    if settings.ROOT_REDIRECT_URL:
+        return redirect(settings.ROOT_REDIRECT_URL, permanent=True)
+
     user_model = get_user_model()
     has_users = user_model._default_manager.exists()
     form = InitialSuperuserForm(request.POST or None)

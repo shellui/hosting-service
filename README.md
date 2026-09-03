@@ -117,6 +117,7 @@ To redeploy later, add the slug to config:
 | `HOSTING_ALLOW_ANY_HOST` | When `true` (default in `DEBUG`), accept any `Host` header — useful with `/etc/hosts` |
 | `HOSTING_PREVIEW_TTL_DAYS` | Preview site lifetime in days (default `7`) |
 | `HOSTING_DEBUG_OPEN` | Skip company waitlist (auto-on when `DEBUG=true`) |
+| `ROOT_REDIRECT_URL` | Optional absolute URL; when set, apex `/` responds with **301** (e.g. `https://shellui.com`). Unset → landing page. Does not affect `{slug}.*` app serving |
 
 **Local:**
 

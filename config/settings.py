@@ -417,6 +417,10 @@ HOSTING_MAX_DEPLOYMENTS_PER_APP = _env_int('HOSTING_MAX_DEPLOYMENTS_PER_APP', 20
 HOSTING_MAX_UPLOAD_BYTES = _env_bytes('HOSTING_MAX_UPLOAD_BYTES', 100 * 1024**2)
 HOSTING_PREVIEW_TTL_DAYS = _env_int('HOSTING_PREVIEW_TTL_DAYS', 7)
 
+# Optional 301 target for the apex landing page (`/`). Unset → render home.html.
+# Does not affect hosted-app subdomain serving (e.g. `{slug}.shellui.app`).
+ROOT_REDIRECT_URL = os.getenv('ROOT_REDIRECT_URL', '').strip() or None
+
 # Public browsable app URLs ({slug}.{HOSTING_APP_DOMAIN} — domain is canonical for API links only)
 HOSTING_APP_DOMAIN = os.getenv('HOSTING_APP_DOMAIN', '').strip().lstrip('.')
 if not HOSTING_APP_DOMAIN:
