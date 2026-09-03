@@ -126,6 +126,7 @@ jobs:
             --no-progress
             README.md
             CHANGELOG.md
+            PUBLISH.md
           fail: true
 
   docker:
