@@ -6,6 +6,7 @@ import mimetypes
 from pathlib import PurePosixPath
 
 from django.http import FileResponse, Http404
+from django.shortcuts import render
 from django.utils.decorators import method_decorator
 from django.views import View
 from django.views.decorators.clickjacking import xframe_options_exempt
@@ -45,6 +46,21 @@ _ASSET_EXTENSIONS = frozenset(
         'wav',
     }
 )
+
+_SITE_MESSAGES = {
+    'not_found': (
+        'This site is unavailable',
+        'No hosted app exists for this address. It may have been deleted, or the link may be incorrect.',
+    ),
+    'expired': (
+        'This site has expired',
+        'The preview for this address has expired and is no longer available. Deploy again to create a new site.',
+    ),
+    'unavailable': (
+        'This site is unavailable',
+        'Nothing is published at this address yet, or the deployment is no longer available.',
+    ),
+}
 
 
 def _resolve_deployment(app: App) -> Deployment | None:
@@ -114,6 +130,27 @@ def _file_response(deployment, relative_path: str) -> FileResponse:
     return response
 
 
+def site_unavailable_response(request, *, reason: str = 'not_found'):
+    """Friendly HTML 404 when a subdomain has no publishable site."""
+    headline, message = _SITE_MESSAGES.get(reason, _SITE_MESSAGES['not_found'])
+    host = (request.get_host() or '').split(':', 1)[0]
+    response = render(
+        request,
+        'hosting/site_unavailable.html',
+        {
+            'headline': headline,
+            'message': message,
+            'host': host,
+            'reason': reason,
+        },
+        status=404,
+    )
+    response['Cache-Control'] = 'no-cache'
+    response.xframe_options_exempt = True
+    response.headers.pop('X-Frame-Options', None)
+    return response
+
+
 @method_decorator(xframe_options_exempt, name='dispatch')
 class AppServeView(View):
     """Serve hosted apps on any domain: {slug}.{any-domain}/"""
@@ -121,14 +158,14 @@ class AppServeView(View):
     def get(self, request, path=''):
         slug = slug_from_host(request.get_host())
         if not slug:
-            raise Http404('Unknown host')
+            return site_unavailable_response(request, reason='not_found')
         app = App.objects.filter(slug=slug).first()
         if app is None:
-            raise Http404('App not found')
+            return site_unavailable_response(request, reason='not_found')
         if is_preview_expired(app):
-            raise Http404('Preview site expired')
+            return site_unavailable_response(request, reason='expired')
         deployment = _resolve_deployment(app)
         if deployment is None or not extracted_index_exists(deployment):
-            raise Http404('No active deployment')
+            return site_unavailable_response(request, reason='unavailable')
         rel = _pick_file(deployment, path)
         return _file_response(deployment, rel)

@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+### ✨ Feature
+
+- Custom HTML 404 for missing / expired / unpublished app subdomains (instead of Django’s plain Not Found page).
+
 ### 🐛 Fixed
 
 - App subdomains (`{slug}.shellui.app`) now serve the hosted site for every path, including `/admin`. Django admin / API / docs stay on the apex host only — so React Router refreshes no longer hit Django admin.

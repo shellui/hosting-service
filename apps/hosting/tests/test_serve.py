@@ -4,6 +4,7 @@ import io
 import tarfile
 
 from django.test import Client, TestCase, override_settings
+from django.utils import timezone
 
 from apps.hosting.models import AccessStatus, CompanyHostingAccess
 from apps.hosting.services import (
@@ -81,9 +82,23 @@ class ServeIntegrationTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertIn(b'hello', self._body(response))
 
-    def test_unknown_host_404(self):
+    def test_unknown_host_shows_site_unavailable_page(self):
         response = self.client.get('/', HTTP_HOST='missing.shellui.test')
         self.assertEqual(response.status_code, 404)
+        body = self._body(response)
+        self.assertIn(b'This site is unavailable', body)
+        self.assertIn(b'may have been deleted', body)
+        self.assertIn(b'missing.shellui.test', body)
+        self.assertTemplateUsed(response, 'hosting/site_unavailable.html')
+
+    def test_expired_preview_shows_expired_page(self):
+        self.app.expires_at = timezone.now() - timezone.timedelta(days=1)
+        self.app.save(update_fields=['expires_at'])
+        response = self.client.get('/', HTTP_HOST=self.app_host)
+        self.assertEqual(response.status_code, 404)
+        body = self._body(response)
+        self.assertIn(b'This site has expired', body)
+        self.assertTemplateUsed(response, 'hosting/site_unavailable.html')
 
     def test_serve_on_any_domain(self):
         alt_host = f'{self.app.slug}.custom.example'
