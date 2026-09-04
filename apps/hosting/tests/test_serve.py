@@ -101,6 +101,24 @@ class ServeIntegrationTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertIn(b'spa', self._body(response))
 
+    def test_admin_path_serves_spa_on_app_host(self):
+        """SPA routes like /admin must not hit Django admin on app subdomains."""
+        response = self.client.get('/admin', HTTP_HOST=self.app_host)
+        self.assertEqual(response.status_code, 200)
+        self.assertIn(b'spa', self._body(response))
+        self.assertNotIn(b'Django administration', self._body(response))
+
+    def test_admin_trailing_slash_serves_spa_on_app_host(self):
+        response = self.client.get('/admin/', HTTP_HOST=self.app_host)
+        self.assertEqual(response.status_code, 200)
+        self.assertIn(b'spa', self._body(response))
+        self.assertNotIn(b'Django administration', self._body(response))
+
+    def test_api_path_serves_spa_on_app_host(self):
+        response = self.client.get('/api/docs/', HTTP_HOST=self.app_host)
+        self.assertEqual(response.status_code, 200)
+        self.assertIn(b'spa', self._body(response))
+
     def test_missing_asset_is_hard_404(self):
         response = self.client.get('/assets/missing.js', HTTP_HOST=self.app_host)
         self.assertEqual(response.status_code, 404)

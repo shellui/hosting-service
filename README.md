@@ -131,7 +131,7 @@ http://{site_slug}.shellui.local:8002/
 https://{site_slug}.shellui.app/
 ```
 
-Run the deployment API on a separate host (e.g. `hosting.shellui.app`). App subdomains are served by the same process via a catch-all route that excludes `/hosting/`, `/api/`, and `/admin/`.
+Run the deployment API on a separate host (e.g. `hosting.shellui.app` or the apex). App subdomains are served by the same process: every path on `{slug}.*` goes to the hosted site (SPA-friendly), while Django admin / API / docs only resolve on the apex / reserved hosts.
 
 ## Environment
 

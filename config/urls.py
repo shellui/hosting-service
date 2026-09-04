@@ -1,4 +1,9 @@
-"""URL configuration for hosting-service."""
+"""URL configuration for hosting-service.
+
+Platform routes (admin, API, docs, apex landing) apply on the root / reserved
+hosts only. App subdomains are handled by ``HostedAppServeMiddleware`` so every
+path — including ``/admin`` — serves the hosted SPA (React Router refreshes).
+"""
 
 from django.contrib import admin
 from django.urls import include, path, re_path
@@ -28,7 +33,8 @@ urlpatterns = [
         xframe_options_exempt(SpectacularRedocView.as_view(url_name='schema')),
         name='redoc',
     ),
-    # Keep Django admin / API / static out of the hosted-app catch-all (with or without slash).
+    # Fallback for app hosts if middleware is disabled. Excludes platform prefixes
+    # so apex hosts keep admin / API / static on the URLConf above.
     re_path(
         r'^(?!hosting(?:/|$)|api(?:/|$)|admin(?:/|$)|static(?:/|$)|media(?:/|$))(?P<path>.*)$',
         AppServeView.as_view(),

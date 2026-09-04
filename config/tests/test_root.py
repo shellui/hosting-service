@@ -29,3 +29,10 @@ class RootViewTests(TestCase):
         response = self.client.get('/', HTTP_HOST='missing.shellui.test')
         self.assertEqual(response.status_code, 404)
         self.assertNotIn('Location', response)
+
+    def test_django_admin_available_on_apex_host(self):
+        response = self.client.get('/admin/')
+        # Login redirect or admin page — not a hosted-app 404.
+        self.assertIn(response.status_code, {200, 302})
+        if response.status_code == 302:
+            self.assertIn('/admin/', response['Location'])

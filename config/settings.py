@@ -194,6 +194,8 @@ SPECTACULAR_SETTINGS = {
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'config.request_context.RequestIdMiddleware',
+    # App subdomains → hosted site for all paths (before admin/API URLConf).
+    'apps.hosting.middleware.HostedAppServeMiddleware',
     'whitenoise.middleware.WhiteNoiseMiddleware',
     'corsheaders.middleware.CorsMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',

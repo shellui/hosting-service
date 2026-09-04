@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+### 🐛 Fixed
+
+- App subdomains (`{slug}.shellui.app`) now serve the hosted site for every path, including `/admin`. Django admin / API / docs stay on the apex host only — so React Router refreshes no longer hit Django admin.
+
 ### 🔒 Security
 
 - Bump dependencies to clear `pip-audit` findings: Django `6.0.8`, cryptography `50.0.0`, djangorestframework `3.17.2`, requests `2.33.0`, PyJWT `2.13.0`.
