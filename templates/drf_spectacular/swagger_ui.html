@@ -30,13 +30,13 @@
         applyDocsColorMode(message?.payload?.settings?.appearance ?? null);
         const token = message?.payload?.settings?.accessToken ?? null;
         window.__shelluiAccessToken = token;
-        window.__applyShellUIAccessToken?.(token);
+        window.__applyShelluiAccessToken?.(token);
       };
 
       await init();
       applyDocsColorMode(shellui.initialSettings?.appearance ?? null);
       window.__shelluiAccessToken = shellui.initialSettings?.accessToken ?? null;
-      window.__applyShellUIAccessToken?.(window.__shelluiAccessToken);
+      window.__applyShelluiAccessToken?.(window.__shelluiAccessToken);
       shellui.addMessageListener("SHELLUI_SETTINGS", handleSettingsMessage);
       shellui.addMessageListener("SHELLUI_SETTINGS_UPDATED", handleSettingsMessage);
     </script>

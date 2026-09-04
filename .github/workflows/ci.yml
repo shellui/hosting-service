@@ -98,8 +98,9 @@ jobs:
           fi
 
           if git grep -nIE '\bShellUI\b|\bshellUI\b|\bShellUi\b' -- . \
+              ':(exclude).github/workflows/**' \
               ':(exclude).venv'; then
-            echo '::error::Use Shellui (product) or shellui (packages), never ShellUI'
+            echo '::error::Use Shellui (product) or shellui (packages); avoid Shell-UI camelCase variants'
             exit 1
           fi
 
