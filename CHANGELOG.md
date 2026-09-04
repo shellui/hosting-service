@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 ### ✨ Feature
 
 - Custom HTML 404 for missing / expired / unpublished app subdomains (instead of Django’s plain Not Found page).
+- On create/redeploy and delete, forward the caller's identity JWT to register/remove the site origin on identity-service OAuth redirect allowlist (`IDENTITY_SERVICE_URL`) so hosted shells can log in without manual allowlist edits.
 
 ### 🐛 Fixed
 

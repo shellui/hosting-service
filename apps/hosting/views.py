@@ -186,6 +186,7 @@ class PreviewPrepareView(APIView):
         try:
             company_id = require_company_id(request.user)
             data = request.data if isinstance(request.data, dict) else {}
+            access_token = request.auth if isinstance(request.auth, str) else None
             app, deployment = prepare_preview_deploy(
                 company_id=company_id,
                 user_id=request.user.user_id,
@@ -193,6 +194,7 @@ class PreviewPrepareView(APIView):
                 display_name=str(data.get('display_name') or ''),
                 app_version=str(data.get('app_version') or ''),
                 shellui_version=str(data.get('shellui_version') or ''),
+                access_token=access_token,
             )
         except HostingError as exc:
             return _error(exc)
@@ -244,10 +246,12 @@ class AppListCreateView(APIView):
         try:
             company_id = require_company_id(request.user)
             data = request.data if isinstance(request.data, dict) else {}
+            access_token = request.auth if isinstance(request.auth, str) else None
             app = create_app(
                 company_id=company_id,
                 name=str(data.get('name') or data.get('slug') or ''),
                 display_name=str(data.get('display_name') or ''),
+                access_token=access_token,
             )
         except HostingError as exc:
             return _error(exc)
@@ -281,7 +285,8 @@ class AppDetailView(APIView):
         try:
             company_id = require_company_id(request.user)
             app = resolve_app_ref(app_ref, company_id=company_id)
-            delete_app(app)
+            access_token = request.auth if isinstance(request.auth, str) else None
+            delete_app(app, access_token=access_token)
         except HostingError as exc:
             return _error(exc)
         return Response(status=status.HTTP_204_NO_CONTENT)

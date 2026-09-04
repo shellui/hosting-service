@@ -31,7 +31,11 @@ def _make_site_tarball(html: str = '<html><body>preview</body></html>') -> bytes
     return buf.getvalue()
 
 
-@override_settings(HOSTING_DEBUG_OPEN=True, HOSTING_PREVIEW_TTL_DAYS=7)
+@override_settings(
+    HOSTING_DEBUG_OPEN=True,
+    HOSTING_PREVIEW_TTL_DAYS=7,
+    IDENTITY_SERVICE_URL='',
+)
 class PreviewDeployTests(TestCase):
     def setUp(self):
         CompanyHostingAccess.objects.create(company_id=1, status=AccessStatus.APPROVED)

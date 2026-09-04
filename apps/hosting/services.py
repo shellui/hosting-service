@@ -24,6 +24,11 @@ from .semver import SemVer
 from .slug import generate_public_slug, validate_app_name, validate_slug
 from .extract import extract_deployment_artifact
 from .public_urls import build_app_url
+from .identity_redirects import (
+    app_origin_for_sync,
+    delete_hosting_oauth_redirect_origin,
+    upsert_hosting_oauth_redirect,
+)
 from .storage import (
     artifact_key,
     build_storage_key,
@@ -225,7 +230,13 @@ def resolve_preview_app(*, slug: str, company_id: int, user_id: int) -> App:
     return app
 
 
-def create_preview_app(*, company_id: int, user_id: int, display_name: str = '') -> App:
+def create_preview_app(
+    *,
+    company_id: int,
+    user_id: int,
+    display_name: str = '',
+    access_token: str | None = None,
+) -> App:
     assert_hosting_access(company_id)
     max_apps = settings.HOSTING_MAX_APPS_PER_COMPANY
     if _active_app_count(company_id) >= max_apps:
@@ -236,13 +247,16 @@ def create_preview_app(*, company_id: int, user_id: int, display_name: str = '')
         )
     public_slug = generate_public_slug(exists=lambda value: App.objects.filter(slug=value).exists())
     label = (display_name or '').strip() or public_slug
-    return App.objects.create(
+    app = App.objects.create(
         name=public_slug,
         slug=public_slug,
         company_id=company_id,
         created_by_id=user_id,
         display_name=label,
     )
+    token = (access_token or '').strip() or None
+    transaction.on_commit(lambda: upsert_hosting_oauth_redirect(app, access_token=token))
+    return app
 
 
 @transaction.atomic
@@ -254,11 +268,19 @@ def prepare_preview_deploy(
     display_name: str,
     app_version: str,
     shellui_version: str,
+    access_token: str | None = None,
 ) -> tuple[App, Deployment]:
+    token = (access_token or '').strip() or None
     if slug and slug.strip():
         app = resolve_preview_app(slug=slug.strip(), company_id=company_id, user_id=user_id)
+        transaction.on_commit(lambda: upsert_hosting_oauth_redirect(app, access_token=token))
     else:
-        app = create_preview_app(company_id=company_id, user_id=user_id, display_name=display_name)
+        app = create_preview_app(
+            company_id=company_id,
+            user_id=user_id,
+            display_name=display_name,
+            access_token=token,
+        )
     deployment = create_deployment(
         app=app,
         app_version=app_version,
@@ -313,7 +335,13 @@ def serialize_deployment(deployment: Deployment, *, app_slug: str | None = None)
     return payload
 
 
-def create_app(*, company_id: int, name: str, display_name: str) -> App:
+def create_app(
+    *,
+    company_id: int,
+    name: str,
+    display_name: str,
+    access_token: str | None = None,
+) -> App:
     assert_hosting_access(company_id)
     max_apps = settings.HOSTING_MAX_APPS_PER_COMPANY
     if App.objects.filter(company_id=company_id).count() >= max_apps:
@@ -331,12 +359,15 @@ def create_app(*, company_id: int, name: str, display_name: str) -> App:
         )
     public_slug = generate_public_slug(exists=lambda value: App.objects.filter(slug=value).exists())
     label = (display_name or '').strip() or normalized_name
-    return App.objects.create(
+    app = App.objects.create(
         name=normalized_name,
         slug=public_slug,
         company_id=company_id,
         display_name=label,
     )
+    token = (access_token or '').strip() or None
+    transaction.on_commit(lambda: upsert_hosting_oauth_redirect(app, access_token=token))
+    return app
 
 
 def create_deployment(
@@ -470,7 +501,15 @@ def delete_app_artifacts(app: App) -> None:
             _delete_filesystem_tree(build_storage_key(deployment.storage_prefix.rstrip('/')))
 
 
-def delete_app(app: App) -> None:
+def delete_app(app: App, *, access_token: str | None = None) -> None:
     """Remove a hosted app, its deployments, and stored artifacts."""
+    # Capture before delete; unsync after local removal so a failed delete does not
+    # strip login while the site still exists.
+    try:
+        origin = app_origin_for_sync(app)
+    except Exception:
+        origin = None
     delete_app_artifacts(app)
     app.delete()
+    if origin:
+        delete_hosting_oauth_redirect_origin(origin=origin, access_token=access_token)

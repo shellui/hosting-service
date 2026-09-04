@@ -10,7 +10,7 @@ It authenticates with JWTs issued by [identity-service](https://github.com/shell
 - **Browsable hosted apps** on any domain — slug is the first subdomain label (e.g. `https://{slug}.shellui.app/` or `http://{slug}.shellui.local:8002/`)
 - Company hosting access waitlist (`CompanyHostingAccess`)
 - Globally unique auto-generated site slugs for public URLs; company-scoped app names for API/CLI
-- JWT verification via identity-service JWKS (local document or `IDENTITY_JWKS_URL`)
+- JWT verification via identity-service JWKS (`IDENTITY_SERVICE_URL` → `/.well-known/jwks.json`, or a local document / explicit `IDENTITY_JWKS_URL`)
 - Pluggable artifact backend: **S3** or **filesystem**
 - OpenAPI docs (Swagger + ReDoc)
 
@@ -140,6 +140,12 @@ See `.env.example` for all settings. Key quotas:
 - `HOSTING_MAX_APPS_PER_COMPANY` (default `5`)
 - `HOSTING_MAX_DEPLOYMENTS_PER_APP` (default `20`)
 - `HOSTING_MAX_UPLOAD_BYTES` (default `100M`)
+
+Identity OAuth redirect sync (so `shellui deploy` sites can log in without manual allowlist edits):
+
+- `IDENTITY_SERVICE_URL` — identity base URL (e.g. `http://localhost:8000`)
+
+When set, creating/redeploying a preview forwards the caller's JWT to register `{scheme}://{slug}.{HOSTING_APP_DOMAIN}` on the company allowlist; deleting the app removes it.
 
 Deployment artifacts are stored at `{slug}/deployments/{id}/artifact.tar.gz` and extracted to `{prefix}extracted/` for static serving.
 
