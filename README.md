@@ -13,6 +13,7 @@ It authenticates with JWTs issued by [identity-service](https://github.com/shell
 - JWT verification via identity-service JWKS (`IDENTITY_SERVICE_URL` → `/.well-known/jwks.json`, or a local document / explicit `IDENTITY_JWKS_URL`)
 - Pluggable artifact backend: **S3** or **filesystem**
 - OpenAPI docs (Swagger + ReDoc)
+- Permissive API CORS by default (`CORS_ALLOW_ALL_ORIGINS=true`); auth is Bearer JWT — hosted preview origins do not need CORS env entries
 
 ## Project structure
 
@@ -145,7 +146,7 @@ Identity OAuth redirect sync (so `shellui deploy` sites can log in without manua
 
 - `IDENTITY_SERVICE_URL` — identity base URL (e.g. `http://localhost:8000`)
 
-When set, creating/redeploying a preview forwards the caller's JWT to register `{scheme}://{slug}.{HOSTING_APP_DOMAIN}` on the company allowlist; deleting the app removes it.
+When set, creating/redeploying a preview forwards the caller's JWT to register `{scheme}://{slug}.{HOSTING_APP_DOMAIN}` on the company **OAuth redirect** allowlist; deleting the app removes it. That allowlist controls token delivery after login — not API CORS. Hosting API CORS is permissive by default (`CORS_ALLOW_ALL_ORIGINS=true`); set `false` + `CORS_ALLOWED_ORIGINS` only for lock-down installs.
 
 Deployment artifacts are stored at `{slug}/deployments/{id}/artifact.tar.gz` and extracted to `{prefix}extracted/` for static serving.
 

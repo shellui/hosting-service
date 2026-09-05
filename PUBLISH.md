@@ -43,6 +43,8 @@ GitHub Actions: [`.github/workflows/pre-release.yml`](.github/workflows/pre-rele
 | `ALLOWED_HOSTS` | Comma-separated hostnames |
 | `HOSTING_BACKEND` | `filesystem` or S3 settings |
 
+Optional: `CORS_ALLOW_ALL_ORIGINS` (default `true`; Bearer JWT is the API auth boundary). Set `false` + `CORS_ALLOWED_ORIGINS` for lock-down installs. Do not list every preview slug in CORS env — OAuth redirect sync on identity handles login bounce origins.
+
 ## Publish to Docker Hub
 
 ```bash

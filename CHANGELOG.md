@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### 🚨 Changed
+
+- **Permissive API CORS:** default `CORS_ALLOW_ALL_ORIGINS=true` with `CORS_ALLOW_CREDENTIALS=false` (Bearer JWT auth). Hosted preview origins no longer need per-slug `CORS_ALLOWED_ORIGINS` entries.
+
 ### ✨ Feature
 
 - Custom HTML 404 for missing / expired / unpublished app subdomains (instead of Django’s plain Not Found page).
