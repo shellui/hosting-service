@@ -1,7 +1,7 @@
 [project]
 name = "hosting-service"
 version = "0.2.0"
-description = "App hosting backend for Shellui microfrontends"
+description = "A hosting service for deploying and serving Shellui applications"
 readme = "README.md"
 requires-python = ">=3.14"
 dependencies = [
