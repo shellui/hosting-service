@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
-## [Unreleased]
+## [0.2.1] - 2026-09-07
 
 ### ✨ Feature
 
@@ -14,6 +14,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 ### 🛠 Improvements
 
 - Swagger UI now auto-applies the Shellui session access token when docs are opened from Admin (same `swagger_ui.js` preauthorize flow as identity-service / storage-service).
+
+### 📚 Documentation
+
+- Refresh [README](README.md) and [PUBLISH.md](PUBLISH.md) for `0.2.1` (metrics, Swagger Admin preauthorize, Docker Hub publish/deploy examples).
 
 ## [0.2.0] - 2026-09-04
 

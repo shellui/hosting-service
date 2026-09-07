@@ -12,7 +12,8 @@ It authenticates with JWTs issued by [identity-service](https://github.com/shell
 - Globally unique auto-generated site slugs for public URLs; company-scoped app names for API/CLI
 - JWT verification via identity-service JWKS (`IDENTITY_SERVICE_URL` → `/.well-known/jwks.json`, or a local document / explicit `IDENTITY_JWKS_URL`)
 - Pluggable artifact backend: **S3** or **filesystem**
-- OpenAPI docs (Swagger + ReDoc)
+- OpenAPI docs (Swagger + ReDoc); opening Swagger from Django Admin auto-applies the Shellui session access token
+- Prometheus metrics (`/hosting/v1/metrics`, `/hosting/v1/metrics/all`) for staff or company-owner JWT / PAT
 - Permissive API CORS by default (`CORS_ALLOW_ALL_ORIGINS=true`); auth is Bearer JWT — hosted preview origins do not need CORS env entries
 
 ## Project structure
@@ -55,7 +56,7 @@ uv run python manage.py migrate
 uv run python manage.py runserver 8002
 ```
 
-Open `http://localhost:8002/` for Swagger / ReDoc.
+Open `http://localhost:8002/` for Swagger / ReDoc. From Django Admin, Swagger pre-authorizes with the Shellui session access token (same flow as identity-service / storage-service).
 
 With `DEBUG=true`, `HOSTING_DEBUG_OPEN` defaults to **on** — any logged-in company can deploy without waitlist approval.
 
