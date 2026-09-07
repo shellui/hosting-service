@@ -175,7 +175,9 @@ SPECTACULAR_SETTINGS = {
     'TITLE': 'Shellui Hosting API',
     'DESCRIPTION': (
         'App hosting API for Shellui. '
-        'Authenticate with a Bearer JWT issued by identity-service.'
+        'Authenticate with a Bearer JWT issued by identity-service. '
+        'Use **Authorize** and enter `Bearer <token>` or paste the raw JWT; '
+        'when opened from Shellui Admin, the session token is applied automatically.'
     ),
     'VERSION': VERSION,
     'SERVE_INCLUDE_SCHEMA': False,
@@ -188,6 +190,7 @@ SPECTACULAR_SETTINGS = {
         {'name': 'apps', 'description': 'Hosted microfrontend apps.'},
         {'name': 'deployments', 'description': 'App deployment artifacts and lifecycle.'},
         {'name': 'stats', 'description': 'Hosting statistics.'},
+        {'name': 'platform-metrics', 'description': 'Prometheus metrics endpoints.'},
     ],
 }
 

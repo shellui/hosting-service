@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### ✨ Feature
+
+- Added Prometheus metrics (`GET /hosting/v1/metrics`, `GET /hosting/v1/metrics/all`) for apps, deployments, artifacts, and access — staff or company-owner JWT / PAT (same auth model as storage-service and identity-service).
+
+### 🛠 Improvements
+
+- Swagger UI now auto-applies the Shellui session access token when docs are opened from Admin (same `swagger_ui.js` preauthorize flow as identity-service / storage-service).
+
 ## [0.2.0] - 2026-09-04
 
 ### 🚨 Changed

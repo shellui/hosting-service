@@ -6,7 +6,7 @@ It authenticates with JWTs issued by [identity-service](https://github.com/shell
 
 ## Features
 
-- REST API under `/hosting/v1/*` for access, apps, deployments, and stats
+- REST API under `/hosting/v1/*` for access, apps, deployments, stats, and metrics
 - **Browsable hosted apps** on any domain — slug is the first subdomain label (e.g. `https://{slug}.shellui.app/` or `http://{slug}.shellui.local:8002/`)
 - Company hosting access waitlist (`CompanyHostingAccess`)
 - Globally unique auto-generated site slugs for public URLs; company-scoped app names for API/CLI
@@ -32,6 +32,7 @@ It authenticates with JWTs issued by [identity-service](https://github.com/shell
 | Upload | `PUT /hosting/v1/apps/{app}/deployments/{id}/upload` |
 | Finalize / rollback | `POST .../finalize`, `POST .../rollback` |
 | Stats | `GET /hosting/v1/stats` |
+| Metrics | `GET /hosting/v1/metrics`, `GET /hosting/v1/metrics/all` |
 | Django admin | `/admin/` |
 | **Browse** | `GET https://{site_slug}.{HOSTING_APP_DOMAIN}/` |
 | OpenAPI | `/api/docs/`, `/api/docs/redoc/` |

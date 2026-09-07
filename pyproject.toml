@@ -19,6 +19,7 @@ dependencies = [
     "cryptography==50.0.0",
     "pyjwt==2.13.0",
     "requests==2.33.0",
+    "prometheus-client==0.21.1",
 ]
 
 [dependency-groups]

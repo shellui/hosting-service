@@ -5,8 +5,9 @@ from __future__ import annotations
 import logging
 
 from django.conf import settings
+from django.http import HttpResponse
 from drf_spectacular.types import OpenApiTypes
-from drf_spectacular.utils import extend_schema, extend_schema_view
+from drf_spectacular.utils import OpenApiResponse, extend_schema, extend_schema_view
 from rest_framework import status
 from rest_framework.parsers import BaseParser, MultiPartParser
 from rest_framework.permissions import AllowAny
@@ -15,7 +16,9 @@ from rest_framework.views import APIView
 
 from apps.authapi.permissions import IsAuthenticatedPrincipal, IsStaffOrCompanyOwner
 
+from . import metrics as hosting_metrics
 from .models import Deployment
+from .renderers import PrometheusTextRenderer
 from .serializers import (
     AccessSerializer,
     AccessUpdateSerializer,
@@ -458,3 +461,88 @@ class StatsView(APIView):
             except HostingError as exc:
                 return _error(exc)
         return Response(build_hosting_stats(company_id=company_id))
+
+
+def _metrics_company_from_token(request):
+    """Company scope comes only from the Bearer token (no query override)."""
+    if (request.GET.get('company_id') or '').strip():
+        return None, Response(
+            {
+                'error': (
+                    'Remove company_id from the query string; '
+                    'company scope comes from the access token only.'
+                ),
+            },
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+    company_id = getattr(request.user, 'company_id', None)
+    if company_id is None:
+        return None, Response(
+            {'error': 'Missing company_id in access token.'},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+    return int(company_id), None
+
+
+@extend_schema_view(
+    get=extend_schema(
+        tags=['platform-metrics'],
+        summary='Prometheus metrics (staff or company owner)',
+        description=(
+            'Prometheus text exposition for the company in the Bearer token '
+            '(JWT or PAT must include a `company_id` claim). Do not send `company_id` as a query parameter.'
+        ),
+        responses={
+            200: OpenApiResponse(description='text/plain Prometheus exposition'),
+            400: OpenApiResponse(
+                description='Missing company_id in token, or company_id was sent in the query string'
+            ),
+            401: OpenApiResponse(description='Missing or invalid Bearer token'),
+            403: OpenApiResponse(description='Forbidden'),
+        },
+    ),
+)
+class HostingMetricsView(APIView):
+    permission_classes = [IsAuthenticatedPrincipal]
+    renderer_classes = [PrometheusTextRenderer]
+
+    def get(self, request):
+        user = request.user
+        if not (getattr(user, 'is_staff', False) or getattr(user, 'is_company_owner', False)):
+            return Response({'error': 'Forbidden'}, status=status.HTTP_403_FORBIDDEN)
+        company_id, err = _metrics_company_from_token(request)
+        if err:
+            return err
+        return HttpResponse(
+            hosting_metrics.metrics_http_body(company_id=company_id),
+            content_type=hosting_metrics.METRICS_CONTENT_TYPE,
+        )
+
+
+@extend_schema_view(
+    get=extend_schema(
+        tags=['platform-metrics'],
+        summary='Prometheus metrics for all companies (staff)',
+        description=(
+            'Global Prometheus text exposition across all companies. Requires a Django staff user '
+            'or a PAT created by staff with `access_global_metrics` (JWT claim `pat_agm`).'
+        ),
+        responses={
+            200: OpenApiResponse(description='text/plain Prometheus exposition'),
+            401: OpenApiResponse(description='Missing or invalid Bearer token'),
+            403: OpenApiResponse(description='Forbidden (not staff and no global-metrics PAT)'),
+        },
+    ),
+)
+class HostingGlobalMetricsView(APIView):
+    permission_classes = [IsAuthenticatedPrincipal]
+    renderer_classes = [PrometheusTextRenderer]
+
+    def get(self, request):
+        user = request.user
+        if getattr(user, 'is_staff', False) or getattr(user, 'access_global_metrics', False):
+            return HttpResponse(
+                hosting_metrics.metrics_http_body(),
+                content_type=hosting_metrics.METRICS_CONTENT_TYPE,
+            )
+        return Response({'error': 'Forbidden'}, status=status.HTTP_403_FORBIDDEN)
