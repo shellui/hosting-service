@@ -1,6 +1,6 @@
 # Publish and deploy
 
-How to build, publish, and run the `shellui/hosting-service` Docker image on [Docker Hub](https://hub.docker.com/r/shellui/hosting-service).
+How to build, publish, and run the `shellui/hosting-service` Docker image on [Docker Hub](https://hub.docker.com/u/shellui) (repository created on first push).
 
 Publishing is **manual** — there is no CI workflow for Docker Hub yet.
 
