@@ -7,9 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-### Added
-- Apex marketing landing: Shellui wordmark (shellui.ai-style), deploy-ready copy with `shellui login` / `shellui deploy` example, and `/llms.txt` overview for agents.
+### 🛠 Improvements
 
+- Faster hosted-app serving (#4): one storage round-trip per file (no exists-before-open), skip `index.html` existence checks for static assets, short in-process slug→App cache (`HOSTING_SERVE_CACHE_TTL_SECONDS`, default 45, auto-cleared on deploy), and long-lived `immutable` Cache-Control for content-hashed assets (Vite-style `name-hash.ext`).
+- Apex marketing landing: Shellui wordmark (shellui.ai-style), deploy-ready copy with `shellui login` / `shellui deploy` example, and `/llms.txt` overview for agents.
 
 ### ✨ Feature
 

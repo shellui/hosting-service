@@ -81,6 +81,16 @@ In `DEBUG`, `HOSTING_ALLOW_ANY_HOST` defaults to **on** (`ALLOWED_HOSTS` include
 
 The deployment API stays at `http://localhost:8002/hosting/v1/`. Browsable apps are at `http://{site_slug}.shellui.local:8002/` (or any domain you point at the server).
 
+### Hosted-app serve performance (defaults)
+
+Serving stays **local-friendly**: filesystem or S3, no Redis/CDN required.
+
+- `HOSTING_SERVE_CACHE_TTL_SECONDS` (default `45`) — in-process cache of slug→App lookups; set `0` to disable. Cleared automatically when a deploy is finalized.
+- Content-hashed assets (`main-D9ih21to.js`) get `Cache-Control: public, max-age=31536000, immutable`. HTML stays `no-cache`. Other static assets get a day-scale `max-age`.
+- Static asset requests skip an extra storage HEAD on `index.html`.
+
+A CDN or signed S3 redirects can still be added later for edge latency; this keeps the default path easy to run and reason about.
+
 ### 4. Deploy from a shellui project
 
 In your shellui repo (with `hosting.url` in config):
@@ -120,7 +130,9 @@ To redeploy later, add the slug to config:
 | `HOSTING_ALLOW_ANY_HOST` | When `true` (default in `DEBUG`), accept any `Host` header — useful with `/etc/hosts` |
 | `HOSTING_PREVIEW_TTL_DAYS` | Preview site lifetime in days (default `7`) |
 | `HOSTING_DEBUG_OPEN` | Skip company waitlist (auto-on when `DEBUG=true`) |
+| `HOSTING_SERVE_CACHE_TTL_SECONDS` | In-process slug→App cache TTL for hosted-app serving (default `45`; `0` disables). Cleared on deploy finalize |
 | `ROOT_REDIRECT_URL` | Optional absolute URL; when set, apex `/` responds with **301**. **Unset on shellui.app** to show the Hosting landing (website/docs links). Does not affect `{slug}.*` app serving |
+
 
 **Local:**
 
