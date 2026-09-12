@@ -4,6 +4,7 @@ from django.contrib.auth import get_user_model
 from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError
 from django.db import IntegrityError, transaction
+from django.http import HttpResponse
 from django.shortcuts import redirect, render
 from django.urls import reverse
 
@@ -103,3 +104,45 @@ def root(request):
         'ai_url': getattr(settings, 'SHELLUI_AI_URL', 'https://shellui.ai'),
     }
     return render(request, 'home.html', context)
+
+
+LLMS_TXT = """# shellui.app
+
+> Shellui Hosting - deploy Shellui apps to stable HTTPS subdomains on *.shellui.app.
+
+## What this is
+shellui.app is the hosting surface for the Shellui platform. Build with the Shellui CLI, log in, deploy, and get a public URL such as https://my-app.shellui.app. Products run inside the shell; this host handles public URLs, previews, and delivery.
+
+## Quick start
+```
+shellui login
+shellui deploy
+```
+
+Optimistic result:
+```
+Logged in as you@example.com
+Uploading build…
+Deployed https://my-app.shellui.app
+```
+
+## Related
+- Product site: https://shellui.com
+- Docs: https://docs.shellui.com
+- Playground: https://playground.shellui.com
+- Agent bootstrap: https://shellui.ai
+- Source: https://github.com/shellui
+- This overview: https://shellui.app/llms.txt
+"""
+
+
+def llms_txt(request):
+    """Machine-readable overview of shellui.app for agents and tools."""
+    from apps.hosting.hosts import slug_from_host
+    from apps.hosting.serve import AppServeView
+
+    if slug_from_host(request.get_host()):
+        return AppServeView.as_view()(request, path='llms.txt')
+
+    return HttpResponse(LLMS_TXT, content_type='text/plain; charset=utf-8')
+

@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{% if show_setup_form %}Setup · {% endif %}Shellui Hosting</title>
-  <meta name="description" content="Deploy and serve Shellui apps on shellui.app — the hosting surface for the Shellui platform.">
+  <meta name="description" content="Deploy Shellui apps on shellui.app - login, deploy, and get a stable HTTPS URL on *.shellui.app.">
   <style>
     :root {
       color-scheme: light;
@@ -21,6 +21,8 @@
       --nav-bg: rgba(255,255,255,0.8);
       --code-bg: #111827;
       --code-fg: rgba(255,255,255,0.9);
+      --code-muted: rgba(255,255,255,0.45);
+      --code-ok: #86efac;
       --danger: #b91c1c;
       --danger-bg: #fef2f2;
       --danger-border: #fecaca;
@@ -60,10 +62,10 @@
       font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
       background: var(--bg);
       color: var(--text);
-      antialiased: true;
     }
     a { color: var(--primary); text-decoration: none; }
     a:hover { text-decoration: underline; text-underline-offset: 2px; }
+    .logo-sprite { position: absolute; width: 0; height: 0; overflow: hidden; }
     header {
       position: fixed; inset: 0 0 auto 0; z-index: 50;
       border-bottom: 1px solid var(--border);
@@ -80,9 +82,17 @@
       justify-content: space-between;
       gap: 1rem;
     }
-    .brand { display: inline-flex; align-items: center; gap: 0.5rem; color: inherit; text-decoration: none; font-size: 0.875rem; }
+    .brand {
+      display: inline-flex; align-items: center; gap: 0.5rem;
+      color: inherit; text-decoration: none; font-size: 0.875rem;
+    }
     .brand:hover { text-decoration: none; }
-    .brand .dot { color: var(--faint); }
+    .brand .logo-wordmark { height: 1.25rem; width: auto; display: block; color: inherit; }
+    .brand .label .dot { color: var(--faint); }
+    .brand-label-sm { display: none; }
+    @media (min-width: 640px) {
+      .brand-label-sm { display: inline; }
+    }
     .nav-links { display: flex; align-items: center; gap: 1rem; flex-wrap: wrap; justify-content: flex-end; }
     .nav-links a { color: var(--muted); font-size: 0.875rem; font-weight: 500; text-decoration: none; }
     .nav-links a:hover { color: var(--text); text-decoration: none; }
@@ -105,6 +115,23 @@
     .steps { margin: 0; padding: 0; list-style: none; display: grid; gap: 1.25rem; color: var(--muted); font-size: 0.875rem; line-height: 1.6; }
     .steps strong { color: var(--text); font-weight: 500; }
     code { color: var(--primary); font-size: 0.85em; }
+    .terminal {
+      margin-top: 1.25rem;
+      border: 1px solid var(--card-border);
+      border-radius: 0.875rem;
+      background: var(--code-bg);
+      color: var(--code-fg);
+      padding: 1rem 1.1rem;
+      overflow-x: auto;
+      font-size: 0.8125rem;
+      line-height: 1.65;
+    }
+    .terminal .prompt { color: var(--code-muted); user-select: none; }
+    .terminal .cmd { color: var(--code-fg); }
+    .terminal .out { color: var(--code-muted); }
+    .terminal .ok { color: var(--code-ok); }
+    .terminal .url { color: var(--primary); }
+    .terminal .gap { height: 0.75rem; }
     .panel {
       margin-top: 3rem;
       border: 1px solid var(--card-border);
@@ -128,7 +155,6 @@
     .foot a { color: var(--muted); text-decoration: none; }
     .foot a:hover { color: var(--text); }
     .tiny { margin-top: 1.5rem; font-size: 0.75rem; color: var(--faint); }
-    /* setup form */
     .card-setup {
       width: min(100%, 28rem); margin: 0 auto;
       border: 1px solid var(--card-border); background: var(--bg);
@@ -161,9 +187,6 @@
       border: 1px solid var(--success-border); background: var(--success-bg); color: var(--success-text);
       border-radius: 0.625rem; padding: 0.7rem 0.8rem; margin-bottom: 1rem; font-size: 0.92rem;
     }
-    .links { margin: 0.8rem 0 0; padding-left: 1.1rem; color: var(--muted); font-size: 0.9rem; }
-    .links a { color: var(--primary); }
-    /* view transition */
     ::view-transition-old(root), ::view-transition-new(root) {
       animation: none; mix-blend-mode: normal;
     }
@@ -192,10 +215,82 @@
   </script>
 </head>
 <body>
+<svg
+  xmlns="http://www.w3.org/2000/svg"
+  class="logo-sprite" width="0" height="0"
+  aria-hidden="true"
+  focusable="false"
+>
+  <symbol id="logo-shellui" viewBox="0 0 1650 495">
+    <g transform="matrix(1.34616,0,0,1.34616,-615.084,-417.712)">
+      <g transform="matrix(400,0,0,400,469.334,647.493)">
+        <path
+          fill="currentColor"
+          fill-rule="nonzero"
+          d="M0.459,-0.162C0.459,-0.125 0.45,-0.094 0.433,-0.068C0.415,-0.043 0.389,-0.023 0.355,-0.01C0.32,0.003 0.278,0.01 0.226,0.01C0.188,0.01 0.155,0.007 0.128,0.002C0.101,-0.002 0.074,-0.011 0.046,-0.022L0.046,-0.145C0.076,-0.132 0.107,-0.121 0.141,-0.112C0.175,-0.103 0.205,-0.099 0.231,-0.099C0.26,-0.099 0.281,-0.103 0.293,-0.112C0.306,-0.121 0.312,-0.132 0.312,-0.146C0.312,-0.155 0.309,-0.163 0.304,-0.171C0.299,-0.178 0.289,-0.186 0.272,-0.196C0.255,-0.205 0.229,-0.217 0.194,-0.232C0.16,-0.246 0.132,-0.261 0.11,-0.275C0.088,-0.29 0.071,-0.307 0.061,-0.327C0.05,-0.347 0.045,-0.373 0.045,-0.404C0.045,-0.454 0.065,-0.492 0.104,-0.518C0.143,-0.543 0.195,-0.556 0.261,-0.556C0.295,-0.556 0.327,-0.553 0.358,-0.546C0.389,-0.539 0.421,-0.528 0.453,-0.513L0.408,-0.406C0.381,-0.417 0.356,-0.427 0.332,-0.435C0.308,-0.442 0.284,-0.446 0.259,-0.446C0.237,-0.446 0.221,-0.443 0.209,-0.437C0.198,-0.431 0.193,-0.422 0.193,-0.41C0.193,-0.401 0.196,-0.394 0.201,-0.387C0.207,-0.38 0.218,-0.372 0.235,-0.364C0.251,-0.356 0.275,-0.345 0.307,-0.332C0.338,-0.319 0.365,-0.306 0.388,-0.292C0.41,-0.278 0.428,-0.261 0.44,-0.241C0.453,-0.221 0.459,-0.194 0.459,-0.162Z"
+        />
+      </g>
+      <g transform="matrix(400,0,0,400,648.962,647.493)">
+        <path
+          fill="currentColor"
+          fill-rule="nonzero"
+          d="M0.227,-0.76L0.227,-0.605C0.227,-0.578 0.226,-0.552 0.224,-0.528C0.223,-0.503 0.221,-0.486 0.22,-0.476L0.228,-0.476C0.24,-0.495 0.254,-0.51 0.27,-0.522C0.286,-0.534 0.304,-0.542 0.323,-0.548C0.343,-0.553 0.364,-0.556 0.386,-0.556C0.426,-0.556 0.46,-0.549 0.489,-0.535C0.519,-0.522 0.541,-0.5 0.558,-0.47C0.574,-0.441 0.582,-0.403 0.582,-0.356L0.582,-0L0.433,-0L0.433,-0.319C0.433,-0.358 0.426,-0.387 0.412,-0.407C0.397,-0.427 0.375,-0.437 0.345,-0.437C0.315,-0.437 0.292,-0.43 0.274,-0.416C0.257,-0.402 0.245,-0.382 0.238,-0.355C0.231,-0.328 0.227,-0.296 0.227,-0.257L0.227,-0L0.078,-0L0.078,-0.76L0.227,-0.76Z"
+        />
+      </g>
+      <g transform="matrix(400,0,0,400,892.653,647.493)">
+        <path
+          fill="currentColor"
+          fill-rule="nonzero"
+          d="M0.303,-0.556C0.354,-0.556 0.397,-0.546 0.434,-0.527C0.47,-0.508 0.498,-0.48 0.518,-0.443C0.538,-0.406 0.548,-0.361 0.548,-0.308L0.548,-0.236L0.196,-0.236C0.197,-0.194 0.21,-0.161 0.234,-0.137C0.257,-0.113 0.29,-0.101 0.332,-0.101C0.367,-0.101 0.399,-0.105 0.428,-0.112C0.457,-0.119 0.486,-0.13 0.517,-0.144L0.517,-0.029C0.49,-0.015 0.462,-0.006 0.432,0C0.403,0.007 0.367,0.01 0.325,0.01C0.271,0.01 0.222,-0 0.18,-0.021C0.138,-0.041 0.105,-0.071 0.081,-0.113C0.057,-0.154 0.045,-0.206 0.045,-0.269C0.045,-0.333 0.056,-0.386 0.077,-0.428C0.099,-0.471 0.129,-0.503 0.168,-0.524C0.207,-0.545 0.252,-0.556 0.303,-0.556ZM0.304,-0.45C0.275,-0.45 0.251,-0.441 0.232,-0.422C0.213,-0.404 0.202,-0.375 0.199,-0.335L0.408,-0.335C0.408,-0.357 0.404,-0.377 0.396,-0.394C0.389,-0.411 0.377,-0.425 0.362,-0.435C0.347,-0.445 0.328,-0.45 0.304,-0.45Z"
+        />
+      </g>
+      <g transform="matrix(400,0,0,400,1109.78,647.493)">
+        <rect x="0.078" y="-0.76" width="0.149" height="0.76" fill="currentColor" fill-rule="nonzero" />
+      </g>
+      <g transform="matrix(400,0,0,400,1212.65,647.493)">
+        <rect x="0.078" y="-0.76" width="0.149" height="0.76" fill="currentColor" fill-rule="nonzero" />
+      </g>
+      <g transform="matrix(400,0,0,400,1315.52,647.493)">
+        <path
+          fill="currentColor"
+          fill-rule="nonzero"
+          d="M0.579,-0.546L0.579,-0L0.465,-0L0.445,-0.07L0.437,-0.07C0.425,-0.051 0.411,-0.036 0.393,-0.024C0.375,-0.013 0.356,-0.004 0.335,0.001C0.314,0.007 0.292,0.01 0.269,0.01C0.23,0.01 0.196,0.003 0.167,-0.011C0.138,-0.025 0.115,-0.046 0.099,-0.076C0.083,-0.105 0.075,-0.143 0.075,-0.19L0.075,-0.546L0.224,-0.546L0.224,-0.227C0.224,-0.188 0.231,-0.159 0.245,-0.139C0.259,-0.119 0.281,-0.109 0.312,-0.109C0.342,-0.109 0.366,-0.116 0.383,-0.13C0.401,-0.143 0.413,-0.164 0.42,-0.191C0.427,-0.218 0.43,-0.25 0.43,-0.289L0.43,-0.546L0.579,-0.546Z"
+        />
+      </g>
+      <g transform="matrix(400,0,0,400,1559.21,647.493)">
+        <path
+          fill="currentColor"
+          fill-rule="nonzero"
+          d="M0.227,-0.546L0.227,-0L0.078,-0L0.078,-0.546L0.227,-0.546ZM0.153,-0.76C0.175,-0.76 0.194,-0.755 0.21,-0.744C0.226,-0.734 0.234,-0.715 0.234,-0.687C0.234,-0.659 0.226,-0.64 0.21,-0.63C0.194,-0.619 0.175,-0.614 0.153,-0.614C0.13,-0.614 0.111,-0.619 0.095,-0.63C0.08,-0.64 0.072,-0.659 0.072,-0.687C0.072,-0.715 0.08,-0.734 0.095,-0.744C0.111,-0.755 0.13,-0.76 0.153,-0.76Z"
+        />
+      </g>
+    </g>
+  </symbol>
+  <symbol id="logo-shellui-mark" viewBox="0 0 1080 1080">
+    <g transform="matrix(1.28904,0,0,1.26641,-101.377,-56.7975)">
+      <path
+        fill="currentColor"
+        fill-rule="nonzero"
+        d="M509,202C493,202 478,207 461,221L338,340C316,361 305,382 305,407C305,433 315,458 333,480C350,500 373,516 393,517C397,518 401,517 405,513L656,263C670,249 677,238 678,226C679,216 676,209 671,205C667,203 662,202 654,202L509,202Z"
+      />
+    </g>
+    <g transform="matrix(1.28904,0,0,1.26641,-101.377,-56.7975)">
+      <path
+        fill="currentColor"
+        fill-rule="nonzero"
+        d="M599,419C586,422 575,431 562,444L320,695C312,703 308,711 310,720C312,732 320,739 331,740L482,740C500,740 513,736 526,725L646,607C670,584 683,559 687,531C690,506 684,480 672,460C661,439 645,425 628,420C618,417 608,417 599,419Z"
+      />
+    </g>
+  </symbol>
+</svg>
+
   <header>
     <nav aria-label="Global">
       <a class="brand" href="/" aria-label="shellui.app">
-        <span>shellui<span class="dot">.app</span></span>
+        <svg class="logo-wordmark" viewBox="0 0 1650 495" role="img" aria-hidden="true">
+          <use href="#logo-shellui"></use>
+        </svg>
+        <span class="brand-label-sm label"><span>shellui</span><span class="dot">.app</span></span>
       </a>
       <div class="nav-links">
         <a href="{{ website_url }}" target="_blank" rel="noopener noreferrer">Website</a>
@@ -258,16 +353,30 @@
       <p class="eyebrow">shellui.app</p>
       <h1>Host your <span class="accent">Shellui</span> apps</h1>
       <p class="lede">
-        shellui.app is Shellui Hosting — deploy a build and serve it on a stable subdomain.
+        shellui.app is Shellui Hosting - deploy a build and serve it on a stable subdomain.
         Your products run inside the shell; we handle the public URL, previews, and delivery.
       </p>
 
       <section class="section">
+        <h2>Deploy</h2>
+        <p class="lede" style="margin-top:0">
+          Log in once, then deploy. You get a real HTTPS origin on <code>*.shellui.app</code>.
+        </p>
+        <pre class="terminal" aria-label="Example shellui login and deploy"><code><span class="prompt">$</span> <span class="cmd">shellui login</span>
+<span class="out">Logged in as you@example.com</span>
+
+<span class="prompt">$</span> <span class="cmd">shellui deploy</span>
+<span class="out">Uploading build…</span>
+<span class="ok">Deployed</span> <span class="url">https://my-app.shellui.app</span>
+</code></pre>
+      </section>
+
+      <section class="section">
         <h2>How it fits</h2>
         <ol class="steps">
-          <li><strong>1. Build with Shellui</strong> — configure the shell, then <code>shellui build</code> (and soon <code>shellui deploy</code>).</li>
-          <li><strong>2. Deploy here</strong> — each app gets a slug on <code>*.shellui.app</code>.</li>
-          <li><strong>3. Share the URL</strong> — teammates and agents hit a real HTTPS origin, not a laptop port.</li>
+          <li><strong>1. Build with Shellui</strong> - configure the shell, then <code>shellui build</code>.</li>
+          <li><strong>2. Login and deploy</strong> - <code>shellui login</code>, then <code>shellui deploy</code> to a slug on <code>*.shellui.app</code>.</li>
+          <li><strong>3. Share the URL</strong> - teammates and agents hit a real HTTPS origin, not a laptop port.</li>
         </ol>
       </section>
 
@@ -275,7 +384,8 @@
         <h2>For humans and agents</h2>
         <p class="lede" style="margin-top:0">
           Prefer docs and the product site for the full story. Agents can bootstrap via
-          <a href="{{ ai_url }}" target="_blank" rel="noopener noreferrer">shellui.ai</a>.
+          <a href="{{ ai_url }}" target="_blank" rel="noopener noreferrer">shellui.ai</a>,
+          and read <a href="/llms.txt">llms.txt</a> for a short machine-readable overview of this host.
         </p>
       </section>
 
@@ -306,8 +416,8 @@
   <footer>
     <div class="foot">
       <div>
-        <div>shellui.app — Shellui Hosting</div>
-        <div class="tiny"><a href="{{ schema_url }}">OpenAPI</a> · v{{ version }}</div>
+        <div>shellui.app - Shellui Hosting</div>
+        <div class="tiny"><a href="{{ schema_url }}">OpenAPI</a> · v{{ version }} · <a href="/llms.txt">llms.txt</a></div>
       </div>
       <nav>
         <a href="{{ website_url }}" target="_blank" rel="noopener noreferrer">Website</a>

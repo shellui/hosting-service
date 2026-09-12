@@ -20,6 +20,7 @@ from . import views
 
 urlpatterns = [
     path('', views.root, name='root'),
+    path('llms.txt', views.llms_txt, name='llms_txt'),
     path('admin/', admin.site.urls),
     path('hosting/v1/', include('apps.hosting.urls')),
     path('api/schema/', SpectacularAPIView.as_view(), name='schema'),
@@ -36,7 +37,7 @@ urlpatterns = [
     # Fallback for app hosts if middleware is disabled. Excludes platform prefixes
     # so apex hosts keep admin / API / static on the URLConf above.
     re_path(
-        r'^(?!hosting(?:/|$)|api(?:/|$)|admin(?:/|$)|static(?:/|$)|media(?:/|$))(?P<path>.*)$',
+        r'^(?!hosting(?:/|$)|api(?:/|$)|admin(?:/|$)|static(?:/|$)|media(?:/|$)|llms\\.txt$)(?P<path>.*)$',
         AppServeView.as_view(),
         name='hosting-app-serve',
     ),
