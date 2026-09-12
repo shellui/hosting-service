@@ -66,4 +66,6 @@ class RootViewTests(TestCase):
         body = response.content.decode()
         self.assertIn('shellui.app', body)
         self.assertIn('shellui deploy', body)
+        self.assertIn('Example CLI output', body)
+        self.assertNotIn('Optimistic', body)
 
