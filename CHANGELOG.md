@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### 🛠 Improvements
+
+- Faster hosted-app serving (#4): one storage round-trip per file (no exists-before-open), skip `index.html` existence checks for static assets, short in-process slug→App cache (`HOSTING_SERVE_CACHE_TTL_SECONDS`, default 45, auto-cleared on deploy), and long-lived `immutable` Cache-Control for content-hashed assets (Vite-style `name-hash.ext`).
+
 ## [0.2.1] - 2026-09-07
 
 ### ✨ Feature
