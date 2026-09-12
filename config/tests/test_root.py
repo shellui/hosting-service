@@ -56,7 +56,8 @@ class RootViewTests(TestCase):
         self.assertIn('logo-shellui', body)
         self.assertIn('shellui login', body)
         self.assertIn('shellui deploy', body)
-        self.assertIn('https://my-app.shellui.app', body)
+        self.assertIn('https://q8n4m2xk7wph.shellui.app/', body)
+        self.assertIn('q8n4m2xk7wph', body)
         self.assertNotIn('soon', body.lower())
 
     def test_llms_txt_available_on_apex(self):

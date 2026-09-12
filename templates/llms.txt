@@ -3,7 +3,7 @@
 > Shellui Hosting - deploy Shellui apps to stable HTTPS subdomains on *.shellui.app.
 
 ## What this is
-shellui.app is the hosting surface for the Shellui platform. Build with the Shellui CLI, log in, deploy, and get a public URL such as https://my-app.shellui.app. Products run inside the shell; this host handles public URLs, previews, and delivery.
+shellui.app is the hosting surface for the Shellui platform. Build with the Shellui CLI, log in, deploy, and get a public URL such as https://q8n4m2xk7wph.shellui.app. Products run inside the shell; this host handles public URLs, previews, and delivery.
 
 ## Quick start
 ```
@@ -15,7 +15,8 @@ Example CLI output:
 ```
 Logged in as you@example.com
 Uploading build…
-Deployed https://my-app.shellui.app
+Deployed
+q8n4m2xk7wph https://q8n4m2xk7wph.shellui.app/
 ```
 
 ## Related
