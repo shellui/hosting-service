@@ -1,210 +1,352 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" class="h-full">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Shellui Hosting</title>
+  <title>{% if show_setup_form %}Setup · {% endif %}Shellui Hosting</title>
+  <meta name="description" content="Deploy and serve Shellui apps on shellui.app — the hosting surface for the Shellui platform.">
   <style>
     :root {
       color-scheme: light;
-      --bg: #fafafa;
-      --card: #ffffff;
+      --bg: #ffffff;
+      --bg-muted: #f9fafb;
       --text: #111827;
-      --muted: #6b7280;
-      --border: #e5e7eb;
-      --focus: #111827;
+      --muted: #4b5563;
+      --faint: #9ca3af;
+      --border: rgba(229, 231, 235, 0.8);
+      --card: #f9fafb;
+      --card-border: #e5e7eb;
+      --primary: #e3a512;
+      --primary-ink: #c4920a;
+      --nav-bg: rgba(255,255,255,0.8);
+      --code-bg: #111827;
+      --code-fg: rgba(255,255,255,0.9);
       --danger: #b91c1c;
+      --danger-bg: #fef2f2;
+      --danger-border: #fecaca;
       --success-bg: #f0fdf4;
       --success-border: #86efac;
+      --success-text: #166534;
+      --input-bg: #fff;
+      --btn: #111827;
+      --btn-hover: #1f2937;
+    }
+    html.dark {
+      color-scheme: dark;
+      --bg: #030712;
+      --bg-muted: rgba(17, 24, 39, 0.5);
+      --text: #f9fafb;
+      --muted: #9ca3af;
+      --faint: #6b7280;
+      --border: rgba(31, 41, 55, 0.8);
+      --card: rgba(17, 24, 39, 0.4);
+      --card-border: #1f2937;
+      --primary: #e8b84a;
+      --primary-ink: #e8b84a;
+      --nav-bg: rgba(3, 7, 18, 0.8);
+      --code-bg: #111827;
+      --code-fg: rgba(255,255,255,0.9);
+      --input-bg: #111827;
+      --btn: #f9fafb;
+      --btn-hover: #e5e7eb;
+      --btn-fg: #111827;
     }
     * { box-sizing: border-box; }
     body {
       margin: 0;
-      font-family: Inter, ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
-      background: var(--bg);
-      color: var(--text);
       min-height: 100vh;
       display: flex;
       flex-direction: column;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      background: var(--bg);
+      color: var(--text);
+      antialiased: true;
     }
-    .page {
-      flex: 1;
-      display: grid;
-      place-items: center;
-      padding: 2rem 1rem;
+    a { color: var(--primary); text-decoration: none; }
+    a:hover { text-decoration: underline; text-underline-offset: 2px; }
+    header {
+      position: fixed; inset: 0 0 auto 0; z-index: 50;
+      border-bottom: 1px solid var(--border);
+      background: var(--nav-bg);
+      backdrop-filter: blur(12px);
     }
-    .card {
-      width: min(100%, 480px);
+    nav {
+      max-width: 48rem;
+      margin: 0 auto;
+      height: 4rem;
+      padding: 0 1rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+    }
+    .brand { display: inline-flex; align-items: center; gap: 0.5rem; color: inherit; text-decoration: none; font-size: 0.875rem; }
+    .brand:hover { text-decoration: none; }
+    .brand .dot { color: var(--faint); }
+    .nav-links { display: flex; align-items: center; gap: 1rem; flex-wrap: wrap; justify-content: flex-end; }
+    .nav-links a { color: var(--muted); font-size: 0.875rem; font-weight: 500; text-decoration: none; }
+    .nav-links a:hover { color: var(--text); text-decoration: none; }
+    .theme-toggle {
+      border: 0; background: transparent; cursor: pointer;
+      border-radius: 0.5rem; padding: 0.5rem; color: var(--muted);
+    }
+    .theme-toggle:hover { background: var(--card); color: var(--text); }
+    .theme-toggle svg { width: 1.25rem; height: 1.25rem; display: block; }
+    html.dark .icon-sun { display: none; }
+    html:not(.dark) .icon-moon { display: none; }
+    main { flex: 1; padding: 7rem 1rem 3rem; }
+    .wrap { max-width: 48rem; margin: 0 auto; }
+    .eyebrow { font-size: 0.75rem; font-weight: 500; letter-spacing: 0.06em; text-transform: uppercase; color: var(--primary); margin: 0 0 1rem; }
+    h1 { margin: 0; font-size: clamp(1.75rem, 4vw, 2.25rem); font-weight: 500; letter-spacing: -0.02em; line-height: 1.2; }
+    h1 .accent { color: var(--primary); }
+    .lede { margin: 1.5rem 0 0; max-width: 36rem; color: var(--muted); font-size: 1rem; line-height: 1.6; }
+    h2 { margin: 0 0 0.75rem; font-size: 1.25rem; font-weight: 500; letter-spacing: -0.01em; }
+    .section { margin-top: 3rem; }
+    .steps { margin: 0; padding: 0; list-style: none; display: grid; gap: 1.25rem; color: var(--muted); font-size: 0.875rem; line-height: 1.6; }
+    .steps strong { color: var(--text); font-weight: 500; }
+    code { color: var(--primary); font-size: 0.85em; }
+    .panel {
+      margin-top: 3rem;
+      border: 1px solid var(--card-border);
       background: var(--card);
-      border: 1px solid var(--border);
-      border-radius: 14px;
-      box-shadow: 0 1px 2px rgba(17, 24, 39, 0.04);
+      border-radius: 1rem;
       padding: 1.5rem;
     }
-    h1 {
-      margin: 0 0 0.5rem;
-      font-size: 1.3rem;
-      font-weight: 700;
-      letter-spacing: -0.01em;
+    .panel p { margin: 0.75rem 0 0; color: var(--muted); font-size: 0.875rem; line-height: 1.6; }
+    footer {
+      border-top: 1px solid var(--border);
+      background: var(--bg-muted);
+      padding: 2rem 1rem;
     }
-    p {
-      margin: 0 0 1rem;
-      color: var(--muted);
-      line-height: 1.5;
+    .foot {
+      max-width: 48rem; margin: 0 auto;
+      display: flex; flex-wrap: wrap; gap: 1rem 1.5rem;
+      justify-content: space-between; align-items: flex-start;
+      font-size: 0.875rem; color: var(--muted);
     }
-    .row {
-      display: grid;
-      gap: 0.35rem;
-      margin-bottom: 0.8rem;
+    .foot nav { display: flex; flex-wrap: wrap; gap: 0.75rem 1.25rem; height: auto; padding: 0; }
+    .foot a { color: var(--muted); text-decoration: none; }
+    .foot a:hover { color: var(--text); }
+    .tiny { margin-top: 1.5rem; font-size: 0.75rem; color: var(--faint); }
+    /* setup form */
+    .card-setup {
+      width: min(100%, 28rem); margin: 0 auto;
+      border: 1px solid var(--card-border); background: var(--bg);
+      border-radius: 0.875rem; padding: 1.5rem;
+      box-shadow: 0 1px 2px rgba(17,24,39,0.04);
     }
-    label {
-      font-size: 0.85rem;
-      font-weight: 600;
-    }
+    .card-setup h1 { font-size: 1.25rem; }
+    .card-setup p { color: var(--muted); line-height: 1.5; margin: 0 0 1rem; font-size: 0.9rem; }
+    .row { display: grid; gap: 0.35rem; margin-bottom: 0.8rem; }
+    label { font-size: 0.85rem; font-weight: 600; }
     input {
-      width: 100%;
-      border: 1px solid var(--border);
-      border-radius: 10px;
-      padding: 0.62rem 0.72rem;
-      font-size: 0.95rem;
-      outline: none;
-      transition: border-color 0.15s ease, box-shadow 0.15s ease;
-      background: #fff;
+      width: 100%; border: 1px solid var(--card-border); border-radius: 0.625rem;
+      padding: 0.62rem 0.72rem; font-size: 0.95rem; outline: none;
+      background: var(--input-bg); color: var(--text);
+      font-family: inherit;
     }
-    input:focus {
-      border-color: var(--focus);
-      box-shadow: 0 0 0 3px rgba(17, 24, 39, 0.08);
-    }
+    input:focus { border-color: var(--text); box-shadow: 0 0 0 3px rgba(227,165,18,0.2); }
     .button {
-      width: 100%;
-      border: 0;
-      border-radius: 10px;
-      padding: 0.72rem 0.9rem;
-      font-size: 0.95rem;
-      font-weight: 600;
-      background: #111827;
-      color: #fff;
-      cursor: pointer;
+      width: 100%; border: 0; border-radius: 0.625rem; padding: 0.72rem 0.9rem;
+      font-size: 0.95rem; font-weight: 600; cursor: pointer;
+      background: var(--btn); color: #fff; font-family: inherit;
     }
-    .button:hover { background: #1f2937; }
+    html.dark .button { color: var(--btn-fg, #111827); }
+    .button:hover { background: var(--btn-hover); }
     .errors {
-      border: 1px solid #fecaca;
-      background: #fef2f2;
-      color: var(--danger);
-      border-radius: 10px;
-      padding: 0.7rem 0.8rem;
-      margin-bottom: 0.9rem;
-      font-size: 0.9rem;
+      border: 1px solid var(--danger-border); background: var(--danger-bg); color: var(--danger);
+      border-radius: 0.625rem; padding: 0.7rem 0.8rem; margin-bottom: 0.9rem; font-size: 0.9rem;
     }
     .success {
-      border: 1px solid var(--success-border);
-      background: var(--success-bg);
-      border-radius: 10px;
-      padding: 0.7rem 0.8rem;
-      margin-bottom: 1rem;
-      font-size: 0.92rem;
-      color: #166534;
+      border: 1px solid var(--success-border); background: var(--success-bg); color: var(--success-text);
+      border-radius: 0.625rem; padding: 0.7rem 0.8rem; margin-bottom: 1rem; font-size: 0.92rem;
     }
-    .links {
-      margin-top: 0.8rem;
-      padding-left: 1.1rem;
+    .links { margin: 0.8rem 0 0; padding-left: 1.1rem; color: var(--muted); font-size: 0.9rem; }
+    .links a { color: var(--primary); }
+    /* view transition */
+    ::view-transition-old(root), ::view-transition-new(root) {
+      animation: none; mix-blend-mode: normal;
     }
-    .links li { margin: 0.35rem 0; }
-    a { color: #1d4ed8; text-decoration: none; }
-    a:hover { text-decoration: underline; }
-    .tiny { font-size: 0.82rem; color: var(--muted); margin-top: 0.8rem; }
-    .site-footer {
-      padding: 0.6rem 1rem 1rem;
-      text-align: center;
-      font-size: 0.72rem;
-      color: #9ca3af;
-      letter-spacing: 0.01em;
+    ::view-transition-old(root) { z-index: 0; }
+    ::view-transition-new(root) {
+      z-index: 1;
+      animation: theme-reveal 0.4s ease-in-out forwards;
     }
-    .site-footer a {
-      color: inherit;
-      text-decoration: none;
+    @keyframes theme-reveal {
+      from { clip-path: circle(0% at var(--x, 50%) var(--y, 50%)); opacity: 0.7; }
+      to { clip-path: circle(150% at var(--x, 50%) var(--y, 50%)); opacity: 1; }
     }
-    .site-footer a:hover {
-      color: var(--muted);
-      text-decoration: underline;
+    @media (prefers-reduced-motion: reduce) {
+      ::view-transition-old(root), ::view-transition-new(root) { animation: none !important; }
     }
-    .site-footer .sep {
-      margin: 0 0.4rem;
-      opacity: 0.65;
+    @media (max-width: 640px) {
+      .hide-sm { display: none; }
     }
   </style>
+  <script>
+    (function () {
+      var stored = localStorage.getItem("theme");
+      var theme = stored || (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+      if (theme === "dark") document.documentElement.classList.add("dark");
+    })();
+  </script>
 </head>
 <body>
-  <div class="page">
-  <main class="card">
-    <h1>Shellui Hosting</h1>
+  <header>
+    <nav aria-label="Global">
+      <a class="brand" href="/" aria-label="shellui.app">
+        <span>shellui<span class="dot">.app</span></span>
+      </a>
+      <div class="nav-links">
+        <a href="{{ website_url }}" target="_blank" rel="noopener noreferrer">Website</a>
+        <a href="{{ docs_url }}" target="_blank" rel="noopener noreferrer">Docs</a>
+        <a class="hide-sm" href="{{ playground_url }}" target="_blank" rel="noopener noreferrer">Playground</a>
+        <a href="{{ github_url }}" target="_blank" rel="noopener noreferrer">GitHub</a>
+        <button type="button" class="theme-toggle" aria-label="Toggle dark mode">
+          <svg class="icon-sun" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+          </svg>
+          <svg class="icon-moon" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+          </svg>
+        </button>
+      </div>
+    </nav>
+  </header>
+
+  <main>
     {% if show_setup_form %}
-      <p>Create the initial administrator account. This setup is available only once and disappears permanently after the first user is created.</p>
-
-      {% if form.non_field_errors %}
-        <div class="errors">
-          {% for error in form.non_field_errors %}
-            <div>{{ error }}</div>
-          {% endfor %}
-        </div>
-      {% endif %}
-
-      <form method="post" novalidate>
-        {% csrf_token %}
-        <div class="row">
-          <label for="{{ form.username.id_for_label }}">Username</label>
-          {{ form.username }}
-          {% if form.username.errors %}
-            <div class="errors">
-              {% for error in form.username.errors %}<div>{{ error }}</div>{% endfor %}
-            </div>
-          {% endif %}
-        </div>
-        <div class="row">
-          <label for="{{ form.email.id_for_label }}">Email (optional)</label>
-          {{ form.email }}
-          {% if form.email.errors %}
-            <div class="errors">
-              {% for error in form.email.errors %}<div>{{ error }}</div>{% endfor %}
-            </div>
-          {% endif %}
-        </div>
-        <div class="row">
-          <label for="{{ form.password.id_for_label }}">Password</label>
-          {{ form.password }}
-          {% if form.password.errors %}
-            <div class="errors">
-              {% for error in form.password.errors %}<div>{{ error }}</div>{% endfor %}
-            </div>
-          {% endif %}
-        </div>
-        <div class="row">
-          <label for="{{ form.password_confirm.id_for_label }}">Confirm password</label>
-          {{ form.password_confirm }}
-          {% if form.password_confirm.errors %}
-            <div class="errors">
-              {% for error in form.password_confirm.errors %}<div>{{ error }}</div>{% endfor %}
-            </div>
-          {% endif %}
-        </div>
-        <button type="submit" class="button">Create superuser</button>
-      </form>
-      <p class="tiny">Tip: Use a long passphrase. Django password policy is enforced here.</p>
+    <div class="wrap">
+      <div class="card-setup">
+        <h1>Shellui Hosting setup</h1>
+        <p>Create the initial administrator account. This setup is available only once and disappears permanently after the first user is created.</p>
+        {% if form.non_field_errors %}
+          <div class="errors">{% for error in form.non_field_errors %}<div>{{ error }}</div>{% endfor %}</div>
+        {% endif %}
+        <form method="post" novalidate>
+          {% csrf_token %}
+          <div class="row">
+            <label for="{{ form.username.id_for_label }}">Username</label>
+            {{ form.username }}
+            {% if form.username.errors %}<div class="errors">{% for error in form.username.errors %}<div>{{ error }}</div>{% endfor %}</div>{% endif %}
+          </div>
+          <div class="row">
+            <label for="{{ form.email.id_for_label }}">Email (optional)</label>
+            {{ form.email }}
+            {% if form.email.errors %}<div class="errors">{% for error in form.email.errors %}<div>{{ error }}</div>{% endfor %}</div>{% endif %}
+          </div>
+          <div class="row">
+            <label for="{{ form.password.id_for_label }}">Password</label>
+            {{ form.password }}
+            {% if form.password.errors %}<div class="errors">{% for error in form.password.errors %}<div>{{ error }}</div>{% endfor %}</div>{% endif %}
+          </div>
+          <div class="row">
+            <label for="{{ form.password_confirm.id_for_label }}">Confirm password</label>
+            {{ form.password_confirm }}
+            {% if form.password_confirm.errors %}<div class="errors">{% for error in form.password_confirm.errors %}<div>{{ error }}</div>{% endfor %}</div>{% endif %}
+          </div>
+          <button type="submit" class="button">Create superuser</button>
+        </form>
+        <p class="tiny">Tip: Use a long passphrase. Django password policy is enforced here.</p>
+      </div>
+    </div>
     {% else %}
+    <div class="wrap">
       {% if setup_done %}
         <div class="success">Initial user created successfully. Setup is now locked.</div>
       {% endif %}
-      <p>Static app hosting for Shellui. Explore the API documentation using:</p>
-      <ul class="links">
-        <li><a href="{{ admin_url }}">Django admin</a></li>
-        <li><a href="{{ swagger_url }}">Swagger UI</a></li>
-        <li><a href="{{ redoc_url }}">ReDoc</a></li>
-      </ul>
+      <p class="eyebrow">shellui.app</p>
+      <h1>Host your <span class="accent">Shellui</span> apps</h1>
+      <p class="lede">
+        shellui.app is Shellui Hosting — deploy a build and serve it on a stable subdomain.
+        Your products run inside the shell; we handle the public URL, previews, and delivery.
+      </p>
+
+      <section class="section">
+        <h2>How it fits</h2>
+        <ol class="steps">
+          <li><strong>1. Build with Shellui</strong> — configure the shell, then <code>shellui build</code> (and soon <code>shellui deploy</code>).</li>
+          <li><strong>2. Deploy here</strong> — each app gets a slug on <code>*.shellui.app</code>.</li>
+          <li><strong>3. Share the URL</strong> — teammates and agents hit a real HTTPS origin, not a laptop port.</li>
+        </ol>
+      </section>
+
+      <section class="section">
+        <h2>For humans and agents</h2>
+        <p class="lede" style="margin-top:0">
+          Prefer docs and the product site for the full story. Agents can bootstrap via
+          <a href="{{ ai_url }}" target="_blank" rel="noopener noreferrer">shellui.ai</a>.
+        </p>
+      </section>
+
+      <div class="panel">
+        <h2>Explore</h2>
+        <p>
+          <a href="{{ website_url }}" target="_blank" rel="noopener noreferrer">Website</a>
+          ·
+          <a href="{{ docs_url }}" target="_blank" rel="noopener noreferrer">Documentation</a>
+          ·
+          <a href="{{ playground_url }}" target="_blank" rel="noopener noreferrer">Playground</a>
+          ·
+          <a href="{{ github_url }}" target="_blank" rel="noopener noreferrer">GitHub</a>
+        </p>
+        <p style="margin-top:1rem">
+          Platform ops on this host:
+          <a href="{{ admin_url }}">Admin</a>
+          ·
+          <a href="{{ swagger_url }}">API docs</a>
+          ·
+          <a href="{{ redoc_url }}">ReDoc</a>
+        </p>
+      </div>
+    </div>
     {% endif %}
   </main>
-  </div>
-  <footer class="site-footer">
-    <a href="{{ schema_url }}">OpenAPI</a><span class="sep">·</span>v{{ version }}
+
+  <footer>
+    <div class="foot">
+      <div>
+        <div>shellui.app — Shellui Hosting</div>
+        <div class="tiny"><a href="{{ schema_url }}">OpenAPI</a> · v{{ version }}</div>
+      </div>
+      <nav>
+        <a href="{{ website_url }}" target="_blank" rel="noopener noreferrer">Website</a>
+        <a href="{{ docs_url }}" target="_blank" rel="noopener noreferrer">Docs</a>
+        <a href="{{ playground_url }}" target="_blank" rel="noopener noreferrer">Playground</a>
+        <a href="{{ github_url }}" target="_blank" rel="noopener noreferrer">GitHub</a>
+        <a href="{{ ai_url }}" target="_blank" rel="noopener noreferrer">shellui.ai</a>
+      </nav>
+    </div>
   </footer>
+
+  <script>
+    (function () {
+      var html = document.documentElement;
+      var toggles = document.querySelectorAll(".theme-toggle");
+      function applyTheme(mode) {
+        var isDark = mode === "dark";
+        html.classList.toggle("dark", isDark);
+        localStorage.setItem("theme", mode);
+        toggles.forEach(function (toggle) {
+          toggle.setAttribute("aria-label", isDark ? "Switch to light mode" : "Switch to dark mode");
+        });
+      }
+      function setTheme(theme, event) {
+        var prefersReduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+        var apply = function () { applyTheme(theme); };
+        if (!document.startViewTransition || prefersReduced) { apply(); return; }
+        if (event) {
+          html.style.setProperty("--x", event.clientX + "px");
+          html.style.setProperty("--y", event.clientY + "px");
+        }
+        document.startViewTransition(apply);
+      }
+      toggles.forEach(function (toggle) {
+        toggle.addEventListener("click", function (event) {
+          setTheme(html.classList.contains("dark") ? "light" : "dark", event);
+        });
+      });
+    })();
+  </script>
 </body>
 </html>

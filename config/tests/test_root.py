@@ -36,3 +36,11 @@ class RootViewTests(TestCase):
         self.assertIn(response.status_code, {200, 302})
         if response.status_code == 302:
             self.assertIn('/admin/', response['Location'])
+
+    def test_root_landing_includes_product_links(self):
+        response = self.client.get('/')
+        self.assertEqual(response.status_code, 200)
+        body = response.content.decode()
+        self.assertIn('https://shellui.com', body)
+        self.assertIn('https://docs.shellui.com', body)
+        self.assertIn('shellui.app', body)

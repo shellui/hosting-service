@@ -96,5 +96,10 @@ def root(request):
         'admin_url': reverse('admin:index'),
         'version': settings.VERSION,
         'setup_done': request.GET.get('setup') == 'done',
+        'website_url': getattr(settings, 'SHELLUI_WEBSITE_URL', 'https://shellui.com'),
+        'docs_url': getattr(settings, 'SHELLUI_DOCS_URL', 'https://docs.shellui.com'),
+        'playground_url': getattr(settings, 'SHELLUI_PLAYGROUND_URL', 'https://playground.shellui.com'),
+        'github_url': getattr(settings, 'SHELLUI_GITHUB_URL', 'https://github.com/shellui'),
+        'ai_url': getattr(settings, 'SHELLUI_AI_URL', 'https://shellui.ai'),
     }
     return render(request, 'home.html', context)
