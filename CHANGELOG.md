@@ -5,6 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Added
+- Apex marketing landing: Shellui wordmark (shellui.ai-style), deploy-ready copy with `shellui login` / `shellui deploy` example, and `/llms.txt` overview for agents.
+
+
+### ✨ Feature
+
+- Apex landing page for `shellui.app` (shellui.ai-style UI, light/dark toggle, links to website / docs / playground / GitHub / shellui.ai). Leave `ROOT_REDIRECT_URL` empty to use it instead of redirecting to shellui.com.
+
+### 📚 Documentation
+
+- Clarify that `ROOT_REDIRECT_URL` is optional; unset it on the public hosting apex to show the new landing.
+
 ## [0.2.1] - 2026-09-07
 
 ### ✨ Feature

@@ -36,3 +36,37 @@ class RootViewTests(TestCase):
         self.assertIn(response.status_code, {200, 302})
         if response.status_code == 302:
             self.assertIn('/admin/', response['Location'])
+
+    def test_root_landing_includes_product_links(self):
+        response = self.client.get('/')
+        self.assertEqual(response.status_code, 200)
+        body = response.content.decode()
+        self.assertIn('https://shellui.com', body)
+        self.assertIn('https://docs.shellui.com', body)
+        self.assertIn('shellui.app', body)
+
+
+    def test_root_landing_shows_deploy_ready_copy_and_logo(self):
+        from django.contrib.auth import get_user_model
+
+        get_user_model().objects.create_superuser('admin', 'a@b.co', 'test-pass-12345')
+        response = self.client.get('/')
+        self.assertEqual(response.status_code, 200)
+        body = response.content.decode()
+        self.assertIn('logo-shellui', body)
+        self.assertIn('shellui login', body)
+        self.assertIn('shellui deploy', body)
+        self.assertIn('https://q8n4m2xk7wph.shellui.app/', body)
+        self.assertIn('q8n4m2xk7wph', body)
+        self.assertNotIn('soon', body.lower())
+
+    def test_llms_txt_available_on_apex(self):
+        response = self.client.get('/llms.txt')
+        self.assertEqual(response.status_code, 200)
+        self.assertIn('text/plain', response['Content-Type'])
+        body = response.content.decode()
+        self.assertIn('shellui.app', body)
+        self.assertIn('shellui deploy', body)
+        self.assertIn('Example CLI output', body)
+        self.assertNotIn('Optimistic', body)
+
