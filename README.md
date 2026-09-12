@@ -131,7 +131,8 @@ To redeploy later, add the slug to config:
 | `HOSTING_PREVIEW_TTL_DAYS` | Preview site lifetime in days (default `7`) |
 | `HOSTING_DEBUG_OPEN` | Skip company waitlist (auto-on when `DEBUG=true`) |
 | `HOSTING_SERVE_CACHE_TTL_SECONDS` | In-process slug→App cache TTL for hosted-app serving (default `45`; `0` disables). Cleared on deploy finalize |
-| `ROOT_REDIRECT_URL` | Optional absolute URL; when set, apex `/` responds with **301** (e.g. `https://shellui.com`). Unset → landing page. Does not affect `{slug}.*` app serving |
+| `ROOT_REDIRECT_URL` | Optional absolute URL; when set, apex `/` responds with **301**. **Unset on shellui.app** to show the Hosting landing (website/docs links). Does not affect `{slug}.*` app serving |
+
 
 **Local:**
 

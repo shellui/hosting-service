@@ -432,6 +432,16 @@ HOSTING_SERVE_CACHE_TTL_SECONDS = _env_int('HOSTING_SERVE_CACHE_TTL_SECONDS', 45
 # Does not affect hosted-app subdomain serving (e.g. `{slug}.shellui.app`).
 ROOT_REDIRECT_URL = os.getenv('ROOT_REDIRECT_URL', '').strip() or None
 
+# Public product links shown on the apex landing (shellui.app).
+SHELLUI_WEBSITE_URL = os.getenv('SHELLUI_WEBSITE_URL', 'https://shellui.com').strip() or 'https://shellui.com'
+SHELLUI_DOCS_URL = os.getenv('SHELLUI_DOCS_URL', 'https://docs.shellui.com').strip() or 'https://docs.shellui.com'
+SHELLUI_PLAYGROUND_URL = (
+    os.getenv('SHELLUI_PLAYGROUND_URL', 'https://playground.shellui.com').strip()
+    or 'https://playground.shellui.com'
+)
+SHELLUI_GITHUB_URL = os.getenv('SHELLUI_GITHUB_URL', 'https://github.com/shellui').strip() or 'https://github.com/shellui'
+SHELLUI_AI_URL = os.getenv('SHELLUI_AI_URL', 'https://shellui.ai').strip() or 'https://shellui.ai'
+
 # Public browsable app URLs ({slug}.{HOSTING_APP_DOMAIN} — domain is canonical for API links only)
 HOSTING_APP_DOMAIN = os.getenv('HOSTING_APP_DOMAIN', '').strip().lstrip('.')
 if not HOSTING_APP_DOMAIN:
