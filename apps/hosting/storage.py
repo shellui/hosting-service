@@ -71,13 +71,18 @@ def _delete_filesystem_tree(normalized_key: str) -> None:
 
 
 def open_extracted_file(deployment, relative_path: str):
+    """Open an extracted file in one storage round-trip (no exists-before-open).
+
+    Returns ``None`` when the object is missing or is a directory. Prefer this
+    over ``exists()`` + ``open()`` on S3 (that pattern costs an extra HEAD).
+    """
     key = extracted_file_key(deployment, relative_path)
-    if not default_storage.exists(key):
-        return None
     try:
         return default_storage.open(key, 'rb')
+    except FileNotFoundError:
+        return None
     except IsADirectoryError:
-        # FileSystemStorage.exists() is true for directories created by route folders.
+        # FileSystemStorage can open a directory path as a false positive.
         return None
     except OSError:
         return None

@@ -143,3 +143,72 @@ class ServeIntegrationTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertNotEqual(response.get('X-Frame-Options'), 'DENY')
         self.assertNotEqual(response.get('X-Frame-Options'), 'SAMEORIGIN')
+
+    def test_hashed_asset_cache_control_immutable(self):
+        tarball = _make_site_tarball(
+            extra_files={
+                'assets/main-D9ih21to.js': 'console.log("hashed")',
+                'favicon.svg': '<svg></svg>',
+            }
+        )
+        deployment = create_deployment(
+            app=self.app,
+            app_version='1.0.1',
+            shellui_version='0.5.0',
+            deployed_by_id=1,
+        )
+        upload_deployment_artifact(
+            deployment=deployment,
+            fileobj=io.BytesIO(tarball),
+            content_length=len(tarball),
+        )
+        finalize_deployment(deployment=deployment)
+
+        hashed = self.client.get('/assets/main-D9ih21to.js', HTTP_HOST=self.app_host)
+        self.assertEqual(hashed.status_code, 200)
+        self.assertEqual(
+            hashed['Cache-Control'],
+            'public, max-age=31536000, immutable',
+        )
+        self.assertIn(b'hashed', self._body(hashed))
+
+        plain = self.client.get('/favicon.svg', HTTP_HOST=self.app_host)
+        self.assertEqual(plain.status_code, 200)
+        self.assertEqual(plain['Cache-Control'], 'public, max-age=86400')
+
+        html = self.client.get('/', HTTP_HOST=self.app_host)
+        self.assertEqual(html.status_code, 200)
+        self.assertEqual(html['Cache-Control'], 'no-cache')
+
+    def test_static_asset_skips_index_existence_check(self):
+        from unittest import mock
+
+        with mock.patch('apps.hosting.serve.extracted_index_exists') as mock_exists:
+            response = self.client.get('/assets/app.js', HTTP_HOST=self.app_host)
+            self.assertEqual(response.status_code, 200)
+            self.assertIn(b'console.log(1)', self._body(response))
+            mock_exists.assert_not_called()
+
+        missing = self.client.get('/assets/missing.js', HTTP_HOST=self.app_host)
+        self.assertEqual(missing.status_code, 404)
+
+    def test_html_route_still_checks_index_existence(self):
+        from unittest import mock
+
+        with mock.patch(
+            'apps.hosting.serve.extracted_index_exists',
+            return_value=True,
+        ) as mock_exists:
+            response = self.client.get('/', HTTP_HOST=self.app_host)
+            self.assertEqual(response.status_code, 200)
+            mock_exists.assert_called()
+
+    def test_serve_cache_survives_repeat_lookups(self):
+        from apps.hosting.serve import invalidate_serve_cache
+
+        invalidate_serve_cache()
+        first = self.client.get('/assets/app.js', HTTP_HOST=self.app_host)
+        second = self.client.get('/assets/app.js', HTTP_HOST=self.app_host)
+        self.assertEqual(first.status_code, 200)
+        self.assertEqual(second.status_code, 200)
+        self.assertIn(b'console.log(1)', self._body(second))
