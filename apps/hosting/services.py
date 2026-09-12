@@ -455,6 +455,10 @@ def finalize_deployment(*, deployment: Deployment) -> Deployment:
     app.current_deployment = deployment
     renew_preview_expiry(app)
     app.save(update_fields=['current_deployment', 'updated_at'])
+    # Serve path caches App by slug; drop it so the next request sees this deploy.
+    from .serve import invalidate_serve_cache
+
+    invalidate_serve_cache(app.slug)
     return deployment
 
 
@@ -483,6 +487,10 @@ def rollback_deployment(*, deployment: Deployment) -> Deployment:
     deployment.save(update_fields=['status', 'finalized_at', 'updated_at'])
     app.current_deployment = deployment
     app.save(update_fields=['current_deployment', 'updated_at'])
+    # Serve path caches App by slug; drop it so the next request sees this deploy.
+    from .serve import invalidate_serve_cache
+
+    invalidate_serve_cache(app.slug)
     return deployment
 
 

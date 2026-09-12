@@ -96,5 +96,26 @@ def root(request):
         'admin_url': reverse('admin:index'),
         'version': settings.VERSION,
         'setup_done': request.GET.get('setup') == 'done',
+        'website_url': getattr(settings, 'SHELLUI_WEBSITE_URL', 'https://shellui.com'),
+        'docs_url': getattr(settings, 'SHELLUI_DOCS_URL', 'https://docs.shellui.com'),
+        'playground_url': getattr(settings, 'SHELLUI_PLAYGROUND_URL', 'https://playground.shellui.com'),
+        'github_url': getattr(settings, 'SHELLUI_GITHUB_URL', 'https://github.com/shellui'),
+        'ai_url': getattr(settings, 'SHELLUI_AI_URL', 'https://shellui.ai'),
     }
     return render(request, 'home.html', context)
+
+
+def llms_txt(request):
+    """Machine-readable overview of shellui.app for agents and tools."""
+    from apps.hosting.hosts import slug_from_host
+    from apps.hosting.serve import AppServeView
+
+    if slug_from_host(request.get_host()):
+        return AppServeView.as_view()(request, path='llms.txt')
+
+    return render(
+        request,
+        'llms.txt',
+        content_type='text/plain; charset=utf-8',
+    )
+

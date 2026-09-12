@@ -424,9 +424,23 @@ HOSTING_MAX_DEPLOYMENTS_PER_APP = _env_int('HOSTING_MAX_DEPLOYMENTS_PER_APP', 20
 HOSTING_MAX_UPLOAD_BYTES = _env_bytes('HOSTING_MAX_UPLOAD_BYTES', 100 * 1024**2)
 HOSTING_PREVIEW_TTL_DAYS = _env_int('HOSTING_PREVIEW_TTL_DAYS', 7)
 
+# In-process cache for hosted-app slug → App lookups (no Redis). 0 disables.
+# Invalidated automatically on deploy finalize. Safe default for local + prod.
+HOSTING_SERVE_CACHE_TTL_SECONDS = _env_int('HOSTING_SERVE_CACHE_TTL_SECONDS', 45)
+
 # Optional 301 target for the apex landing page (`/`). Unset → render home.html.
 # Does not affect hosted-app subdomain serving (e.g. `{slug}.shellui.app`).
 ROOT_REDIRECT_URL = os.getenv('ROOT_REDIRECT_URL', '').strip() or None
+
+# Public product links shown on the apex landing (shellui.app).
+SHELLUI_WEBSITE_URL = os.getenv('SHELLUI_WEBSITE_URL', 'https://shellui.com').strip() or 'https://shellui.com'
+SHELLUI_DOCS_URL = os.getenv('SHELLUI_DOCS_URL', 'https://docs.shellui.com').strip() or 'https://docs.shellui.com'
+SHELLUI_PLAYGROUND_URL = (
+    os.getenv('SHELLUI_PLAYGROUND_URL', 'https://playground.shellui.com').strip()
+    or 'https://playground.shellui.com'
+)
+SHELLUI_GITHUB_URL = os.getenv('SHELLUI_GITHUB_URL', 'https://github.com/shellui').strip() or 'https://github.com/shellui'
+SHELLUI_AI_URL = os.getenv('SHELLUI_AI_URL', 'https://shellui.ai').strip() or 'https://shellui.ai'
 
 # Public browsable app URLs ({slug}.{HOSTING_APP_DOMAIN} — domain is canonical for API links only)
 HOSTING_APP_DOMAIN = os.getenv('HOSTING_APP_DOMAIN', '').strip().lstrip('.')

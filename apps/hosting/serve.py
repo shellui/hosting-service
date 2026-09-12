@@ -3,8 +3,12 @@
 from __future__ import annotations
 
 import mimetypes
+import re
+import threading
+import time
 from pathlib import PurePosixPath
 
+from django.conf import settings
 from django.http import FileResponse, Http404
 from django.shortcuts import render
 from django.utils.decorators import method_decorator
@@ -47,6 +51,9 @@ _ASSET_EXTENSIONS = frozenset(
     }
 )
 
+# Vite/Rollup-style content hashes: main-D9ih21to.js, chunk-a1b2c3d4.css
+_HASHED_FILENAME = re.compile(r'^.+-[A-Za-z0-9]{6,}\.[A-Za-z0-9]+$')
+
 _SITE_MESSAGES = {
     'not_found': (
         'This site is unavailable',
@@ -61,6 +68,60 @@ _SITE_MESSAGES = {
         'Nothing is published at this address yet, or the deployment is no longer available.',
     ),
 }
+
+# In-process slug → App cache (no Redis). TTL 0 disables. Cleared on deploy finalize.
+_serve_cache_lock = threading.Lock()
+_serve_cache: dict[str, tuple[float, App]] = {}  # slug → (expires_monotonic, app)
+
+
+def _serve_cache_ttl() -> float:
+    try:
+        return float(getattr(settings, 'HOSTING_SERVE_CACHE_TTL_SECONDS', 45) or 0)
+    except (TypeError, ValueError):
+        return 45.0
+
+
+def invalidate_serve_cache(slug: str | None = None) -> None:
+    """Drop cached serve lookups. Called after deploy finalize (and for tests)."""
+    with _serve_cache_lock:
+        if slug is None:
+            _serve_cache.clear()
+            return
+        _serve_cache.pop(slug, None)
+
+
+def _cache_get_app(slug: str) -> App | None:
+    ttl = _serve_cache_ttl()
+    if ttl <= 0:
+        return None
+    now = time.monotonic()
+    with _serve_cache_lock:
+        hit = _serve_cache.get(slug)
+        if not hit:
+            return None
+        expires, app = hit
+        if expires <= now:
+            _serve_cache.pop(slug, None)
+            return None
+        return app
+
+
+def _cache_set_app(slug: str, app: App) -> None:
+    ttl = _serve_cache_ttl()
+    if ttl <= 0:
+        return
+    with _serve_cache_lock:
+        _serve_cache[slug] = (time.monotonic() + ttl, app)
+
+
+def _load_app(slug: str) -> App | None:
+    cached = _cache_get_app(slug)
+    if cached is not None:
+        return cached
+    app = App.objects.select_related('current_deployment').filter(slug=slug).first()
+    if app is not None:
+        _cache_set_app(slug, app)
+    return app
 
 
 def _resolve_deployment(app: App) -> Deployment | None:
@@ -82,14 +143,33 @@ def _looks_like_static_asset(relative_path: str) -> bool:
     return ext in _ASSET_EXTENSIONS
 
 
-def _pick_file(deployment, path: str) -> str:
+def _is_immutable_asset(relative_path: str) -> bool:
+    """True for content-hashed static filenames (safe for long-lived cache)."""
+    if not _looks_like_static_asset(relative_path):
+        return False
+    name = PurePosixPath(relative_path).name
+    return bool(_HASHED_FILENAME.match(name))
+
+
+def _cache_control_for(relative_path: str) -> str:
+    if relative_path.endswith('.html'):
+        return 'no-cache'
+    if _is_immutable_asset(relative_path):
+        return 'public, max-age=31536000, immutable'
+    # Non-hashed static (favicon.svg, etc.): day-scale is enough and stays simple.
+    return 'public, max-age=86400'
+
+
+def _pick_file(deployment, path: str) -> tuple[str, object]:
     """
-    Resolve a request path to an extracted file.
+    Resolve a request path to an extracted file handle.
 
     Order:
     1. Exact file
     2. ``{path}/index.html`` (directory-style routes from the shellui build)
     3. ``404.html`` then ``index.html`` for SPA client-side routing refreshes
+
+    Opens each candidate once (no exists-before-open). Returns ``(rel, handle)``.
     """
     rel = (path or '').lstrip('/')
     candidates: list[str] = []
@@ -109,21 +189,16 @@ def _pick_file(deployment, path: str) -> str:
         if not candidate or candidate in seen:
             continue
         seen.add(candidate)
-        if open_extracted_file(deployment, candidate) is not None:
-            return candidate
+        handle = open_extracted_file(deployment, candidate)
+        if handle is not None:
+            return candidate, handle
     raise Http404('File not found')
 
 
-def _file_response(deployment, relative_path: str) -> FileResponse:
-    handle = open_extracted_file(deployment, relative_path)
-    if handle is None:
-        raise Http404('File not found')
+def _file_response(relative_path: str, handle) -> FileResponse:
     content_type, _ = mimetypes.guess_type(relative_path)
     response = FileResponse(handle, content_type=content_type or 'application/octet-stream')
-    if relative_path.endswith('.html'):
-        response['Cache-Control'] = 'no-cache'
-    else:
-        response['Cache-Control'] = 'public, max-age=3600'
+    response['Cache-Control'] = _cache_control_for(relative_path)
     # Shellui Settings (and other shells) embed hosted apps in iframes.
     response.xframe_options_exempt = True
     response.headers.pop('X-Frame-Options', None)
@@ -159,13 +234,26 @@ class AppServeView(View):
         slug = slug_from_host(request.get_host())
         if not slug:
             return site_unavailable_response(request, reason='not_found')
-        app = App.objects.filter(slug=slug).first()
+        app = _load_app(slug)
         if app is None:
             return site_unavailable_response(request, reason='not_found')
         if is_preview_expired(app):
             return site_unavailable_response(request, reason='expired')
         deployment = _resolve_deployment(app)
-        if deployment is None or not extracted_index_exists(deployment):
+        if deployment is None:
             return site_unavailable_response(request, reason='unavailable')
-        rel = _pick_file(deployment, path)
-        return _file_response(deployment, rel)
+
+        rel_path = (path or '').lstrip('/')
+        # Static assets: skip S3 HEAD on index.html; missing file stays hard 404.
+        if rel_path and _looks_like_static_asset(rel_path):
+            handle = open_extracted_file(deployment, rel_path)
+            if handle is None:
+                raise Http404('File not found')
+            return _file_response(rel_path, handle)
+
+        # HTML / SPA routes: ensure the deployment actually has an index once.
+        if not extracted_index_exists(deployment):
+            return site_unavailable_response(request, reason='unavailable')
+
+        rel, handle = _pick_file(deployment, path)
+        return _file_response(rel, handle)
