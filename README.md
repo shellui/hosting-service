@@ -155,6 +155,9 @@ See `.env.example` for all settings. Key quotas:
 - `HOSTING_MAX_APPS_PER_COMPANY` (default `5`)
 - `HOSTING_MAX_DEPLOYMENTS_PER_APP` (default `20`)
 - `HOSTING_MAX_UPLOAD_BYTES` (default `100M`)
+- `HOSTING_MAX_EXTRACT_FILES` (default `5000`) — max regular files extracted from an artifact
+- `HOSTING_MAX_EXTRACT_BYTES` (default `500M`) — max total uncompressed bytes extracted
+- `HOSTING_MAX_EXTRACT_FILE_BYTES` (default same as upload cap) — max size per extracted file
 
 Identity OAuth redirect sync (so `shellui deploy` sites can log in without manual allowlist edits):
 

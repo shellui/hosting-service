@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### 🔒 Security
+
+- Tar extract resource caps (max files, total uncompressed bytes, per-file size) with atomic rollback on violation; hardened member path validation (`normpath`, reject `..` components).
+- Static AppServe rejects literal and URL-encoded path traversal before opening storage.
+
 ## [0.3.0] - 2026-09-12
 
 ### 🛠 Improvements

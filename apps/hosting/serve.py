@@ -16,6 +16,7 @@ from django.views import View
 from django.views.decorators.clickjacking import xframe_options_exempt
 
 from .hosts import slug_from_host
+from .paths import validate_serve_path
 from .models import App, Deployment, DeploymentStatus
 from .services import is_preview_expired
 from .storage import extracted_index_exists, open_extracted_file
@@ -171,7 +172,7 @@ def _pick_file(deployment, path: str) -> tuple[str, object]:
 
     Opens each candidate once (no exists-before-open). Returns ``(rel, handle)``.
     """
-    rel = (path or '').lstrip('/')
+    rel = validate_serve_path(path)
     candidates: list[str] = []
 
     if not rel or rel.endswith('/'):
@@ -243,7 +244,7 @@ class AppServeView(View):
         if deployment is None:
             return site_unavailable_response(request, reason='unavailable')
 
-        rel_path = (path or '').lstrip('/')
+        rel_path = validate_serve_path(path)
         # Static assets: skip S3 HEAD on index.html; missing file stays hard 404.
         if rel_path and _looks_like_static_asset(rel_path):
             handle = open_extracted_file(deployment, rel_path)
