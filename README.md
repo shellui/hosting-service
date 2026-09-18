@@ -57,6 +57,8 @@ uv run python manage.py migrate
 uv run python manage.py runserver 8002
 ```
 
+With `DEBUG=true` (local default), visiting `http://localhost:8002/` shows a one-time web form to create the first Django superuser when the user table is empty. In production (`DEBUG=false`), use `uv run python manage.py createsuperuser` instead, or set `SETUP_TOKEN` and open `/?setup_token=<token>` for a one-time web setup (same pattern as identity-service).
+
 Open `http://localhost:8002/` for Swagger / ReDoc. From Django Admin, Swagger pre-authorizes with the Shellui session access token (same flow as identity-service / storage-service).
 
 Waitlist approval is **staff-only** (`POST /hosting/v1/access` with `status=approved` or `denied`). Company owners can request access but cannot self-approve.
@@ -156,6 +158,9 @@ See `.env.example` for all settings. Key quotas:
 - `HOSTING_MAX_APPS_PER_COMPANY` (default `5`)
 - `HOSTING_MAX_DEPLOYMENTS_PER_APP` (default `20`)
 - `HOSTING_MAX_UPLOAD_BYTES` (default `100M`)
+- `HOSTING_MAX_EXTRACT_FILES` (default `5000`) — max regular files extracted from an artifact
+- `HOSTING_MAX_EXTRACT_BYTES` (default `500M`) — max total uncompressed bytes extracted
+- `HOSTING_MAX_EXTRACT_FILE_BYTES` (default same as upload cap) — max size per extracted file
 
 Identity OAuth redirect sync (so `shellui deploy` sites can log in without manual allowlist edits):
 
@@ -182,6 +187,15 @@ Pull requests **to `main`** also run the pre-release checklist ([`.github/workfl
 ## Releases (Docker Hub)
 
 See [PUBLISH.md](PUBLISH.md) for the pre-release checklist (automated via `./tools/pre-release-check.sh`), tagging, and deploy notes for `shellui/hosting-service`.
+
+After a production deploy, verify wiring with:
+
+```bash
+./tools/prod-config-check.sh https://hosting.example.com
+./tools/prod-config-check.sh https://hosting.example.com --slug <preview-slug>  # optional app-host smoke
+```
+
+Details and optional env vars are in [PUBLISH.md — Post-deploy production config check](PUBLISH.md#post-deploy-production-config-check).
 
 ## Docker
 

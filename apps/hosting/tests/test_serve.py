@@ -212,3 +212,15 @@ class ServeIntegrationTests(TestCase):
         self.assertEqual(first.status_code, 200)
         self.assertEqual(second.status_code, 200)
         self.assertIn(b'console.log(1)', self._body(second))
+
+    def test_serve_rejects_dotdot_traversal(self):
+        response = self.client.get('/../index.html', HTTP_HOST=self.app_host)
+        self.assertEqual(response.status_code, 404)
+
+    def test_serve_rejects_encoded_traversal(self):
+        response = self.client.get('/%2e%2e/index.html', HTTP_HOST=self.app_host)
+        self.assertEqual(response.status_code, 404)
+
+    def test_serve_rejects_backslash_traversal(self):
+        response = self.client.get('/assets\\..\\secret.js', HTTP_HOST=self.app_host)
+        self.assertEqual(response.status_code, 404)

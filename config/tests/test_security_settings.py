@@ -95,5 +95,10 @@ class AdminEnabledUrlTests(TestCase):
 
         reload(urls_module)
         clear_url_caches()
-        response = Client().get('/admin/')
-        self.assertEqual(response.status_code, 404)
+        try:
+            response = Client().get('/admin/')
+            self.assertEqual(response.status_code, 404)
+        finally:
+            with override_settings(DJANGO_ADMIN_ENABLED=True):
+                reload(urls_module)
+                clear_url_caches()

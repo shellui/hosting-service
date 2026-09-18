@@ -149,6 +149,26 @@ docker run -d \
 
 The entrypoint runs migrations on start, then starts Gunicorn on port 8000.
 
+### Post-deploy production config check
+
+After deploying a release, run the smoke script against the live HTTPS **platform** URL (API host — not every customer app subdomain):
+
+```bash
+./tools/prod-config-check.sh https://hosting.example.com
+./tools/prod-config-check.sh https://hosting.example.com --slug vpzzsxvzsmp7
+```
+
+The script prints explicit `PASS:` / `FAIL:` / `WARN:` / `INFO:` lines and exits non-zero if any hard check fails. It verifies HTTPS reachability, that protected `/hosting/v1/*` routes return 401/403 (not 500) without a Bearer token, public `/hosting/v1/health` and `/llms.txt`, that `/` is not an open superuser signup form, permissive CORS for preview origins, optional app-host smoke with `--slug` or `--app-host`, and security headers (HSTS warn-only).
+
+Optional environment:
+
+| Variable             | Default                                      |
+| -------------------- | -------------------------------------------- |
+| `HOSTING_APP_DOMAIN` | `shellui.app` (used with `--slug`)           |
+| `CORS_PROBE_ORIGIN`  | `https://example-preview-slug.shellui.app`   |
+
+Full JWT deploy/CLI flows cannot be verified without identity-service tokens — the script prints guidance for `IDENTITY_JWKS` / `IDENTITY_SERVICE_URL` and waitlist approval.
+
 ### Required runtime env vars (production)
 
 | Variable | Notes |
@@ -161,6 +181,8 @@ The entrypoint runs migrations on start, then starts Gunicorn on port 8000.
 | `HOSTING_BACKEND` | `filesystem` or S3 settings |
 | `HOSTING_DEBUG_OPEN` | Must be **unset** or `false` in production (startup fails if enabled with `DEBUG=false`) |
 
+Create the first Django superuser with `python manage.py createsuperuser` inside the container (or before first traffic). Do not rely on the public `/` bootstrap form in production — it is disabled when `DEBUG=false` unless you set a one-time `SETUP_TOKEN`.
+
 ### Optional runtime env vars
 
 | Variable | Notes |
@@ -171,6 +193,7 @@ The entrypoint runs migrations on start, then starts Gunicorn on port 8000.
 | `POSTGRES_SSL_REQUIRE` | Default `true` when `DEBUG=false`; set `false` for internal Postgres without TLS |
 | `IDENTITY_SERVICE_URL` | Enables OAuth redirect sync for preview origins on identity-service |
 | `ROOT_REDIRECT_URL` | Optional 301 for apex `/` |
+| `SETUP_TOKEN` | One-time token for web superuser bootstrap when `DEBUG=false` (`/?setup_token=<token>`) |
 | `POSTGRES_DATABASE_URL` | Use Postgres instead of SQLite |
 | `HOSTING_RATE_LIMIT_*` | Tune deploy/upload/delete rate limits — see `docs/security-hardening.md` |
 | `SENTRY_DSN` / `SENTRY_ENVIRONMENT` | Error reporting |

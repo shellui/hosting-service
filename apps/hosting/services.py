@@ -22,7 +22,7 @@ from .models import (
 )
 from .semver import SemVer
 from .slug import generate_public_slug, validate_app_name, validate_slug
-from .extract import extract_deployment_artifact
+from .extract import ExtractError, extract_deployment_artifact
 from .public_urls import build_app_url
 from .identity_redirects import (
     app_origin_for_sync,
@@ -443,6 +443,8 @@ def finalize_deployment(*, deployment: Deployment) -> Deployment:
         extract_deployment_artifact(deployment)
     except FileNotFoundError as exc:
         raise HostingError(str(exc), code='artifact_missing') from exc
+    except ExtractError as exc:
+        raise HostingError(str(exc), code='artifact_extract_failed') from exc
     app = deployment.app
     now = timezone.now()
     Deployment.objects.filter(app=app, status=DeploymentStatus.ACTIVE).exclude(id=deployment.id).update(

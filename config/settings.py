@@ -120,6 +120,8 @@ if not _secret_key:
 SECRET_KEY = _secret_key
 
 DEBUG = os.getenv('DEBUG', 'false').strip().lower() in {'1', 'true', 'yes', 'on'}
+# One-time web bootstrap token for creating the first superuser when DEBUG=false.
+SETUP_TOKEN = os.getenv('SETUP_TOKEN', '').strip()
 LOG_LEVEL = os.getenv('LOG_LEVEL', 'DEBUG' if DEBUG else 'INFO').strip().upper() or (
     'DEBUG' if DEBUG else 'INFO'
 )
@@ -434,6 +436,12 @@ JWT_ALGORITHMS = _env_csv('JWT_ALGORITHMS', ('RS256',))
 HOSTING_MAX_APPS_PER_COMPANY = _env_int('HOSTING_MAX_APPS_PER_COMPANY', 5)
 HOSTING_MAX_DEPLOYMENTS_PER_APP = _env_int('HOSTING_MAX_DEPLOYMENTS_PER_APP', 20)
 HOSTING_MAX_UPLOAD_BYTES = _env_bytes('HOSTING_MAX_UPLOAD_BYTES', 100 * 1024**2)
+HOSTING_MAX_EXTRACT_FILES = _env_int('HOSTING_MAX_EXTRACT_FILES', 5000)
+HOSTING_MAX_EXTRACT_BYTES = _env_bytes('HOSTING_MAX_EXTRACT_BYTES', 500 * 1024**2)
+HOSTING_MAX_EXTRACT_FILE_BYTES = _env_bytes(
+    'HOSTING_MAX_EXTRACT_FILE_BYTES',
+    HOSTING_MAX_UPLOAD_BYTES,
+)
 HOSTING_PREVIEW_TTL_DAYS = _env_int('HOSTING_PREVIEW_TTL_DAYS', 7)
 
 # In-process cache for hosted-app slug → App lookups (no Redis). 0 disables.
