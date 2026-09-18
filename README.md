@@ -187,14 +187,28 @@ Pull requests **to `main`** also run the pre-release checklist ([`.github/workfl
 
 See [PUBLISH.md](PUBLISH.md) for the pre-release checklist (automated via `./tools/pre-release-check.sh`), tagging, and deploy notes for `shellui/hosting-service`.
 
-After a production deploy, verify wiring with:
+### Post-deploy prod check
+
+After a production deploy, run [`tools/prod-config-check.sh`](tools/prod-config-check.sh) against the live **platform** URL — the apex or API host where `/hosting/v1/` lives (e.g. `https://shellui.app`), **not** a customer preview subdomain like `https://{slug}.shellui.app` alone.
 
 ```bash
-./tools/prod-config-check.sh https://hosting.example.com
-./tools/prod-config-check.sh https://hosting.example.com --slug <preview-slug>  # optional app-host smoke
+# From a checkout of hosting-service (develop/main)
+./tools/prod-config-check.sh https://shellui.app
+./tools/prod-config-check.sh https://shellui.app --slug YOUR_PREVIEW_SLUG
+
+# Or one-off without a full clone:
+curl -fsSL https://raw.githubusercontent.com/shellui/hosting-service/develop/tools/prod-config-check.sh -o prod-config-check.sh
+chmod +x prod-config-check.sh
+./prod-config-check.sh https://shellui.app
 ```
 
-Details and optional env vars are in [PUBLISH.md — Post-deploy production config check](PUBLISH.md#post-deploy-production-config-check).
+`--slug` is optional: it adds a smoke check that a hosted preview app responds on `{slug}.{HOSTING_APP_DOMAIN}`.
+
+The script prints `PASS:` / `FAIL:` / `WARN:` / `INFO:` lines and exits **0** when all hard checks pass, **non-zero** if any `FAIL:` occurs.
+
+**Coolify / internal Postgres:** if the container fails at boot with Postgres SSL errors against an internal Docker database, use `POSTGRES_SSL_REQUIRE=false` (same pattern as [identity-service](https://github.com/shellui/identity-service)); hosting defaults to non-SSL for `POSTGRES_DATABASE_URL` parsing.
+
+Full check list, optional env vars (`HOSTING_APP_DOMAIN`, `CORS_PROBE_ORIGIN`), and deploy context: [PUBLISH.md — Post-deploy production config check](PUBLISH.md#post-deploy-production-config-check).
 
 ## Docker
 

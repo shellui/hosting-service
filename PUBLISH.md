@@ -151,6 +151,8 @@ The entrypoint runs migrations on start, then starts Gunicorn on port 8000.
 
 ### Post-deploy production config check
 
+Quick copy-paste commands and exit-code notes: [README — Post-deploy prod check](README.md#post-deploy-prod-check).
+
 After deploying a release, run the smoke script against the live HTTPS **platform** URL (API host — not every customer app subdomain):
 
 ```bash
@@ -168,6 +170,8 @@ Optional environment:
 | `CORS_PROBE_ORIGIN`  | `https://example-preview-slug.shellui.app`   |
 
 Full JWT deploy/CLI flows cannot be verified without identity-service tokens — the script prints guidance for `IDENTITY_JWKS` / `IDENTITY_SERVICE_URL` and waitlist approval.
+
+**Coolify / internal Postgres:** if boot fails with SSL errors against an internal Docker Postgres, set `POSTGRES_SSL_REQUIRE=false` (same as identity-service). Hosting parses `POSTGRES_DATABASE_URL` with `ssl_require=false` by default; this env var matches identity when you need an explicit toggle in orchestration.
 
 ### Required runtime env vars (production)
 
