@@ -154,26 +154,33 @@ The entrypoint runs migrations on start, then starts Gunicorn on port 8000.
 | Variable | Notes |
 |----------|--------|
 | `SECRET_KEY` | Django sessions/CSRF |
-| `IDENTITY_JWKS` or `IDENTITY_JWKS_URL` / `IDENTITY_JWKS_FILE` | JWT verification material |
+| `IDENTITY_JWKS` or `IDENTITY_JWKS_FILE` | **Pinned** JWKS in production (`IDENTITY_JWKS_URL` fetch is dev-only) |
+| `IDENTITY_ISSUER` / `IDENTITY_AUDIENCE` | Required when `DEBUG=false` |
 | `HOSTING_APP_DOMAIN` | e.g. `shellui.app` (required when `DEBUG=false`) |
 | `ALLOWED_HOSTS` | Comma-separated hostnames |
 | `HOSTING_BACKEND` | `filesystem` or S3 settings |
-| `HOSTING_DEBUG_OPEN` | Must be **unset** or `false` in production (waitlist bypass is explicit opt-in only) |
+| `HOSTING_DEBUG_OPEN` | Must be **unset** or `false` in production (startup fails if enabled with `DEBUG=false`) |
 
 ### Optional runtime env vars
 
 | Variable | Notes |
 |----------|--------|
 | `CORS_ALLOW_ALL_ORIGINS` | Default `true` (Bearer JWT is the API auth boundary). Set `false` + `CORS_ALLOWED_ORIGINS` for lock-down. |
+| `CORS_ALLOW_CREDENTIALS` | Default `false`; must stay `false` when allow-all is on |
+| `DJANGO_ADMIN_ENABLED` | Set `false` to disable `/admin/` when unused |
+| `POSTGRES_SSL_REQUIRE` | Default `true` when `DEBUG=false`; set `false` for internal Postgres without TLS |
 | `IDENTITY_SERVICE_URL` | Enables OAuth redirect sync for preview origins on identity-service |
 | `ROOT_REDIRECT_URL` | Optional 301 for apex `/` |
 | `POSTGRES_DATABASE_URL` | Use Postgres instead of SQLite |
+| `HOSTING_RATE_LIMIT_*` | Tune deploy/upload/delete rate limits — see `docs/security-hardening.md` |
 | `SENTRY_DSN` / `SENTRY_ENVIRONMENT` | Error reporting |
 | `AWS_*` | django-storages when `HOSTING_BACKEND=s3` |
 
 Do not list every preview slug in CORS env — OAuth redirect sync on identity handles login bounce origins.
 
 ## Security notes
+
+See [`docs/security-hardening.md`](docs/security-hardening.md) and [`docs/claim-trust.md`](docs/claim-trust.md) for CORS, rate limits, HSTS, admin isolation, and JWT claim trust.
 
 | Topic | Status |
 |-------|--------|

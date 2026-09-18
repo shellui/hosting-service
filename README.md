@@ -14,7 +14,8 @@ It authenticates with JWTs issued by [identity-service](https://github.com/shell
 - Pluggable artifact backend: **S3** or **filesystem**
 - OpenAPI docs (Swagger + ReDoc); opening Swagger from Django Admin auto-applies the Shellui session access token
 - Prometheus metrics (`/hosting/v1/metrics`, `/hosting/v1/metrics/all`) for staff or company-owner JWT / PAT
-- Permissive API CORS by default (`CORS_ALLOW_ALL_ORIGINS=true`); auth is Bearer JWT — hosted preview origins do not need CORS env entries
+- Permissive API CORS by default (`CORS_ALLOW_ALL_ORIGINS=true`, `CORS_ALLOW_CREDENTIALS=false`); auth is Bearer JWT — hosted preview origins do not need CORS env entries
+- Production security hardening: rate limits, HSTS/secure cookies, Postgres SSL, pinned JWKS — see [`docs/security-hardening.md`](docs/security-hardening.md) and [`docs/claim-trust.md`](docs/claim-trust.md)
 
 ## Project structure
 
@@ -160,7 +161,7 @@ Identity OAuth redirect sync (so `shellui deploy` sites can log in without manua
 
 - `IDENTITY_SERVICE_URL` — identity base URL (e.g. `http://localhost:8000`)
 
-When set, creating/redeploying a preview forwards the caller's JWT to register `{scheme}://{slug}.{HOSTING_APP_DOMAIN}` on the company **OAuth redirect** allowlist; deleting the app removes it. That allowlist controls token delivery after login — not API CORS. Hosting API CORS is permissive by default (`CORS_ALLOW_ALL_ORIGINS=true`); set `false` + `CORS_ALLOWED_ORIGINS` only for lock-down installs.
+When set, creating/redeploying a preview forwards the caller's JWT to register `{scheme}://{slug}.{HOSTING_APP_DOMAIN}` on the company **OAuth redirect** allowlist; deleting the app removes it. That allowlist controls token delivery after login — not API CORS. Hosting API CORS is permissive by default (`CORS_ALLOW_ALL_ORIGINS=true`, credentials off); set `false` + `CORS_ALLOWED_ORIGINS` only for lock-down installs. See [`docs/security-hardening.md`](docs/security-hardening.md).
 
 Deployment artifacts are stored at `{slug}/deployments/{id}/artifact.tar.gz` and extracted to `{prefix}extracted/` for static serving.
 

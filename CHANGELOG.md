@@ -11,10 +11,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 - **H-11:** `POST /hosting/v1/access` transitions to `approved` or `denied` are staff-only; company owners can no longer self-approve the hosting waitlist.
 - **M-28:** `HOSTING_DEBUG_OPEN` is fail-closed — only an explicit truthy env value skips the waitlist (`DEBUG=true` no longer auto-enables bypass).
+- **M-01 / M-07 / M-23 / H-12 (#12):** CORS allow-all + `CORS_ALLOW_CREDENTIALS=false` (startup fails on unsafe combo); HSTS and secure cookies when `DEBUG=false`; Postgres `ssl_require` by default with `POSTGRES_SSL_REQUIRE=false` escape; `IDENTITY_ISSUER` / `IDENTITY_AUDIENCE` and pinned JWKS required in production; optional `DJANGO_ADMIN_ENABLED=false`.
+- **M-02 (#12):** Cache-backed rate limits on preview/deploy, upload, finalize, rollback, delete, and access-request endpoints.
 
 ### 📚 Documentation
 
 - README, `.env.example`, and production checklist in `PUBLISH.md` document staff-only approval and explicit `HOSTING_DEBUG_OPEN` opt-in.
+- Add `docs/security-hardening.md` (CORS, rate limits, transport, admin isolation, Postgres SSL) and `docs/claim-trust.md` (JWT privileged claims and JWKS pinning).
 
 ## [0.3.0] - 2026-09-12
 
