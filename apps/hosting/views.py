@@ -17,7 +17,7 @@ from rest_framework.views import APIView
 from apps.authapi.permissions import IsAuthenticatedPrincipal, IsStaffOrCompanyOwner
 
 from . import metrics as hosting_metrics
-from .models import Deployment
+from .models import AccessStatus, Deployment
 from .renderers import PrometheusTextRenderer
 from .serializers import (
     AccessSerializer,
@@ -118,7 +118,7 @@ class HealthView(APIView):
     ),
     post=extend_schema(
         tags=['access'],
-        summary='Update company hosting access (staff or company owner)',
+        summary='Update company hosting access (staff approve/deny; owners cannot self-approve)',
         request=AccessUpdateSerializer,
         responses={200: AccessSerializer, **_SCHEMA_ERRORS},
     ),
@@ -146,10 +146,17 @@ class AccessView(APIView):
                 return _error(exc)
             if not request.user.is_staff and not request.user.is_company_owner:
                 return _error_message('Forbidden', status_code=403, code='forbidden')
+        status_value = str(data.get('status') or '').strip()
+        if status_value in {AccessStatus.APPROVED, AccessStatus.DENIED} and not request.user.is_staff:
+            return _error_message(
+                'Only staff can approve or deny hosting access.',
+                status_code=403,
+                code='forbidden',
+            )
         try:
             record = update_access(
                 company_id=company_id,
-                status=str(data.get('status') or '').strip(),
+                status=status_value,
                 reviewer_id=request.user.user_id,
                 notes=str(data.get('notes') or ''),
             )
