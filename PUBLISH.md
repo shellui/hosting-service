@@ -180,6 +180,8 @@ Full JWT deploy/CLI flows cannot be verified without identity-service tokens —
 | `HOSTING_BACKEND` | `filesystem` or S3 settings |
 | `HOSTING_DEBUG_OPEN` | Must be **unset** or `false` in production (waitlist bypass is explicit opt-in only) |
 
+Create the first Django superuser with `python manage.py createsuperuser` inside the container (or before first traffic). Do not rely on the public `/` bootstrap form in production — it is disabled when `DEBUG=false` unless you set a one-time `SETUP_TOKEN`.
+
 ### Optional runtime env vars
 
 | Variable | Notes |
@@ -187,6 +189,7 @@ Full JWT deploy/CLI flows cannot be verified without identity-service tokens —
 | `CORS_ALLOW_ALL_ORIGINS` | Default `true` (Bearer JWT is the API auth boundary). Set `false` + `CORS_ALLOWED_ORIGINS` for lock-down. |
 | `IDENTITY_SERVICE_URL` | Enables OAuth redirect sync for preview origins on identity-service |
 | `ROOT_REDIRECT_URL` | Optional 301 for apex `/` |
+| `SETUP_TOKEN` | One-time token for web superuser bootstrap when `DEBUG=false` (`/?setup_token=<token>`) |
 | `POSTGRES_DATABASE_URL` | Use Postgres instead of SQLite |
 | `SENTRY_DSN` / `SENTRY_ENVIRONMENT` | Error reporting |
 | `AWS_*` | django-storages when `HOSTING_BACKEND=s3` |

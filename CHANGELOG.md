@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### 🔒 Security
 
+- Gate public first-run superuser bootstrap at `/`: when the user table is empty and `DEBUG=false`, the web form is hidden and POST returns 403 unless a valid `SETUP_TOKEN` is provided (query param, hidden field, or `X-Setup-Token` header). Prefer `python manage.py createsuperuser` in production (mirrors identity-service).
 - **H-11:** `POST /hosting/v1/access` transitions to `approved` or `denied` are staff-only; company owners can no longer self-approve the hosting waitlist.
 - **M-28:** `HOSTING_DEBUG_OPEN` is fail-closed — only an explicit truthy env value skips the waitlist (`DEBUG=true` no longer auto-enables bypass).
 - **M-25/M-26/M-27:** Tar extract resource caps (max files, total uncompressed bytes, per-file size) with atomic rollback on violation; hardened member path validation (`normpath`, reject `..` components). Static AppServe rejects literal and URL-encoded path traversal before opening storage.

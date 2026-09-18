@@ -56,6 +56,8 @@ uv run python manage.py migrate
 uv run python manage.py runserver 8002
 ```
 
+With `DEBUG=true` (local default), visiting `http://localhost:8002/` shows a one-time web form to create the first Django superuser when the user table is empty. In production (`DEBUG=false`), use `uv run python manage.py createsuperuser` instead, or set `SETUP_TOKEN` and open `/?setup_token=<token>` for a one-time web setup (same pattern as identity-service).
+
 Open `http://localhost:8002/` for Swagger / ReDoc. From Django Admin, Swagger pre-authorizes with the Shellui session access token (same flow as identity-service / storage-service).
 
 Waitlist approval is **staff-only** (`POST /hosting/v1/access` with `status=approved` or `denied`). Company owners can request access but cannot self-approve.
