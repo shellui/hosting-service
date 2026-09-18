@@ -81,6 +81,13 @@ def _env_int(name, default):
         raise ImproperlyConfigured(f'{name} must be an integer. Got: {raw!r}') from exc
 
 
+def _env_bool(name, default: bool) -> bool:
+    raw = os.getenv(name, '').strip()
+    if not raw:
+        return default
+    return raw.lower() in {'1', 'true', 'yes', 'on'}
+
+
 def _env_bytes(name, default):
     raw = os.getenv(name, '').strip()
     if not raw:
@@ -113,6 +120,8 @@ if not _secret_key:
 SECRET_KEY = _secret_key
 
 DEBUG = os.getenv('DEBUG', 'false').strip().lower() in {'1', 'true', 'yes', 'on'}
+# One-time web bootstrap token for creating the first superuser when DEBUG=false.
+SETUP_TOKEN = os.getenv('SETUP_TOKEN', '').strip()
 LOG_LEVEL = os.getenv('LOG_LEVEL', 'DEBUG' if DEBUG else 'INFO').strip().upper() or (
     'DEBUG' if DEBUG else 'INFO'
 )
@@ -131,6 +140,10 @@ CSRF_TRUSTED_ORIGINS = _env_csv(
     ),
 )
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+
+# Trusted reverse proxies (comma-separated IPs/CIDRs). X-Forwarded-For is honored for rate
+# limits only when REMOTE_ADDR matches one of these entries. See docs/security-hardening.md.
+TRUSTED_PROXY_IPS = _env_csv('TRUSTED_PROXY_IPS', ())
 
 
 def _project_version():
@@ -231,11 +244,12 @@ WSGI_APPLICATION = 'config.wsgi.application'
 POSTGRES_DATABASE_URL = os.getenv('POSTGRES_DATABASE_URL', '').strip()
 
 if POSTGRES_DATABASE_URL:
+    _postgres_ssl_require = _env_bool('POSTGRES_SSL_REQUIRE', not DEBUG)
     DATABASES = {
         'default': dj_database_url.parse(
             POSTGRES_DATABASE_URL,
             conn_max_age=600,
-            ssl_require=False,
+            ssl_require=_postgres_ssl_require,
         )
     }
 else:
@@ -422,6 +436,12 @@ JWT_ALGORITHMS = _env_csv('JWT_ALGORITHMS', ('RS256',))
 HOSTING_MAX_APPS_PER_COMPANY = _env_int('HOSTING_MAX_APPS_PER_COMPANY', 5)
 HOSTING_MAX_DEPLOYMENTS_PER_APP = _env_int('HOSTING_MAX_DEPLOYMENTS_PER_APP', 20)
 HOSTING_MAX_UPLOAD_BYTES = _env_bytes('HOSTING_MAX_UPLOAD_BYTES', 100 * 1024**2)
+HOSTING_MAX_EXTRACT_FILES = _env_int('HOSTING_MAX_EXTRACT_FILES', 5000)
+HOSTING_MAX_EXTRACT_BYTES = _env_bytes('HOSTING_MAX_EXTRACT_BYTES', 500 * 1024**2)
+HOSTING_MAX_EXTRACT_FILE_BYTES = _env_bytes(
+    'HOSTING_MAX_EXTRACT_FILE_BYTES',
+    HOSTING_MAX_UPLOAD_BYTES,
+)
 HOSTING_PREVIEW_TTL_DAYS = _env_int('HOSTING_PREVIEW_TTL_DAYS', 7)
 
 # In-process cache for hosted-app slug → App lookups (no Redis). 0 disables.
@@ -476,26 +496,23 @@ else:
     if _app_domain_wildcard not in ALLOWED_HOSTS:
         ALLOWED_HOSTS = [*ALLOWED_HOSTS, _app_domain_wildcard]
 
-# Local dev: skip waitlist gate (never enable in production)
-HOSTING_DEBUG_OPEN = os.getenv('HOSTING_DEBUG_OPEN', '').strip().lower() in {
-    '1',
-    'true',
-    'yes',
-    'on',
-} or (DEBUG and os.getenv('HOSTING_DEBUG_OPEN', 'true').strip().lower() not in {'0', 'false', 'no', 'off'})
+# Local dev: skip waitlist gate (never enable in production).
+# Fail closed: only explicit truthy env values enable bypass (DEBUG does not auto-enable).
+_HOSTING_DEBUG_OPEN_RAW = os.getenv('HOSTING_DEBUG_OPEN', '').strip().lower()
+HOSTING_DEBUG_OPEN = _HOSTING_DEBUG_OPEN_RAW in {'1', 'true', 'yes', 'on'}
+if not DEBUG and HOSTING_DEBUG_OPEN:
+    raise ImproperlyConfigured(
+        'HOSTING_DEBUG_OPEN cannot be enabled when DEBUG=false '
+        '(company waitlist bypass is dev-only).'
+    )
 DATA_UPLOAD_MAX_MEMORY_SIZE = _env_bytes('DATA_UPLOAD_MAX_MEMORY_SIZE', 12 * 1024**2)
 FILE_UPLOAD_MAX_MEMORY_SIZE = DATA_UPLOAD_MAX_MEMORY_SIZE
 
-# API auth is Bearer JWT (not cookies). Permissive CORS matches Supabase-style
-# gateways so random hosting preview origins work without per-slug allowlists.
-# Set CORS_ALLOW_ALL_ORIGINS=false and CORS_ALLOWED_ORIGINS for lock-down installs.
+# API auth is Bearer JWT (not cookies). Multi-tenant shells run on unknown domains,
+# so permissive CORS is intentional when CORS_ALLOW_CREDENTIALS=false (Supabase-style).
 # Token delivery stays strict via identity OAuth redirect allowlist (not CORS).
-CORS_ALLOW_ALL_ORIGINS = os.getenv('CORS_ALLOW_ALL_ORIGINS', 'true').strip().lower() in {
-    '1',
-    'true',
-    'yes',
-    'on',
-}
+# See docs/security-hardening.md.
+CORS_ALLOW_ALL_ORIGINS = _env_bool('CORS_ALLOW_ALL_ORIGINS', True)
 CORS_ALLOWED_ORIGINS = [
     'http://localhost:4000',
     'http://127.0.0.1:4000',
@@ -508,7 +525,39 @@ for _origin in os.getenv('CORS_ALLOWED_ORIGINS', '').split(','):
     if _origin and _origin not in CORS_ALLOWED_ORIGINS:
         CORS_ALLOWED_ORIGINS.append(_origin)
 
-CORS_ALLOW_CREDENTIALS = False
+CORS_ALLOW_CREDENTIALS = _env_bool('CORS_ALLOW_CREDENTIALS', False)
+if CORS_ALLOW_ALL_ORIGINS and CORS_ALLOW_CREDENTIALS:
+    raise ImproperlyConfigured(
+        'CORS_ALLOW_ALL_ORIGINS=true with CORS_ALLOW_CREDENTIALS=true is unsafe — '
+        'use explicit CORS_ALLOWED_ORIGINS when credentials are enabled.'
+    )
+
+# HTTPS / cookie hardening (production defaults; override via env for local HTTP).
+SECURE_SSL_REDIRECT = _env_bool('SECURE_SSL_REDIRECT', not DEBUG)
+SECURE_HSTS_SECONDS = _env_int('SECURE_HSTS_SECONDS', 31536000 if not DEBUG else 0)
+SECURE_HSTS_INCLUDE_SUBDOMAINS = _env_bool('SECURE_HSTS_INCLUDE_SUBDOMAINS', not DEBUG)
+SECURE_HSTS_PRELOAD = _env_bool('SECURE_HSTS_PRELOAD', False)
+SESSION_COOKIE_SECURE = _env_bool('SESSION_COOKIE_SECURE', not DEBUG)
+CSRF_COOKIE_SECURE = _env_bool('CSRF_COOKIE_SECURE', not DEBUG)
+
+# Django admin UI (cross-tenant). Disable when unused — see docs/security-hardening.md.
+DJANGO_ADMIN_ENABLED = _env_bool('DJANGO_ADMIN_ENABLED', True)
+
+# Cache-backed rate limits for deploy/upload/finalize and related abuse-prone endpoints.
+CACHES = {
+    'default': {
+        'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+        'LOCATION': 'hosting-service',
+    }
+}
+HOSTING_RATE_LIMIT_ENABLED = _env_bool('HOSTING_RATE_LIMIT_ENABLED', True)
+HOSTING_RATE_LIMITS = {
+    'default': {'limit': 60, 'window': 60},
+    'deploy': {'limit': _env_int('HOSTING_RATE_LIMIT_DEPLOY', 30), 'window': 60},
+    'upload': {'limit': _env_int('HOSTING_RATE_LIMIT_UPLOAD', 20), 'window': 60},
+    'destructive': {'limit': _env_int('HOSTING_RATE_LIMIT_DESTRUCTIVE', 10), 'window': 60},
+    'access_request': {'limit': _env_int('HOSTING_RATE_LIMIT_ACCESS_REQUEST', 10), 'window': 300},
+}
 CORS_ALLOW_PRIVATE_NETWORK = os.getenv(
     'CORS_ALLOW_PRIVATE_NETWORK', 'true'
 ).strip().lower() in {'1', 'true', 'yes', 'on'}
@@ -570,6 +619,20 @@ SENTRY_ENVIRONMENT = os.getenv('SENTRY_ENVIRONMENT', '').strip() or (
 )
 SENTRY_RELEASE = os.getenv('SENTRY_RELEASE', '').strip() or VERSION
 SENTRY_TRACES_SAMPLE_RATE = _env_float('SENTRY_TRACES_SAMPLE_RATE', 0.0)
+
+if not DEBUG:
+    _production_config_errors: list[str] = []
+    if not IDENTITY_ISSUER:
+        _production_config_errors.append('IDENTITY_ISSUER is required when DEBUG=false.')
+    if not IDENTITY_AUDIENCE:
+        _production_config_errors.append('IDENTITY_AUDIENCE is required when DEBUG=false.')
+    if IDENTITY_JWKS_DOCUMENT is None:
+        _production_config_errors.append(
+            'Pin JWKS in production with IDENTITY_JWKS_FILE or IDENTITY_JWKS '
+            '(runtime fetch from IDENTITY_JWKS_URL is for local/dev only).'
+        )
+    if _production_config_errors:
+        raise ImproperlyConfigured('\n'.join(_production_config_errors))
 
 if SENTRY_DSN:
     import sentry_sdk

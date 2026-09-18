@@ -15,9 +15,10 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.authapi.permissions import IsAuthenticatedPrincipal, IsStaffOrCompanyOwner
+from config.throttling import HostingScopeThrottle
 
 from . import metrics as hosting_metrics
-from .models import Deployment
+from .models import AccessStatus, Deployment
 from .renderers import PrometheusTextRenderer
 from .serializers import (
     AccessSerializer,
@@ -118,7 +119,7 @@ class HealthView(APIView):
     ),
     post=extend_schema(
         tags=['access'],
-        summary='Update company hosting access (staff or company owner)',
+        summary='Update company hosting access (staff approve/deny; owners cannot self-approve)',
         request=AccessUpdateSerializer,
         responses={200: AccessSerializer, **_SCHEMA_ERRORS},
     ),
@@ -146,10 +147,17 @@ class AccessView(APIView):
                 return _error(exc)
             if not request.user.is_staff and not request.user.is_company_owner:
                 return _error_message('Forbidden', status_code=403, code='forbidden')
+        status_value = str(data.get('status') or '').strip()
+        if status_value in {AccessStatus.APPROVED, AccessStatus.DENIED} and not request.user.is_staff:
+            return _error_message(
+                'Only staff can approve or deny hosting access.',
+                status_code=403,
+                code='forbidden',
+            )
         try:
             record = update_access(
                 company_id=company_id,
-                status=str(data.get('status') or '').strip(),
+                status=status_value,
                 reviewer_id=request.user.user_id,
                 notes=str(data.get('notes') or ''),
             )
@@ -160,6 +168,8 @@ class AccessView(APIView):
 
 class AccessRequestView(APIView):
     permission_classes = [IsAuthenticatedPrincipal]
+    rate_limit_scope = 'access_request'
+    throttle_classes = [HostingScopeThrottle]
 
     @extend_schema(
         tags=['access'],
@@ -178,6 +188,8 @@ class AccessRequestView(APIView):
 
 class PreviewPrepareView(APIView):
     permission_classes = [IsAuthenticatedPrincipal]
+    rate_limit_scope = 'deploy'
+    throttle_classes = [HostingScopeThrottle]
 
     @extend_schema(
         tags=['preview'],
@@ -234,6 +246,12 @@ class PreviewPrepareView(APIView):
 )
 class AppListCreateView(APIView):
     permission_classes = [IsAuthenticatedPrincipal]
+    rate_limit_scope = 'deploy'
+
+    def get_throttles(self):
+        if self.request.method == 'POST':
+            return [HostingScopeThrottle()]
+        return []
 
     def get(self, request):
         try:
@@ -265,6 +283,12 @@ class AppListCreateView(APIView):
 
 class AppDetailView(APIView):
     permission_classes = [IsAuthenticatedPrincipal]
+    rate_limit_scope = 'destructive'
+
+    def get_throttles(self):
+        if self.request.method == 'DELETE':
+            return [HostingScopeThrottle()]
+        return []
 
     @extend_schema(
         tags=['apps'],
@@ -329,6 +353,12 @@ class AppRenewExpiryView(APIView):
 )
 class DeploymentListCreateView(APIView):
     permission_classes = [IsAuthenticatedPrincipal]
+    rate_limit_scope = 'deploy'
+
+    def get_throttles(self):
+        if self.request.method == 'POST':
+            return [HostingScopeThrottle()]
+        return []
 
     def get(self, request, app_ref):
         try:
@@ -360,6 +390,8 @@ class DeploymentListCreateView(APIView):
 
 class DeploymentUploadView(APIView):
     permission_classes = [IsAuthenticatedPrincipal]
+    rate_limit_scope = 'upload'
+    throttle_classes = [HostingScopeThrottle]
     parser_classes = [MultiPartParser, OctetStreamParser, GzipParser]
 
     @extend_schema(
@@ -405,6 +437,8 @@ class DeploymentUploadView(APIView):
 
 class DeploymentFinalizeView(APIView):
     permission_classes = [IsAuthenticatedPrincipal]
+    rate_limit_scope = 'deploy'
+    throttle_classes = [HostingScopeThrottle]
 
     @extend_schema(
         tags=['deployments'],
@@ -429,6 +463,8 @@ class DeploymentFinalizeView(APIView):
 
 class DeploymentRollbackView(APIView):
     permission_classes = [IsAuthenticatedPrincipal]
+    rate_limit_scope = 'deploy'
+    throttle_classes = [HostingScopeThrottle]
 
     @extend_schema(
         tags=['deployments'],

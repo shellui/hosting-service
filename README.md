@@ -14,7 +14,8 @@ It authenticates with JWTs issued by [identity-service](https://github.com/shell
 - Pluggable artifact backend: **S3** or **filesystem**
 - OpenAPI docs (Swagger + ReDoc); opening Swagger from Django Admin auto-applies the Shellui session access token
 - Prometheus metrics (`/hosting/v1/metrics`, `/hosting/v1/metrics/all`) for staff or company-owner JWT / PAT
-- Permissive API CORS by default (`CORS_ALLOW_ALL_ORIGINS=true`); auth is Bearer JWT — hosted preview origins do not need CORS env entries
+- Permissive API CORS by default (`CORS_ALLOW_ALL_ORIGINS=true`, `CORS_ALLOW_CREDENTIALS=false`); auth is Bearer JWT — hosted preview origins do not need CORS env entries
+- Production security hardening: rate limits, HSTS/secure cookies, Postgres SSL, pinned JWKS — see [`docs/security-hardening.md`](docs/security-hardening.md) and [`docs/claim-trust.md`](docs/claim-trust.md)
 
 ## Project structure
 
@@ -56,11 +57,13 @@ uv run python manage.py migrate
 uv run python manage.py runserver 8002
 ```
 
+With `DEBUG=true` (local default), visiting `http://localhost:8002/` shows a one-time web form to create the first Django superuser when the user table is empty. In production (`DEBUG=false`), use `uv run python manage.py createsuperuser` instead, or set `SETUP_TOKEN` and open `/?setup_token=<token>` for a one-time web setup (same pattern as identity-service).
+
 Open `http://localhost:8002/` for Swagger / ReDoc. From Django Admin, Swagger pre-authorizes with the Shellui session access token (same flow as identity-service / storage-service).
 
-With `DEBUG=true`, `HOSTING_DEBUG_OPEN` defaults to **on** — any logged-in company can deploy without waitlist approval.
+Waitlist approval is **staff-only** (`POST /hosting/v1/access` with `status=approved` or `denied`). Company owners can request access but cannot self-approve.
 
-To require approval in dev, set `HOSTING_DEBUG_OPEN=false` and approve a company:
+To skip the waitlist gate in local dev, set `HOSTING_DEBUG_OPEN=true` explicitly (fail-closed by default — unset or `false` enforces the waitlist even when `DEBUG=true`). Approve a company with:
 
 ```bash
 uv run python manage.py approve_hosting_access 1
@@ -129,7 +132,7 @@ To redeploy later, add the slug to config:
 | `HOSTING_APP_SCHEME` | `http` (local) or `https` (production). Defaults to `http` when `DEBUG=true`, else `https` |
 | `HOSTING_ALLOW_ANY_HOST` | When `true` (default in `DEBUG`), accept any `Host` header — useful with `/etc/hosts` |
 | `HOSTING_PREVIEW_TTL_DAYS` | Preview site lifetime in days (default `7`) |
-| `HOSTING_DEBUG_OPEN` | Skip company waitlist (auto-on when `DEBUG=true`) |
+| `HOSTING_DEBUG_OPEN` | Skip company waitlist when explicitly `true` (default off; never auto-on with `DEBUG`) |
 | `HOSTING_SERVE_CACHE_TTL_SECONDS` | In-process slug→App cache TTL for hosted-app serving (default `45`; `0` disables). Cleared on deploy finalize |
 | `ROOT_REDIRECT_URL` | Optional absolute URL; when set, apex `/` responds with **301**. **Unset on shellui.app** to show the Hosting landing (website/docs links). Does not affect `{slug}.*` app serving |
 
@@ -155,12 +158,15 @@ See `.env.example` for all settings. Key quotas:
 - `HOSTING_MAX_APPS_PER_COMPANY` (default `5`)
 - `HOSTING_MAX_DEPLOYMENTS_PER_APP` (default `20`)
 - `HOSTING_MAX_UPLOAD_BYTES` (default `100M`)
+- `HOSTING_MAX_EXTRACT_FILES` (default `5000`) — max regular files extracted from an artifact
+- `HOSTING_MAX_EXTRACT_BYTES` (default `500M`) — max total uncompressed bytes extracted
+- `HOSTING_MAX_EXTRACT_FILE_BYTES` (default same as upload cap) — max size per extracted file
 
 Identity OAuth redirect sync (so `shellui deploy` sites can log in without manual allowlist edits):
 
 - `IDENTITY_SERVICE_URL` — identity base URL (e.g. `http://localhost:8000`)
 
-When set, creating/redeploying a preview forwards the caller's JWT to register `{scheme}://{slug}.{HOSTING_APP_DOMAIN}` on the company **OAuth redirect** allowlist; deleting the app removes it. That allowlist controls token delivery after login — not API CORS. Hosting API CORS is permissive by default (`CORS_ALLOW_ALL_ORIGINS=true`); set `false` + `CORS_ALLOWED_ORIGINS` only for lock-down installs.
+When set, creating/redeploying a preview forwards the caller's JWT to register `{scheme}://{slug}.{HOSTING_APP_DOMAIN}` on the company **OAuth redirect** allowlist; deleting the app removes it. That allowlist controls token delivery after login — not API CORS. Hosting API CORS is permissive by default (`CORS_ALLOW_ALL_ORIGINS=true`, credentials off); set `false` + `CORS_ALLOWED_ORIGINS` only for lock-down installs. See [`docs/security-hardening.md`](docs/security-hardening.md).
 
 Deployment artifacts are stored at `{slug}/deployments/{id}/artifact.tar.gz` and extracted to `{prefix}extracted/` for static serving.
 
@@ -181,6 +187,29 @@ Pull requests **to `main`** also run the pre-release checklist ([`.github/workfl
 ## Releases (Docker Hub)
 
 See [PUBLISH.md](PUBLISH.md) for the pre-release checklist (automated via `./tools/pre-release-check.sh`), tagging, and deploy notes for `shellui/hosting-service`.
+
+### Post-deploy prod check
+
+After a production deploy, run [`tools/prod-config-check.sh`](tools/prod-config-check.sh) against the live **platform** URL — the apex or API host where `/hosting/v1/` lives (e.g. `https://shellui.app`), **not** a customer preview subdomain like `https://{slug}.shellui.app` alone.
+
+```bash
+# From a checkout of hosting-service (develop/main)
+./tools/prod-config-check.sh https://shellui.app
+./tools/prod-config-check.sh https://shellui.app --slug YOUR_PREVIEW_SLUG
+
+# Or one-off without a full clone:
+curl -fsSL https://raw.githubusercontent.com/shellui/hosting-service/develop/tools/prod-config-check.sh -o prod-config-check.sh
+chmod +x prod-config-check.sh
+./prod-config-check.sh https://shellui.app
+```
+
+`--slug` is optional: it adds a smoke check that a hosted preview app responds on `{slug}.{HOSTING_APP_DOMAIN}`.
+
+The script prints `PASS:` / `FAIL:` / `WARN:` / `INFO:` lines and exits **0** when all hard checks pass, **non-zero** if any `FAIL:` occurs.
+
+**Coolify / internal Postgres:** if the container fails at boot with Postgres SSL errors against an internal Docker database, use `POSTGRES_SSL_REQUIRE=false` (same pattern as [identity-service](https://github.com/shellui/identity-service)); hosting defaults to non-SSL for `POSTGRES_DATABASE_URL` parsing.
+
+Full check list, optional env vars (`HOSTING_APP_DOMAIN`, `CORS_PROBE_ORIGIN`), and deploy context: [PUBLISH.md — Post-deploy production config check](PUBLISH.md#post-deploy-production-config-check).
 
 ## Docker
 

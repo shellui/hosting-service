@@ -5,6 +5,7 @@ hosts only. App subdomains are handled by ``HostedAppServeMiddleware`` so every
 path — including ``/admin`` — serves the hosted SPA (React Router refreshes).
 """
 
+from django.conf import settings
 from django.contrib import admin
 from django.urls import include, path, re_path
 from django.views.decorators.clickjacking import xframe_options_exempt
@@ -21,7 +22,10 @@ from . import views
 urlpatterns = [
     path('', views.root, name='root'),
     path('llms.txt', views.llms_txt, name='llms_txt'),
-    path('admin/', admin.site.urls),
+]
+if getattr(settings, 'DJANGO_ADMIN_ENABLED', True):
+    urlpatterns.append(path('admin/', admin.site.urls))
+urlpatterns.extend([
     path('hosting/v1/', include('apps.hosting.urls')),
     path('api/schema/', SpectacularAPIView.as_view(), name='schema'),
     path(
@@ -41,4 +45,4 @@ urlpatterns = [
         AppServeView.as_view(),
         name='hosting-app-serve',
     ),
-]
+])

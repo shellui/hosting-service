@@ -37,11 +37,11 @@ Manual equivalents (if you are not using the script):
 
 ### 1. Version alignment
 
-Ensure these match the release version (e.g. `0.3.0`):
+Ensure these match the release version (e.g. `0.4.0`):
 
 - `version` in `pyproject.toml` (OpenAPI / API metadata via `config.settings.VERSION`)
 - `CHANGELOG.md` entry with date
-- Git tag `v0.3.0` (optional but recommended; not enforced by the script)
+- Git tag `v0.4.0` (optional but recommended; not enforced by the script)
 - CI green on the release commit (`.github/workflows/ci.yml` + pre-release workflow)
 
 ### 2. No secrets in the build context
@@ -76,12 +76,12 @@ docker login
 
 ### Tagging
 
-For semver release `0.3.0`, typical Docker Hub tags:
+For semver release `0.4.0`, typical Docker Hub tags:
 
 | Tag      | Purpose                                  |
 | -------- | ---------------------------------------- |
-| `0.3.0`  | Exact release (pin in production)        |
-| `0.3`    | Latest patch in the 0.3 line             |
+| `0.4.0`  | Exact release (pin in production)        |
+| `0.4`    | Latest patch in the 0.4 line             |
 | `latest` | Newest published release (use with care) |
 
 ### Option A — single platform (fastest, not recommended, see option B)
@@ -89,16 +89,16 @@ For semver release `0.3.0`, typical Docker Hub tags:
 From the repository root:
 
 ```bash
-VERSION=0.3.0
+VERSION=0.4.0
 IMAGE=shellui/hosting-service
 
 docker build -t "${IMAGE}:${VERSION}" .
 docker push "${IMAGE}:${VERSION}"
 
 # Optional extra tags
-docker tag "${IMAGE}:${VERSION}" "${IMAGE}:0.3"
+docker tag "${IMAGE}:${VERSION}" "${IMAGE}:0.4"
 docker tag "${IMAGE}:${VERSION}" "${IMAGE}:latest"
-docker push "${IMAGE}:0.3"
+docker push "${IMAGE}:0.4"
 docker push "${IMAGE}:latest"
 ```
 
@@ -107,7 +107,7 @@ docker push "${IMAGE}:latest"
 If you build on Apple Silicon, a plain `docker build` may produce `linux/arm64` only. Most cloud VMs expect `linux/amd64`. Publish both with buildx:
 
 ```bash
-VERSION=0.3.0
+VERSION=0.4.0
 IMAGE=shellui/hosting-service
 
 docker buildx create --use --name multi 2>/dev/null || docker buildx use multi
@@ -115,7 +115,7 @@ docker buildx create --use --name multi 2>/dev/null || docker buildx use multi
 docker buildx build \
   --platform linux/amd64,linux/arm64 \
   -t "${IMAGE}:${VERSION}" \
-  -t "${IMAGE}:0.3" \
+  -t "${IMAGE}:0.4" \
   -t "${IMAGE}:latest" \
   --push .
 ```
@@ -123,7 +123,7 @@ docker buildx build \
 ### Git tag (recommended)
 
 ```bash
-VERSION=0.3.0
+VERSION=0.4.0
 git tag -a "v${VERSION}" -m "Release ${VERSION}"
 git push origin "v${VERSION}"
 ```
@@ -144,35 +144,70 @@ docker run -d \
   -e CSRF_TRUSTED_ORIGINS='https://hosting.example.com' \
   -e HOSTING_APP_DOMAIN='shellui.app' \
   -e IDENTITY_JWKS='{"keys":[...]}' \
-  shellui/hosting-service:0.3.0
+  shellui/hosting-service:0.4.0
 ```
 
 The entrypoint runs migrations on start, then starts Gunicorn on port 8000.
+
+### Post-deploy production config check
+
+Quick copy-paste commands and exit-code notes: [README — Post-deploy prod check](README.md#post-deploy-prod-check).
+
+After deploying a release, run the smoke script against the live HTTPS **platform** URL (API host — not every customer app subdomain):
+
+```bash
+./tools/prod-config-check.sh https://hosting.example.com
+./tools/prod-config-check.sh https://hosting.example.com --slug vpzzsxvzsmp7
+```
+
+The script prints explicit `PASS:` / `FAIL:` / `WARN:` / `INFO:` lines and exits non-zero if any hard check fails. It verifies HTTPS reachability, that protected `/hosting/v1/*` routes return 401/403 (not 500) without a Bearer token, public `/hosting/v1/health` and `/llms.txt`, that `/` is not an open superuser signup form, permissive CORS for preview origins, optional app-host smoke with `--slug` or `--app-host`, and security headers (HSTS warn-only).
+
+Optional environment:
+
+| Variable             | Default                                      |
+| -------------------- | -------------------------------------------- |
+| `HOSTING_APP_DOMAIN` | `shellui.app` (used with `--slug`)           |
+| `CORS_PROBE_ORIGIN`  | `https://example-preview-slug.shellui.app`   |
+
+Full JWT deploy/CLI flows cannot be verified without identity-service tokens — the script prints guidance for `IDENTITY_JWKS` / `IDENTITY_SERVICE_URL` and waitlist approval.
+
+**Coolify / internal Postgres:** if boot fails with SSL errors against an internal Docker Postgres, set `POSTGRES_SSL_REQUIRE=false` (same as identity-service). Hosting parses `POSTGRES_DATABASE_URL` with `ssl_require=false` by default; this env var matches identity when you need an explicit toggle in orchestration.
 
 ### Required runtime env vars (production)
 
 | Variable | Notes |
 |----------|--------|
 | `SECRET_KEY` | Django sessions/CSRF |
-| `IDENTITY_JWKS` or `IDENTITY_JWKS_URL` / `IDENTITY_JWKS_FILE` | JWT verification material |
+| `IDENTITY_JWKS` or `IDENTITY_JWKS_FILE` | **Pinned** JWKS in production (`IDENTITY_JWKS_URL` fetch is dev-only) |
+| `IDENTITY_ISSUER` / `IDENTITY_AUDIENCE` | Required when `DEBUG=false` |
 | `HOSTING_APP_DOMAIN` | e.g. `shellui.app` (required when `DEBUG=false`) |
 | `ALLOWED_HOSTS` | Comma-separated hostnames |
 | `HOSTING_BACKEND` | `filesystem` or S3 settings |
+| `HOSTING_DEBUG_OPEN` | Must be **unset** or `false` in production (startup fails if enabled with `DEBUG=false`) |
+
+Create the first Django superuser with `python manage.py createsuperuser` inside the container (or before first traffic). Do not rely on the public `/` bootstrap form in production — it is disabled when `DEBUG=false` unless you set a one-time `SETUP_TOKEN`.
 
 ### Optional runtime env vars
 
 | Variable | Notes |
 |----------|--------|
 | `CORS_ALLOW_ALL_ORIGINS` | Default `true` (Bearer JWT is the API auth boundary). Set `false` + `CORS_ALLOWED_ORIGINS` for lock-down. |
+| `CORS_ALLOW_CREDENTIALS` | Default `false`; must stay `false` when allow-all is on |
+| `DJANGO_ADMIN_ENABLED` | Set `false` to disable `/admin/` when unused |
+| `POSTGRES_SSL_REQUIRE` | Default `true` when `DEBUG=false`; set `false` for internal Postgres without TLS |
 | `IDENTITY_SERVICE_URL` | Enables OAuth redirect sync for preview origins on identity-service |
 | `ROOT_REDIRECT_URL` | Optional 301 for apex `/` |
+| `SETUP_TOKEN` | One-time token for web superuser bootstrap when `DEBUG=false` (`/?setup_token=<token>`) |
 | `POSTGRES_DATABASE_URL` | Use Postgres instead of SQLite |
+| `HOSTING_RATE_LIMIT_*` | Tune deploy/upload/delete rate limits — see `docs/security-hardening.md` |
 | `SENTRY_DSN` / `SENTRY_ENVIRONMENT` | Error reporting |
 | `AWS_*` | django-storages when `HOSTING_BACKEND=s3` |
 
 Do not list every preview slug in CORS env — OAuth redirect sync on identity handles login bounce origins.
 
 ## Security notes
+
+See [`docs/security-hardening.md`](docs/security-hardening.md) and [`docs/claim-trust.md`](docs/claim-trust.md) for CORS, rate limits, HSTS, admin isolation, and JWT claim trust.
 
 | Topic | Status |
 |-------|--------|
