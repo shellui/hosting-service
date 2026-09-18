@@ -60,9 +60,9 @@ With `DEBUG=true` (local default), visiting `http://localhost:8002/` shows a one
 
 Open `http://localhost:8002/` for Swagger / ReDoc. From Django Admin, Swagger pre-authorizes with the Shellui session access token (same flow as identity-service / storage-service).
 
-With `DEBUG=true`, `HOSTING_DEBUG_OPEN` defaults to **on** — any logged-in company can deploy without waitlist approval.
+Waitlist approval is **staff-only** (`POST /hosting/v1/access` with `status=approved` or `denied`). Company owners can request access but cannot self-approve.
 
-To require approval in dev, set `HOSTING_DEBUG_OPEN=false` and approve a company:
+To skip the waitlist gate in local dev, set `HOSTING_DEBUG_OPEN=true` explicitly (fail-closed by default — unset or `false` enforces the waitlist even when `DEBUG=true`). Approve a company with:
 
 ```bash
 uv run python manage.py approve_hosting_access 1
@@ -131,7 +131,7 @@ To redeploy later, add the slug to config:
 | `HOSTING_APP_SCHEME` | `http` (local) or `https` (production). Defaults to `http` when `DEBUG=true`, else `https` |
 | `HOSTING_ALLOW_ANY_HOST` | When `true` (default in `DEBUG`), accept any `Host` header — useful with `/etc/hosts` |
 | `HOSTING_PREVIEW_TTL_DAYS` | Preview site lifetime in days (default `7`) |
-| `HOSTING_DEBUG_OPEN` | Skip company waitlist (auto-on when `DEBUG=true`) |
+| `HOSTING_DEBUG_OPEN` | Skip company waitlist when explicitly `true` (default off; never auto-on with `DEBUG`) |
 | `HOSTING_SERVE_CACHE_TTL_SECONDS` | In-process slug→App cache TTL for hosted-app serving (default `45`; `0` disables). Cleared on deploy finalize |
 | `ROOT_REDIRECT_URL` | Optional absolute URL; when set, apex `/` responds with **301**. **Unset on shellui.app** to show the Hosting landing (website/docs links). Does not affect `{slug}.*` app serving |
 

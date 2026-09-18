@@ -10,6 +10,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 ### 🔒 Security
 
 - Gate public first-run superuser bootstrap at `/`: when the user table is empty and `DEBUG=false`, the web form is hidden and POST returns 403 unless a valid `SETUP_TOKEN` is provided (query param, hidden field, or `X-Setup-Token` header). Prefer `python manage.py createsuperuser` in production (mirrors identity-service).
+- **H-11:** `POST /hosting/v1/access` transitions to `approved` or `denied` are staff-only; company owners can no longer self-approve the hosting waitlist.
+- **M-28:** `HOSTING_DEBUG_OPEN` is fail-closed — only an explicit truthy env value skips the waitlist (`DEBUG=true` no longer auto-enables bypass).
+
+### 📚 Documentation
+
+- README, `.env.example`, and production checklist in `PUBLISH.md` document staff-only approval and explicit `HOSTING_DEBUG_OPEN` opt-in.
 
 ## [0.3.0] - 2026-09-12
 

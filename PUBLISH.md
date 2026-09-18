@@ -158,6 +158,7 @@ The entrypoint runs migrations on start, then starts Gunicorn on port 8000.
 | `HOSTING_APP_DOMAIN` | e.g. `shellui.app` (required when `DEBUG=false`) |
 | `ALLOWED_HOSTS` | Comma-separated hostnames |
 | `HOSTING_BACKEND` | `filesystem` or S3 settings |
+| `HOSTING_DEBUG_OPEN` | Must be **unset** or `false` in production (waitlist bypass is explicit opt-in only) |
 
 Create the first Django superuser with `python manage.py createsuperuser` inside the container (or before first traffic). Do not rely on the public `/` bootstrap form in production — it is disabled when `DEBUG=false` unless you set a one-time `SETUP_TOKEN`.
 

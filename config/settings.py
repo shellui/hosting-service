@@ -478,13 +478,10 @@ else:
     if _app_domain_wildcard not in ALLOWED_HOSTS:
         ALLOWED_HOSTS = [*ALLOWED_HOSTS, _app_domain_wildcard]
 
-# Local dev: skip waitlist gate (never enable in production)
-HOSTING_DEBUG_OPEN = os.getenv('HOSTING_DEBUG_OPEN', '').strip().lower() in {
-    '1',
-    'true',
-    'yes',
-    'on',
-} or (DEBUG and os.getenv('HOSTING_DEBUG_OPEN', 'true').strip().lower() not in {'0', 'false', 'no', 'off'})
+# Local dev: skip waitlist gate (never enable in production).
+# Fail closed: only explicit truthy env values enable bypass (DEBUG does not auto-enable).
+_HOSTING_DEBUG_OPEN_RAW = os.getenv('HOSTING_DEBUG_OPEN', '').strip().lower()
+HOSTING_DEBUG_OPEN = _HOSTING_DEBUG_OPEN_RAW in {'1', 'true', 'yes', 'on'}
 DATA_UPLOAD_MAX_MEMORY_SIZE = _env_bytes('DATA_UPLOAD_MAX_MEMORY_SIZE', 12 * 1024**2)
 FILE_UPLOAD_MAX_MEMORY_SIZE = DATA_UPLOAD_MAX_MEMORY_SIZE
 
