@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### 📚 Documentation
+
+- Add `./tools/prod-config-check.sh` for post-deploy HTTPS smoke tests of the hosting platform (mirrors identity-service); documented in README and PUBLISH.md.
+
 ## [0.3.0] - 2026-09-12
 
 ### 🛠 Improvements

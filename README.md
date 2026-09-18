@@ -182,6 +182,15 @@ Pull requests **to `main`** also run the pre-release checklist ([`.github/workfl
 
 See [PUBLISH.md](PUBLISH.md) for the pre-release checklist (automated via `./tools/pre-release-check.sh`), tagging, and deploy notes for `shellui/hosting-service`.
 
+After a production deploy, verify wiring with:
+
+```bash
+./tools/prod-config-check.sh https://hosting.example.com
+./tools/prod-config-check.sh https://hosting.example.com --slug <preview-slug>  # optional app-host smoke
+```
+
+Details and optional env vars are in [PUBLISH.md — Post-deploy production config check](PUBLISH.md#post-deploy-production-config-check).
+
 ## Docker
 
 ```bash
