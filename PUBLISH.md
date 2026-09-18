@@ -178,6 +178,7 @@ Full JWT deploy/CLI flows cannot be verified without identity-service tokens —
 | `HOSTING_APP_DOMAIN` | e.g. `shellui.app` (required when `DEBUG=false`) |
 | `ALLOWED_HOSTS` | Comma-separated hostnames |
 | `HOSTING_BACKEND` | `filesystem` or S3 settings |
+| `HOSTING_DEBUG_OPEN` | Must be **unset** or `false` in production (waitlist bypass is explicit opt-in only) |
 
 ### Optional runtime env vars
 
