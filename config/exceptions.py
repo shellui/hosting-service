@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 
+from rest_framework.exceptions import Throttled
 from rest_framework.views import exception_handler as drf_exception_handler
 
 logger = logging.getLogger(__name__)
@@ -16,6 +17,14 @@ def exception_handler(exc, context):
 
     request = context.get('request')
     request_id = getattr(request, 'request_id', None) if request is not None else None
+    if isinstance(exc, Throttled) and isinstance(response.data, dict):
+        response.data = {
+            'statusCode': '429',
+            'error': 'rate_limited',
+            'message': 'Too many requests. Please try again later.',
+            **({'request_id': request_id} if request_id else {}),
+        }
+
     if request_id and isinstance(response.data, dict):
         response.data.setdefault('request_id', request_id)
 

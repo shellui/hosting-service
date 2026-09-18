@@ -129,6 +129,8 @@ jobs:
             README.md
             CHANGELOG.md
             PUBLISH.md
+            docs/security-hardening.md
+            docs/claim-trust.md
           fail: true
 
   docker:
