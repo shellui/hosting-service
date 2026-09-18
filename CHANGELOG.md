@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### 🚨 Security
+
+- **H-11:** `POST /hosting/v1/access` transitions to `approved` or `denied` are staff-only; company owners can no longer self-approve the hosting waitlist.
+- **M-28:** `HOSTING_DEBUG_OPEN` is fail-closed — only an explicit truthy env value skips the waitlist (`DEBUG=true` no longer auto-enables bypass).
+
+### 📚 Documentation
+
+- README, `.env.example`, and production checklist in `PUBLISH.md` document staff-only approval and explicit `HOSTING_DEBUG_OPEN` opt-in.
+
 ## [0.3.0] - 2026-09-12
 
 ### 🛠 Improvements
