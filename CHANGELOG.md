@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### 🔒 Security
+
+- Gate public first-run superuser bootstrap at `/`: when the user table is empty and `DEBUG=false`, the web form is hidden and POST returns 403 unless a valid `SETUP_TOKEN` is provided (query param, hidden field, or `X-Setup-Token` header). Prefer `python manage.py createsuperuser` in production (mirrors identity-service).
+
 ## [0.3.0] - 2026-09-12
 
 ### 🛠 Improvements

@@ -1,9 +1,12 @@
+import secrets
+
 from django import forms
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError
 from django.db import IntegrityError, transaction
+from django.http import HttpResponseForbidden
 from django.shortcuts import redirect, render
 from django.urls import reverse
 
@@ -23,6 +26,7 @@ class InitialSuperuserForm(forms.Form):
     password_confirm = forms.CharField(
         widget=forms.PasswordInput(attrs={'placeholder': 'Repeat password'})
     )
+    setup_token = forms.CharField(required=False, widget=forms.HiddenInput())
 
     def clean(self):
         cleaned_data = super().clean()
@@ -43,6 +47,30 @@ class InitialSuperuserForm(forms.Form):
         return cleaned_data
 
 
+def _provided_setup_token(request):
+    if request.method == 'POST':
+        return (
+            request.POST.get('setup_token', '').strip()
+            or request.headers.get('X-Setup-Token', '').strip()
+        )
+    return (
+        request.GET.get('setup_token', '').strip()
+        or request.headers.get('X-Setup-Token', '').strip()
+    )
+
+
+def _bootstrap_allowed(request):
+    if settings.DEBUG:
+        return True
+    setup_token = settings.SETUP_TOKEN
+    if not setup_token:
+        return False
+    provided = _provided_setup_token(request)
+    if not provided:
+        return False
+    return secrets.compare_digest(provided, setup_token)
+
+
 def root(request):
     from apps.hosting.hosts import slug_from_host
     from apps.hosting.serve import AppServeView
@@ -55,11 +83,18 @@ def root(request):
 
     user_model = get_user_model()
     has_users = user_model._default_manager.exists()
+    bootstrap_allowed = _bootstrap_allowed(request)
     form = InitialSuperuserForm(request.POST or None)
 
     if request.method == 'POST':
         if has_users:
             return redirect('root')
+
+        if not bootstrap_allowed:
+            return HttpResponseForbidden(
+                'Initial superuser bootstrap is disabled. '
+                'Use `python manage.py createsuperuser` or provide a valid SETUP_TOKEN.'
+            )
 
         if form.is_valid():
             try:
@@ -87,15 +122,18 @@ def root(request):
                     'We could not create the initial user right now. Please retry in a moment.',
                 )
 
+    show_setup_form = not has_users and bootstrap_allowed
     context = {
         'form': form,
-        'show_setup_form': not user_model._default_manager.exists(),
+        'show_setup_form': show_setup_form,
+        'bootstrap_blocked': not has_users and not bootstrap_allowed,
         'swagger_url': reverse('swagger-ui'),
         'redoc_url': reverse('redoc'),
         'schema_url': reverse('schema'),
         'admin_url': reverse('admin:index'),
         'version': settings.VERSION,
         'setup_done': request.GET.get('setup') == 'done',
+        'setup_token': _provided_setup_token(request) if bootstrap_allowed and not has_users else '',
         'website_url': getattr(settings, 'SHELLUI_WEBSITE_URL', 'https://shellui.com'),
         'docs_url': getattr(settings, 'SHELLUI_DOCS_URL', 'https://docs.shellui.com'),
         'playground_url': getattr(settings, 'SHELLUI_PLAYGROUND_URL', 'https://playground.shellui.com'),
@@ -118,4 +156,3 @@ def llms_txt(request):
         'llms.txt',
         content_type='text/plain; charset=utf-8',
     )
-

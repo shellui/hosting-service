@@ -320,6 +320,9 @@
         {% endif %}
         <form method="post" novalidate>
           {% csrf_token %}
+          {% if setup_token %}
+            <input type="hidden" name="setup_token" value="{{ setup_token }}">
+          {% endif %}
           <div class="row">
             <label for="{{ form.username.id_for_label }}">Username</label>
             {{ form.username }}
@@ -343,6 +346,15 @@
           <button type="submit" class="button">Create superuser</button>
         </form>
         <p class="tiny">Tip: Use a long passphrase. Django password policy is enforced here.</p>
+      </div>
+    </div>
+    {% elif bootstrap_blocked %}
+    <div class="wrap">
+      <div class="card-setup">
+        <h1>Shellui Hosting setup</h1>
+        <p>No administrator account exists yet. Public bootstrap is disabled in this environment. Create the first superuser with:</p>
+        <p class="tiny"><code>uv run python manage.py createsuperuser</code></p>
+        <p class="tiny">Alternatively, set <code>SETUP_TOKEN</code> and open <code>/?setup_token=&lt;token&gt;</code> for a one-time web setup.</p>
       </div>
     </div>
     {% else %}
