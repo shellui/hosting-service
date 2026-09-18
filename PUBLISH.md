@@ -149,6 +149,26 @@ docker run -d \
 
 The entrypoint runs migrations on start, then starts Gunicorn on port 8000.
 
+### Post-deploy production config check
+
+After deploying a release, run the smoke script against the live HTTPS **platform** URL (API host — not every customer app subdomain):
+
+```bash
+./tools/prod-config-check.sh https://hosting.example.com
+./tools/prod-config-check.sh https://hosting.example.com --slug vpzzsxvzsmp7
+```
+
+The script prints explicit `PASS:` / `FAIL:` / `WARN:` / `INFO:` lines and exits non-zero if any hard check fails. It verifies HTTPS reachability, that protected `/hosting/v1/*` routes return 401/403 (not 500) without a Bearer token, public `/hosting/v1/health` and `/llms.txt`, that `/` is not an open superuser signup form, permissive CORS for preview origins, optional app-host smoke with `--slug` or `--app-host`, and security headers (HSTS warn-only).
+
+Optional environment:
+
+| Variable             | Default                                      |
+| -------------------- | -------------------------------------------- |
+| `HOSTING_APP_DOMAIN` | `shellui.app` (used with `--slug`)           |
+| `CORS_PROBE_ORIGIN`  | `https://example-preview-slug.shellui.app`   |
+
+Full JWT deploy/CLI flows cannot be verified without identity-service tokens — the script prints guidance for `IDENTITY_JWKS` / `IDENTITY_SERVICE_URL` and waitlist approval.
+
 ### Required runtime env vars (production)
 
 | Variable | Notes |

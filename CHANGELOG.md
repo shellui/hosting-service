@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### 📚 Documentation
 
+- Add `./tools/prod-config-check.sh` for post-deploy HTTPS smoke tests of the hosting platform (mirrors identity-service); documented in README and PUBLISH.md.
 - README, `.env.example`, and production checklist in `PUBLISH.md` document staff-only approval and explicit `HOSTING_DEBUG_OPEN` opt-in.
 
 ## [0.3.0] - 2026-09-12
