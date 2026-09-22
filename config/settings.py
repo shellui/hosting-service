@@ -274,6 +274,12 @@ USE_TZ = True
 
 STATIC_URL = 'static/'
 STATIC_ROOT = BASE_DIR / 'staticfiles'
+STATICFILES_DIRS = [BASE_DIR / 'static']
+
+if DEBUG:
+    # Local dev: serve watch-built assets from STATICFILES_DIRS without collectstatic.
+    WHITENOISE_USE_FINDERS = True
+    WHITENOISE_AUTOREFRESH = True
 
 MEDIA_URL = '/media/'
 _media_root = os.getenv('MEDIA_ROOT', '').strip()

@@ -44,7 +44,13 @@ class RootViewTests(TestCase):
         self.assertIn('https://shellui.com', body)
         self.assertIn('https://docs.shellui.com', body)
         self.assertIn('shellui.app', body)
-
+        self.assertIn('https://shellui.ai', body)
+        self.assertIn('Agents', body)
+        self.assertIn('apple-touch-icon.png', body)
+        self.assertIn('favicon-32x32.png', body)
+        self.assertIn('/static/css/site.css', body)
+        self.assertIn('© 2026 Shellui', body)
+        self.assertIn('aria-label="Platform"', body)
 
     def test_root_landing_shows_deploy_ready_copy_and_logo(self):
         from django.contrib.auth import get_user_model
@@ -53,7 +59,9 @@ class RootViewTests(TestCase):
         response = self.client.get('/')
         self.assertEqual(response.status_code, 200)
         body = response.content.decode()
+        self.assertIn('logo-shellui-mark', body)
         self.assertIn('logo-shellui', body)
+        self.assertIn('viewBox="0 0 1024 270"', body)
         self.assertIn('shellui login', body)
         self.assertIn('shellui deploy', body)
         self.assertIn('https://q8n4m2xk7wph.shellui.app/', body)
