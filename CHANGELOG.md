@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - Use the Shellui **mark** in the nav (same as shellui.com, `#logo-shellui-mark` at ~34px); no wordmark or `.app` suffix beside it.
 - Product links in nav, footer, and Explore: Website, Docs, Playground, GitHub, then **Agents** / shellui.ai last.
 - Soft primary hero ambient, calmer hierarchy, and monospace only for terminal and command snippets.
+- Add Shellui favicons on the apex landing and other public HTML pages (same set as shellui.com / shellui.ai).
 
 ## [0.4.0] - 2026-09-18
 
