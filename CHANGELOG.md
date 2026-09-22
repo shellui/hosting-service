@@ -9,16 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### 🛠 Improvements
 
-- Align the shellui.app apex landing with Shellui brand assets and shellui.com design tokens (gray canvas, honey gold primary, system typography).
-- Nav: Shellui **mark** (`#logo-shellui-mark`, ~34px, same as shellui.com header); footer brand: Shellui **wordmark** (`#logo-shellui`, 1.25rem height). No domain suffix beside either logo.
-- Product links in nav, footer, and Explore: Website, Docs, Playground, GitHub, then **Agents** / shellui.ai last.
-- Soft primary hero ambient (shellui.ai blur wrapper + clipped gradient), calmer hierarchy, and monospace only for terminal and command snippets.
-- Nav and footer chrome width `64rem` (shellui.ai `max-w-5xl`) with matching horizontal gutters.
-- Add Shellui favicons on the apex landing and other public HTML pages (same set as shellui.com / shellui.ai).
-- Footer layout aligned with shellui.ai: brand and links on one row, meta line below, foreground wordmark.
-- Replace the apex landing inline CSS with Tailwind CSS v4 (`npm run build:css` → `static/css/site.css`), sharing Shellui design tokens with shellui.ai.
-- Match shellui.ai header chrome (responsive nav visibility, `page-top` rhythm) and stack footer platform links under the primary nav with brand-column copyright.
-- Add `npm run watch:css` for local Tailwind rebuilds; enable WhiteNoise finders in `DEBUG` so `static/css/site.css` updates without `collectstatic`.
+- Overall refresh of the homepage (branding, layout, and styling).
 
 ## [0.4.0] - 2026-09-18
 
