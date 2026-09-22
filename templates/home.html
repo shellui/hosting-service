@@ -1,174 +1,398 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en" class="h-full">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  {% load static %}
-  {% include "includes/shellui_favicons.html" %}
-  <link rel="stylesheet" href="{% static 'css/site.css' %}">
-  <title>{% if show_setup_form %}Setup · {% endif %}Shellui Hosting</title>
-  <meta name="description" content="Deploy Shellui apps on shellui.app - login, deploy, and get a stable HTTPS URL on *.shellui.app.">
-  <script>
-    (function () {
-      var stored = localStorage.getItem("theme");
-      var theme = stored || (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
-      if (theme === "dark") document.documentElement.classList.add("dark");
-    })();
-  </script>
-</head>
-<body class="flex min-h-full flex-col bg-background text-foreground antialiased">
-<svg
-  xmlns="http://www.w3.org/2000/svg"
-  class="logo-sprite" width="0" height="0"
-  aria-hidden="true"
-  focusable="false"
->
-  <symbol id="logo-shellui" viewBox="0 0 1024 270">
-    <g transform="matrix(28.6128,0,0,28.6128,-1014.99,-991.437)">
-            <g transform="matrix(12,0,0,12,35.0728,43.9066)">
-                <path d="M0.511,-0.198C0.511,-0.156 0.501,-0.119 0.48,-0.088C0.46,-0.057 0.43,-0.033 0.391,-0.016C0.352,0.001 0.304,0.01 0.248,0.01C0.223,0.01 0.199,0.008 0.176,0.005C0.152,0.002 0.129,-0.003 0.108,-0.01C0.086,-0.016 0.065,-0.024 0.046,-0.033L0.046,-0.174C0.08,-0.159 0.115,-0.145 0.151,-0.133C0.188,-0.121 0.224,-0.115 0.26,-0.115C0.285,-0.115 0.304,-0.118 0.32,-0.125C0.335,-0.132 0.346,-0.14 0.353,-0.152C0.359,-0.163 0.363,-0.176 0.363,-0.191C0.363,-0.209 0.357,-0.224 0.345,-0.237C0.333,-0.25 0.316,-0.261 0.295,-0.272C0.274,-0.284 0.25,-0.295 0.224,-0.308C0.208,-0.316 0.189,-0.325 0.17,-0.337C0.15,-0.348 0.132,-0.362 0.114,-0.378C0.097,-0.394 0.082,-0.414 0.071,-0.437C0.06,-0.461 0.054,-0.488 0.054,-0.521C0.054,-0.564 0.064,-0.6 0.083,-0.63C0.103,-0.661 0.131,-0.684 0.167,-0.7C0.204,-0.716 0.246,-0.724 0.296,-0.724C0.333,-0.724 0.368,-0.72 0.402,-0.711C0.436,-0.703 0.471,-0.69 0.508,-0.674L0.459,-0.556C0.426,-0.569 0.397,-0.58 0.371,-0.587C0.345,-0.594 0.318,-0.598 0.291,-0.598C0.272,-0.598 0.256,-0.595 0.243,-0.589C0.229,-0.583 0.219,-0.575 0.212,-0.564C0.206,-0.553 0.202,-0.54 0.202,-0.526C0.202,-0.509 0.207,-0.495 0.217,-0.483C0.227,-0.472 0.242,-0.46 0.262,-0.45C0.282,-0.439 0.307,-0.426 0.337,-0.412C0.373,-0.395 0.405,-0.377 0.43,-0.358C0.456,-0.339 0.476,-0.317 0.49,-0.292C0.504,-0.267 0.511,-0.236 0.511,-0.198Z" fill="currentColor" fill-rule="nonzero"/>
-            </g>
-            <g transform="matrix(12,0,0,12,41.0822,43.9066)">
-                <path d="M0.227,-0.76L0.227,-0.605C0.227,-0.578 0.226,-0.552 0.224,-0.528C0.223,-0.503 0.221,-0.486 0.22,-0.476L0.228,-0.476C0.24,-0.495 0.254,-0.51 0.27,-0.522C0.286,-0.534 0.304,-0.542 0.323,-0.548C0.343,-0.553 0.364,-0.556 0.386,-0.556C0.426,-0.556 0.46,-0.549 0.489,-0.535C0.519,-0.522 0.541,-0.5 0.558,-0.47C0.574,-0.441 0.582,-0.403 0.582,-0.356L0.582,-0L0.433,-0L0.433,-0.319C0.433,-0.358 0.426,-0.387 0.412,-0.407C0.397,-0.427 0.375,-0.437 0.345,-0.437C0.315,-0.437 0.292,-0.43 0.274,-0.416C0.257,-0.402 0.245,-0.382 0.238,-0.355C0.231,-0.328 0.227,-0.296 0.227,-0.257L0.227,-0L0.078,-0L0.078,-0.76L0.227,-0.76Z" fill="currentColor" fill-rule="nonzero"/>
-            </g>
-            <g transform="matrix(12,0,0,12,48.3689,43.9066)">
-                <path d="M0.303,-0.556C0.354,-0.556 0.397,-0.546 0.434,-0.527C0.47,-0.508 0.498,-0.48 0.518,-0.443C0.538,-0.406 0.548,-0.361 0.548,-0.308L0.548,-0.236L0.196,-0.236C0.197,-0.194 0.21,-0.161 0.234,-0.137C0.257,-0.113 0.29,-0.101 0.332,-0.101C0.367,-0.101 0.399,-0.105 0.428,-0.112C0.457,-0.119 0.486,-0.13 0.517,-0.144L0.517,-0.029C0.49,-0.015 0.462,-0.006 0.432,0C0.403,0.007 0.367,0.01 0.325,0.01C0.271,0.01 0.222,-0 0.18,-0.021C0.138,-0.041 0.105,-0.071 0.081,-0.113C0.057,-0.154 0.045,-0.206 0.045,-0.269C0.045,-0.333 0.056,-0.386 0.077,-0.428C0.099,-0.471 0.129,-0.503 0.168,-0.524C0.207,-0.545 0.252,-0.556 0.303,-0.556ZM0.304,-0.45C0.275,-0.45 0.251,-0.441 0.232,-0.422C0.213,-0.404 0.202,-0.375 0.199,-0.335L0.408,-0.335C0.408,-0.357 0.404,-0.377 0.396,-0.394C0.389,-0.411 0.377,-0.425 0.362,-0.435C0.347,-0.445 0.328,-0.45 0.304,-0.45Z" fill="currentColor" fill-rule="nonzero"/>
-            </g>
-            <g transform="matrix(12,0,0,12,54.8587,43.9066)">
-                <rect x="0.078" y="-0.76" width="0.149" height="0.76" fill="currentColor" fill-rule="nonzero"/>
-            </g>
-            <g transform="matrix(12,0,0,12,57.9208,43.9066)">
-                <rect x="0.078" y="-0.76" width="0.149" height="0.76" fill="currentColor" fill-rule="nonzero"/>
-            </g>
-            <g transform="matrix(12,0,0,12,60.9829,43.9066)">
-                <path d="M0.579,-0.546L0.579,-0L0.465,-0L0.445,-0.07L0.437,-0.07C0.425,-0.051 0.411,-0.036 0.393,-0.024C0.375,-0.013 0.356,-0.004 0.335,0.001C0.314,0.007 0.292,0.01 0.269,0.01C0.23,0.01 0.196,0.003 0.167,-0.011C0.138,-0.025 0.115,-0.046 0.099,-0.076C0.083,-0.105 0.075,-0.143 0.075,-0.19L0.075,-0.546L0.224,-0.546L0.224,-0.227C0.224,-0.188 0.231,-0.159 0.245,-0.139C0.259,-0.119 0.281,-0.109 0.312,-0.109C0.342,-0.109 0.366,-0.116 0.383,-0.13C0.401,-0.143 0.413,-0.164 0.42,-0.191C0.427,-0.218 0.43,-0.25 0.43,-0.289L0.43,-0.546L0.579,-0.546Z" fill="currentColor" fill-rule="nonzero"/>
-            </g>
-            <g transform="matrix(12,0,0,12,68.2697,43.9066)">
-                <path d="M0.227,-0.546L0.227,-0L0.078,-0L0.078,-0.546L0.227,-0.546ZM0.153,-0.76C0.175,-0.76 0.194,-0.755 0.21,-0.744C0.226,-0.734 0.234,-0.715 0.234,-0.687C0.234,-0.659 0.226,-0.64 0.21,-0.63C0.194,-0.619 0.175,-0.614 0.153,-0.614C0.13,-0.614 0.111,-0.619 0.095,-0.63C0.08,-0.64 0.072,-0.659 0.072,-0.687C0.072,-0.715 0.08,-0.734 0.095,-0.744C0.111,-0.755 0.13,-0.76 0.153,-0.76Z" fill="currentColor" fill-rule="nonzero"/>
-            </g>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    {% load static %} {% include "includes/shellui_favicons.html" %}
+    <link rel="stylesheet" href="{% static 'css/site.css' %}" />
+    <title>{% if show_setup_form %}Setup · {% endif %}Shellui Hosting</title>
+    <meta
+      name="description"
+      content="Deploy Shellui apps on shellui.app - login, deploy, and get a stable HTTPS URL on *.shellui.app."
+    />
+    <script>
+      (function () {
+        var stored = localStorage.getItem("theme");
+        var theme =
+          stored ||
+          (window.matchMedia("(prefers-color-scheme: dark)").matches
+            ? "dark"
+            : "light");
+        if (theme === "dark") document.documentElement.classList.add("dark");
+      })();
+    </script>
+  </head>
+  <body
+    class="flex min-h-full flex-col bg-background text-foreground antialiased"
+  >
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      class="logo-sprite"
+      width="0"
+      height="0"
+      aria-hidden="true"
+      focusable="false"
+    >
+      <symbol id="logo-shellui" viewBox="0 0 1024 270">
+        <g transform="matrix(28.6128,0,0,28.6128,-1014.99,-991.437)">
+          <g transform="matrix(12,0,0,12,35.0728,43.9066)">
+            <path
+              d="M0.511,-0.198C0.511,-0.156 0.501,-0.119 0.48,-0.088C0.46,-0.057 0.43,-0.033 0.391,-0.016C0.352,0.001 0.304,0.01 0.248,0.01C0.223,0.01 0.199,0.008 0.176,0.005C0.152,0.002 0.129,-0.003 0.108,-0.01C0.086,-0.016 0.065,-0.024 0.046,-0.033L0.046,-0.174C0.08,-0.159 0.115,-0.145 0.151,-0.133C0.188,-0.121 0.224,-0.115 0.26,-0.115C0.285,-0.115 0.304,-0.118 0.32,-0.125C0.335,-0.132 0.346,-0.14 0.353,-0.152C0.359,-0.163 0.363,-0.176 0.363,-0.191C0.363,-0.209 0.357,-0.224 0.345,-0.237C0.333,-0.25 0.316,-0.261 0.295,-0.272C0.274,-0.284 0.25,-0.295 0.224,-0.308C0.208,-0.316 0.189,-0.325 0.17,-0.337C0.15,-0.348 0.132,-0.362 0.114,-0.378C0.097,-0.394 0.082,-0.414 0.071,-0.437C0.06,-0.461 0.054,-0.488 0.054,-0.521C0.054,-0.564 0.064,-0.6 0.083,-0.63C0.103,-0.661 0.131,-0.684 0.167,-0.7C0.204,-0.716 0.246,-0.724 0.296,-0.724C0.333,-0.724 0.368,-0.72 0.402,-0.711C0.436,-0.703 0.471,-0.69 0.508,-0.674L0.459,-0.556C0.426,-0.569 0.397,-0.58 0.371,-0.587C0.345,-0.594 0.318,-0.598 0.291,-0.598C0.272,-0.598 0.256,-0.595 0.243,-0.589C0.229,-0.583 0.219,-0.575 0.212,-0.564C0.206,-0.553 0.202,-0.54 0.202,-0.526C0.202,-0.509 0.207,-0.495 0.217,-0.483C0.227,-0.472 0.242,-0.46 0.262,-0.45C0.282,-0.439 0.307,-0.426 0.337,-0.412C0.373,-0.395 0.405,-0.377 0.43,-0.358C0.456,-0.339 0.476,-0.317 0.49,-0.292C0.504,-0.267 0.511,-0.236 0.511,-0.198Z"
+              fill="currentColor"
+              fill-rule="nonzero"
+            />
+          </g>
+          <g transform="matrix(12,0,0,12,41.0822,43.9066)">
+            <path
+              d="M0.227,-0.76L0.227,-0.605C0.227,-0.578 0.226,-0.552 0.224,-0.528C0.223,-0.503 0.221,-0.486 0.22,-0.476L0.228,-0.476C0.24,-0.495 0.254,-0.51 0.27,-0.522C0.286,-0.534 0.304,-0.542 0.323,-0.548C0.343,-0.553 0.364,-0.556 0.386,-0.556C0.426,-0.556 0.46,-0.549 0.489,-0.535C0.519,-0.522 0.541,-0.5 0.558,-0.47C0.574,-0.441 0.582,-0.403 0.582,-0.356L0.582,-0L0.433,-0L0.433,-0.319C0.433,-0.358 0.426,-0.387 0.412,-0.407C0.397,-0.427 0.375,-0.437 0.345,-0.437C0.315,-0.437 0.292,-0.43 0.274,-0.416C0.257,-0.402 0.245,-0.382 0.238,-0.355C0.231,-0.328 0.227,-0.296 0.227,-0.257L0.227,-0L0.078,-0L0.078,-0.76L0.227,-0.76Z"
+              fill="currentColor"
+              fill-rule="nonzero"
+            />
+          </g>
+          <g transform="matrix(12,0,0,12,48.3689,43.9066)">
+            <path
+              d="M0.303,-0.556C0.354,-0.556 0.397,-0.546 0.434,-0.527C0.47,-0.508 0.498,-0.48 0.518,-0.443C0.538,-0.406 0.548,-0.361 0.548,-0.308L0.548,-0.236L0.196,-0.236C0.197,-0.194 0.21,-0.161 0.234,-0.137C0.257,-0.113 0.29,-0.101 0.332,-0.101C0.367,-0.101 0.399,-0.105 0.428,-0.112C0.457,-0.119 0.486,-0.13 0.517,-0.144L0.517,-0.029C0.49,-0.015 0.462,-0.006 0.432,0C0.403,0.007 0.367,0.01 0.325,0.01C0.271,0.01 0.222,-0 0.18,-0.021C0.138,-0.041 0.105,-0.071 0.081,-0.113C0.057,-0.154 0.045,-0.206 0.045,-0.269C0.045,-0.333 0.056,-0.386 0.077,-0.428C0.099,-0.471 0.129,-0.503 0.168,-0.524C0.207,-0.545 0.252,-0.556 0.303,-0.556ZM0.304,-0.45C0.275,-0.45 0.251,-0.441 0.232,-0.422C0.213,-0.404 0.202,-0.375 0.199,-0.335L0.408,-0.335C0.408,-0.357 0.404,-0.377 0.396,-0.394C0.389,-0.411 0.377,-0.425 0.362,-0.435C0.347,-0.445 0.328,-0.45 0.304,-0.45Z"
+              fill="currentColor"
+              fill-rule="nonzero"
+            />
+          </g>
+          <g transform="matrix(12,0,0,12,54.8587,43.9066)">
+            <rect
+              x="0.078"
+              y="-0.76"
+              width="0.149"
+              height="0.76"
+              fill="currentColor"
+              fill-rule="nonzero"
+            />
+          </g>
+          <g transform="matrix(12,0,0,12,57.9208,43.9066)">
+            <rect
+              x="0.078"
+              y="-0.76"
+              width="0.149"
+              height="0.76"
+              fill="currentColor"
+              fill-rule="nonzero"
+            />
+          </g>
+          <g transform="matrix(12,0,0,12,60.9829,43.9066)">
+            <path
+              d="M0.579,-0.546L0.579,-0L0.465,-0L0.445,-0.07L0.437,-0.07C0.425,-0.051 0.411,-0.036 0.393,-0.024C0.375,-0.013 0.356,-0.004 0.335,0.001C0.314,0.007 0.292,0.01 0.269,0.01C0.23,0.01 0.196,0.003 0.167,-0.011C0.138,-0.025 0.115,-0.046 0.099,-0.076C0.083,-0.105 0.075,-0.143 0.075,-0.19L0.075,-0.546L0.224,-0.546L0.224,-0.227C0.224,-0.188 0.231,-0.159 0.245,-0.139C0.259,-0.119 0.281,-0.109 0.312,-0.109C0.342,-0.109 0.366,-0.116 0.383,-0.13C0.401,-0.143 0.413,-0.164 0.42,-0.191C0.427,-0.218 0.43,-0.25 0.43,-0.289L0.43,-0.546L0.579,-0.546Z"
+              fill="currentColor"
+              fill-rule="nonzero"
+            />
+          </g>
+          <g transform="matrix(12,0,0,12,68.2697,43.9066)">
+            <path
+              d="M0.227,-0.546L0.227,-0L0.078,-0L0.078,-0.546L0.227,-0.546ZM0.153,-0.76C0.175,-0.76 0.194,-0.755 0.21,-0.744C0.226,-0.734 0.234,-0.715 0.234,-0.687C0.234,-0.659 0.226,-0.64 0.21,-0.63C0.194,-0.619 0.175,-0.614 0.153,-0.614C0.13,-0.614 0.111,-0.619 0.095,-0.63C0.08,-0.64 0.072,-0.659 0.072,-0.687C0.072,-0.715 0.08,-0.734 0.095,-0.744C0.111,-0.755 0.13,-0.76 0.153,-0.76Z"
+              fill="currentColor"
+              fill-rule="nonzero"
+            />
+          </g>
         </g>
-  </symbol>
-  <symbol id="logo-shellui-mark" viewBox="0 0 1080 1080">
-    <g transform="matrix(1.28904,0,0,1.26641,-101.377,-56.7975)">
-      <path
-        fill="currentColor"
-        fill-rule="nonzero"
-        d="M509,202C493,202 478,207 461,221L338,340C316,361 305,382 305,407C305,433 315,458 333,480C350,500 373,516 393,517C397,518 401,517 405,513L656,263C670,249 677,238 678,226C679,216 676,209 671,205C667,203 662,202 654,202L509,202Z"
-      />
-    </g>
-    <g transform="matrix(1.28904,0,0,1.26641,-101.377,-56.7975)">
-      <path
-        fill="currentColor"
-        fill-rule="nonzero"
-        d="M599,419C586,422 575,431 562,444L320,695C312,703 308,711 310,720C312,732 320,739 331,740L482,740C500,740 513,736 526,725L646,607C670,584 683,559 687,531C690,506 684,480 672,460C661,439 645,425 628,420C618,417 608,417 599,419Z"
-      />
-    </g>
-  </symbol>
-</svg>
+      </symbol>
+      <symbol id="logo-shellui-mark" viewBox="0 0 1080 1080">
+        <g transform="matrix(1.28904,0,0,1.26641,-101.377,-56.7975)">
+          <path
+            fill="currentColor"
+            fill-rule="nonzero"
+            d="M509,202C493,202 478,207 461,221L338,340C316,361 305,382 305,407C305,433 315,458 333,480C350,500 373,516 393,517C397,518 401,517 405,513L656,263C670,249 677,238 678,226C679,216 676,209 671,205C667,203 662,202 654,202L509,202Z"
+          />
+        </g>
+        <g transform="matrix(1.28904,0,0,1.26641,-101.377,-56.7975)">
+          <path
+            fill="currentColor"
+            fill-rule="nonzero"
+            d="M599,419C586,422 575,431 562,444L320,695C312,703 308,711 310,720C312,732 320,739 331,740L482,740C500,740 513,736 526,725L646,607C670,584 683,559 687,531C690,506 684,480 672,460C661,439 645,425 628,420C618,417 608,417 599,419Z"
+          />
+        </g>
+      </symbol>
+    </svg>
 
-  <header class="fixed inset-x-0 top-0 z-50">
-    <div class="relative z-50 border-b border-border/50 bg-background/80 backdrop-blur-md page-x dark:border-border/50">
-      <nav class="mx-auto flex h-16 max-w-5xl items-center justify-between gap-4" aria-label="Global">
-        <a href="/" class="inline-flex shrink-0 items-center text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary" aria-label="shellui.app" translate="no">
-          <svg class="size-8.5" viewBox="0 0 1080 1080" role="img" aria-hidden="true">
-            <use href="#logo-shellui-mark"></use>
-          </svg>
-        </a>
-        <div class="flex items-center gap-3 sm:gap-5">
-          <a href="{{ website_url }}" class="hidden text-sm font-medium text-muted-foreground transition-colors hover:text-foreground sm:inline" target="_blank" rel="noopener noreferrer">Website</a>
-          <a href="{{ docs_url }}" class="text-sm font-medium text-muted-foreground transition-colors hover:text-foreground" target="_blank" rel="noopener noreferrer">Docs</a>
-          <a href="{{ playground_url }}" class="hidden text-sm font-medium text-muted-foreground transition-colors hover:text-foreground md:inline" target="_blank" rel="noopener noreferrer">Playground</a>
-          <a href="{{ github_url }}" class="hidden text-sm font-medium text-muted-foreground transition-colors hover:text-foreground sm:inline" target="_blank" rel="noopener noreferrer">GitHub</a>
-          <a href="{{ ai_url }}" class="text-sm font-medium text-muted-foreground transition-colors hover:text-foreground" target="_blank" rel="noopener noreferrer">Agents</a>
-          <button type="button" class="theme-toggle inline-flex size-11 items-center justify-center rounded-md p-2 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary" aria-label="Toggle dark mode">
-            <svg class="h-5 w-5 dark:hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+    <header class="fixed inset-x-0 top-0 z-50">
+      <div
+        class="relative z-50 border-b border-border/50 bg-background/80 backdrop-blur-md page-x dark:border-border/50"
+      >
+        <nav
+          class="mx-auto flex h-16 max-w-5xl items-center justify-between gap-4"
+          aria-label="Global"
+        >
+          <a
+            href="/"
+            class="inline-flex shrink-0 items-center text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+            aria-label="shellui.app"
+            translate="no"
+          >
+            <svg
+              class="size-8.5"
+              viewBox="0 0 1080 1080"
+              role="img"
+              aria-hidden="true"
+            >
+              <use href="#logo-shellui-mark"></use>
             </svg>
-            <svg class="hidden h-5 w-5 dark:block" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
-            </svg>
-          </button>
-        </div>
-      </nav>
-    </div>
-  </header>
+          </a>
+          <div class="flex items-center gap-3 sm:gap-5">
+            <a
+              href="{{ website_url }}"
+              class="hidden text-sm font-medium text-muted-foreground transition-colors hover:text-foreground sm:inline"
+              target="_blank"
+              rel="noopener noreferrer"
+              >Website</a
+            >
+            <a
+              href="{{ docs_url }}"
+              class="text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
+              target="_blank"
+              rel="noopener noreferrer"
+              >Docs</a
+            >
+            <a
+              href="{{ playground_url }}"
+              class="hidden text-sm font-medium text-muted-foreground transition-colors hover:text-foreground md:inline"
+              target="_blank"
+              rel="noopener noreferrer"
+              >Playground</a
+            >
+            <a
+              href="{{ github_url }}"
+              class="hidden text-sm font-medium text-muted-foreground transition-colors hover:text-foreground sm:inline"
+              target="_blank"
+              rel="noopener noreferrer"
+              >GitHub</a
+            >
+            <a
+              href="{{ ai_url }}"
+              class="text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
+              target="_blank"
+              rel="noopener noreferrer"
+              >Agents</a
+            >
+            <button
+              type="button"
+              class="theme-toggle inline-flex size-11 items-center justify-center rounded-md p-2 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+              aria-label="Toggle dark mode"
+            >
+              <svg
+                class="h-5 w-5 dark:hidden"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+                aria-hidden="true"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"
+                />
+              </svg>
+              <svg
+                class="hidden h-5 w-5 dark:block"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+                aria-hidden="true"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"
+                />
+              </svg>
+            </button>
+          </div>
+        </nav>
+      </div>
+    </header>
 
-  <main class="flex-1 pb-12">
-    {% if show_setup_form %}
-    <div class="page-x page-top">
-      <div class="mx-auto w-full max-w-md rounded-xl border border-border bg-card p-6 shadow-sm hosting-form">
-        <h1 class="text-xl font-semibold tracking-tight text-foreground">Shellui Hosting setup</h1>
-        <p class="mt-3 text-sm leading-relaxed text-muted-foreground">Create the initial administrator account. This setup is available only once and disappears permanently after the first user is created.</p>
-        {% if form.non_field_errors %}
-          <div class="mt-4 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-900 dark:bg-red-950/40 dark:text-red-300">{% for error in form.non_field_errors %}<div>{{ error }}</div>{% endfor %}</div>
-        {% endif %}
-        <form method="post" novalidate class="mt-4">
-          {% csrf_token %}
-          {% if setup_token %}
-            <input type="hidden" name="setup_token" value="{{ setup_token }}">
-          {% endif %}
-          <div class="row">
-            <label for="{{ form.username.id_for_label }}">Username</label>
-            {{ form.username }}
-            {% if form.username.errors %}<div class="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-900 dark:bg-red-950/40 dark:text-red-300">{% for error in form.username.errors %}<div>{{ error }}</div>{% endfor %}</div>{% endif %}
-          </div>
-          <div class="row">
-            <label for="{{ form.email.id_for_label }}">Email (optional)</label>
-            {{ form.email }}
-            {% if form.email.errors %}<div class="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-900 dark:bg-red-950/40 dark:text-red-300">{% for error in form.email.errors %}<div>{{ error }}</div>{% endfor %}</div>{% endif %}
-          </div>
-          <div class="row">
-            <label for="{{ form.password.id_for_label }}">Password</label>
-            {{ form.password }}
-            {% if form.password.errors %}<div class="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-900 dark:bg-red-950/40 dark:text-red-300">{% for error in form.password.errors %}<div>{{ error }}</div>{% endfor %}</div>{% endif %}
-          </div>
-          <div class="row">
-            <label for="{{ form.password_confirm.id_for_label }}">Confirm password</label>
-            {{ form.password_confirm }}
-            {% if form.password_confirm.errors %}<div class="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-900 dark:bg-red-950/40 dark:text-red-300">{% for error in form.password_confirm.errors %}<div>{{ error }}</div>{% endfor %}</div>{% endif %}
-          </div>
-          <button type="submit" class="mt-2 w-full cursor-pointer rounded-md bg-foreground px-4 py-2.5 text-sm font-semibold text-background hover:opacity-90">Create superuser</button>
-        </form>
-        <p class="mt-4 text-xs text-muted-foreground">Tip: Use a long passphrase. Django password policy is enforced here.</p>
-      </div>
-    </div>
-    {% elif bootstrap_blocked %}
-    <div class="page-x page-top">
-      <div class="mx-auto w-full max-w-md rounded-xl border border-border bg-card p-6 shadow-sm">
-        <h1 class="text-xl font-semibold tracking-tight text-foreground">Shellui Hosting setup</h1>
-        <p class="mt-3 text-sm leading-relaxed text-muted-foreground">No administrator account exists yet. Public bootstrap is disabled in this environment. Create the first superuser with:</p>
-        <p class="mt-3 font-mono text-xs text-primary-ink dark:text-primary"><code>uv run python manage.py createsuperuser</code></p>
-        <p class="mt-3 text-xs text-muted-foreground">Alternatively, set <code class="font-mono text-primary-ink dark:text-primary">SETUP_TOKEN</code> and open <code class="font-mono">/?setup_token=&lt;token&gt;</code> for a one-time web setup.</p>
-      </div>
-    </div>
-    {% else %}
-    <div class="relative isolate page-x page-top">
-      <div class="pointer-events-none absolute inset-x-0 -top-40 -z-10 transform-gpu overflow-hidden blur-3xl sm:-top-80" aria-hidden="true">
+    <main class="flex-1 pb-12">
+      {% if show_setup_form %}
+      <div class="page-x page-top">
         <div
-          class="relative left-[calc(50%-11rem)] aspect-[1155/678] w-[36.125rem] -translate-x-1/2 rotate-30 bg-linear-to-tr from-primary to-amber-200 opacity-30 sm:left-[calc(50%-30rem)] sm:w-[72.1875rem] dark:opacity-20"
-          style="clip-path: polygon(74.1% 44.1%, 100% 61.6%, 97.5% 26.9%, 85.5% 0.1%, 80.7% 2%, 72.5% 32.5%, 60.2% 62.4%, 52.4% 68.1%, 47.5% 58.3%, 45.2% 34.5%, 27.5% 76.7%, 0.1% 64.9%, 17.9% 100%, 27.6% 76.8%, 76.1% 97.7%, 74.1% 44.1%)"
-        ></div>
-      </div>
-
-      <div class="mx-auto max-w-3xl pb-12 sm:pb-16">
-        {% if setup_done %}
-          <div class="mb-6 rounded-md border border-green-200 bg-green-50 px-3 py-2 text-sm text-green-800 dark:border-green-800 dark:bg-green-950/40 dark:text-green-200">Initial user created successfully. Setup is now locked.</div>
-        {% endif %}
-        <p class="text-sm font-medium text-primary-ink dark:text-primary">Shellui Hosting</p>
-        <h1 class="mt-4 text-4xl font-bold tracking-tight text-balance text-foreground sm:text-5xl">
-          Host your <span class="text-primary-ink dark:text-primary">Shellui</span> apps
-        </h1>
-        <p class="mt-6 max-w-xl text-lg/7 text-muted-foreground">
-          shellui.app is Shellui Hosting - deploy a build and serve it on a stable subdomain.
-          Your products run inside the shell; we handle the public URL, previews, and delivery.
-        </p>
-
-        <section class="mt-12">
-          <h2 class="text-2xl font-semibold tracking-tight text-foreground">Deploy</h2>
-          <p class="mt-2 text-lg/7 text-muted-foreground">
-            Log in once, then deploy. You get a real HTTPS origin on <code class="font-mono text-sm text-primary-ink dark:text-primary">*.shellui.app</code>.
+          class="mx-auto w-full max-w-md rounded-xl border border-border bg-card p-6 shadow-sm hosting-form"
+        >
+          <h1 class="text-xl font-semibold tracking-tight text-foreground">
+            Shellui Hosting setup
+          </h1>
+          <p class="mt-3 text-sm leading-relaxed text-muted-foreground">
+            Create the initial administrator account. This setup is available
+            only once and disappears permanently after the first user is
+            created.
           </p>
-          <pre class="mt-5 overflow-x-auto rounded-xl border border-border bg-gray-950 p-4 font-mono text-[0.8125rem] leading-relaxed text-white/90" aria-label="Example shellui login and deploy"><code><span class="text-white/45">$</span> <span class="text-white/90">shellui login</span>
+          {% if form.non_field_errors %}
+          <div
+            class="mt-4 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-900 dark:bg-red-950/40 dark:text-red-300"
+          >
+            {% for error in form.non_field_errors %}
+            <div>{{ error }}</div>
+            {% endfor %}
+          </div>
+          {% endif %}
+          <form method="post" novalidate class="mt-4">
+            {% csrf_token %} {% if setup_token %}
+            <input type="hidden" name="setup_token" value="{{ setup_token }}" />
+            {% endif %}
+            <div class="row">
+              <label for="{{ form.username.id_for_label }}">Username</label>
+              {{ form.username }} {% if form.username.errors %}
+              <div
+                class="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-900 dark:bg-red-950/40 dark:text-red-300"
+              >
+                {% for error in form.username.errors %}
+                <div>{{ error }}</div>
+                {% endfor %}
+              </div>
+              {% endif %}
+            </div>
+            <div class="row">
+              <label for="{{ form.email.id_for_label }}"
+                >Email (optional)</label
+              >
+              {{ form.email }} {% if form.email.errors %}
+              <div
+                class="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-900 dark:bg-red-950/40 dark:text-red-300"
+              >
+                {% for error in form.email.errors %}
+                <div>{{ error }}</div>
+                {% endfor %}
+              </div>
+              {% endif %}
+            </div>
+            <div class="row">
+              <label for="{{ form.password.id_for_label }}">Password</label>
+              {{ form.password }} {% if form.password.errors %}
+              <div
+                class="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-900 dark:bg-red-950/40 dark:text-red-300"
+              >
+                {% for error in form.password.errors %}
+                <div>{{ error }}</div>
+                {% endfor %}
+              </div>
+              {% endif %}
+            </div>
+            <div class="row">
+              <label for="{{ form.password_confirm.id_for_label }}"
+                >Confirm password</label
+              >
+              {{ form.password_confirm }} {% if form.password_confirm.errors %}
+              <div
+                class="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-900 dark:bg-red-950/40 dark:text-red-300"
+              >
+                {% for error in form.password_confirm.errors %}
+                <div>{{ error }}</div>
+                {% endfor %}
+              </div>
+              {% endif %}
+            </div>
+            <button
+              type="submit"
+              class="mt-2 w-full cursor-pointer rounded-md bg-foreground px-4 py-2.5 text-sm font-semibold text-background hover:opacity-90"
+            >
+              Create superuser
+            </button>
+          </form>
+          <p class="mt-4 text-xs text-muted-foreground">
+            Tip: Use a long passphrase. Django password policy is enforced here.
+          </p>
+        </div>
+      </div>
+      {% elif bootstrap_blocked %}
+      <div class="page-x page-top">
+        <div
+          class="mx-auto w-full max-w-md rounded-xl border border-border bg-card p-6 shadow-sm"
+        >
+          <h1 class="text-xl font-semibold tracking-tight text-foreground">
+            Shellui Hosting setup
+          </h1>
+          <p class="mt-3 text-sm leading-relaxed text-muted-foreground">
+            No administrator account exists yet. Public bootstrap is disabled in
+            this environment. Create the first superuser with:
+          </p>
+          <p class="mt-3 font-mono text-xs text-primary-ink dark:text-primary">
+            <code>uv run python manage.py createsuperuser</code>
+          </p>
+          <p class="mt-3 text-xs text-muted-foreground">
+            Alternatively, set
+            <code class="font-mono text-primary-ink dark:text-primary"
+              >SETUP_TOKEN</code
+            >
+            and open
+            <code class="font-mono">/?setup_token=&lt;token&gt;</code> for a
+            one-time web setup.
+          </p>
+        </div>
+      </div>
+      {% else %}
+      <div class="relative isolate page-x page-top">
+        <div
+          class="pointer-events-none absolute inset-x-0 -top-40 -z-10 transform-gpu overflow-hidden blur-3xl sm:-top-80"
+          aria-hidden="true"
+        >
+          <div
+            class="relative left-[calc(50%-11rem)] aspect-[1155/678] w-[36.125rem] -translate-x-1/2 rotate-30 bg-linear-to-tr from-primary to-amber-200 opacity-30 sm:left-[calc(50%-30rem)] sm:w-[72.1875rem] dark:opacity-20"
+            style="
+              clip-path: polygon(
+                74.1% 44.1%,
+                100% 61.6%,
+                97.5% 26.9%,
+                85.5% 0.1%,
+                80.7% 2%,
+                72.5% 32.5%,
+                60.2% 62.4%,
+                52.4% 68.1%,
+                47.5% 58.3%,
+                45.2% 34.5%,
+                27.5% 76.7%,
+                0.1% 64.9%,
+                17.9% 100%,
+                27.6% 76.8%,
+                76.1% 97.7%,
+                74.1% 44.1%
+              );
+            "
+          ></div>
+        </div>
+
+        <div class="mx-auto max-w-3xl pb-12 sm:pb-16">
+          {% if setup_done %}
+          <div
+            class="mb-6 rounded-md border border-green-200 bg-green-50 px-3 py-2 text-sm text-green-800 dark:border-green-800 dark:bg-green-950/40 dark:text-green-200"
+          >
+            Initial user created successfully. Setup is now locked.
+          </div>
+          {% endif %}
+          <p class="text-sm font-medium text-primary-ink dark:text-primary">
+            Shellui Hosting
+          </p>
+          <h1
+            class="mt-4 text-4xl font-bold tracking-tight text-balance text-foreground sm:text-5xl"
+          >
+            Host your
+            <span class="text-primary-ink dark:text-primary">Shellui</span> apps
+          </h1>
+          <p class="mt-6 max-w-xl text-lg/7 text-muted-foreground">
+            shellui.app is Shellui Hosting - deploy a build and serve it on a
+            stable subdomain. Your products run inside the shell; we handle the
+            public URL, previews, and delivery.
+          </p>
+
+          <section class="mt-12">
+            <h2 class="text-2xl font-semibold tracking-tight text-foreground">
+              Deploy
+            </h2>
+            <p class="mt-2 text-lg/7 text-muted-foreground">
+              Log in once, then deploy. You get a real HTTPS origin on
+              <code class="font-mono text-sm text-primary-ink dark:text-primary"
+                >*.shellui.app</code
+              >.
+            </p>
+            <pre
+              class="mt-5 overflow-x-auto rounded-xl border border-border bg-gray-950 p-4 font-mono text-[0.8125rem] leading-relaxed text-white/90"
+              aria-label="Example shellui login and deploy"
+            ><code><span class="text-white/45">$</span> <span class="text-white/90">shellui login</span>
 <span class="text-white/45">Logged in as you@example.com</span>
 
 <span class="text-white/45">$</span> <span class="text-white/90">shellui deploy</span>
@@ -176,109 +400,266 @@
 <span class="text-green-300">Deployed</span>
 <span class="text-white/45">q8n4m2xk7wph</span> <span class="text-primary">https://q8n4m2xk7wph.shellui.app/</span>
 </code></pre>
-        </section>
+          </section>
 
-        <section class="mt-12">
-          <h2 class="text-2xl font-semibold tracking-tight text-foreground">How it fits</h2>
-          <ol class="mt-6 grid gap-5 text-sm leading-relaxed text-muted-foreground">
-            <li><strong class="font-medium text-foreground">1. Build with Shellui</strong> - configure the shell, then <code class="font-mono text-primary-ink dark:text-primary">shellui build</code>.</li>
-            <li><strong class="font-medium text-foreground">2. Login and deploy</strong> - <code class="font-mono text-primary-ink dark:text-primary">shellui login</code>, then <code class="font-mono text-primary-ink dark:text-primary">shellui deploy</code> to a slug on <code class="font-mono text-primary-ink dark:text-primary">*.shellui.app</code>.</li>
-            <li><strong class="font-medium text-foreground">3. Share the URL</strong> - teammates and agents hit a real HTTPS origin, not a laptop port.</li>
-          </ol>
-        </section>
+          <section class="mt-12">
+            <h2 class="text-2xl font-semibold tracking-tight text-foreground">
+              How it fits
+            </h2>
+            <ol
+              class="mt-6 grid gap-5 text-sm leading-relaxed text-muted-foreground"
+            >
+              <li>
+                <strong class="font-medium text-foreground"
+                  >1. Build with Shellui</strong
+                >
+                - configure the shell, then
+                <code class="font-mono text-primary-ink dark:text-primary"
+                  >shellui build</code
+                >.
+              </li>
+              <li>
+                <strong class="font-medium text-foreground"
+                  >2. Login and deploy</strong
+                >
+                -
+                <code class="font-mono text-primary-ink dark:text-primary"
+                  >shellui login</code
+                >, then
+                <code class="font-mono text-primary-ink dark:text-primary"
+                  >shellui deploy</code
+                >
+                to a slug on
+                <code class="font-mono text-primary-ink dark:text-primary"
+                  >*.shellui.app</code
+                >.
+              </li>
+              <li>
+                <strong class="font-medium text-foreground"
+                  >3. Share the URL</strong
+                >
+                - teammates and agents hit a real HTTPS origin, not a laptop
+                port.
+              </li>
+            </ol>
+          </section>
 
-        <section class="mt-12">
-          <h2 class="text-2xl font-semibold tracking-tight text-foreground">For humans and agents</h2>
-          <p class="mt-2 text-lg/7 text-muted-foreground">
-            Prefer docs and the product site for the full story. Agents can bootstrap via
-            <a href="{{ ai_url }}" class="font-medium text-primary-ink underline-offset-2 hover:underline dark:text-primary" target="_blank" rel="noopener noreferrer">shellui.ai</a>,
-            and read <a href="/llms.txt" class="font-medium text-primary-ink underline-offset-2 hover:underline dark:text-primary">llms.txt</a> for a short machine-readable overview of this host.
-          </p>
-        </section>
+          <section class="mt-12">
+            <h2 class="text-2xl font-semibold tracking-tight text-foreground">
+              For humans and agents
+            </h2>
+            <p class="mt-2 text-lg/7 text-muted-foreground">
+              Prefer docs and the product site for the full story. Agents can
+              bootstrap via
+              <a
+                href="{{ ai_url }}"
+                class="font-medium text-primary-ink underline-offset-2 hover:underline dark:text-primary"
+                target="_blank"
+                rel="noopener noreferrer"
+                >shellui.ai</a
+              >, and read
+              <a
+                href="/llms.txt"
+                class="font-medium text-primary-ink underline-offset-2 hover:underline dark:text-primary"
+                >llms.txt</a
+              >
+              for a short machine-readable overview of this host.
+            </p>
+          </section>
 
-        <div class="mt-12 rounded-xl border border-border bg-muted p-6 sm:p-8">
-          <h2 class="text-lg font-semibold text-foreground">Explore</h2>
-          <p class="mt-3 text-sm leading-relaxed text-muted-foreground">
-            <a href="{{ website_url }}" class="font-medium text-primary-ink hover:underline dark:text-primary" target="_blank" rel="noopener noreferrer">Website</a>
-            ·
-            <a href="{{ docs_url }}" class="font-medium text-primary-ink hover:underline dark:text-primary" target="_blank" rel="noopener noreferrer">Documentation</a>
-            ·
-            <a href="{{ playground_url }}" class="font-medium text-primary-ink hover:underline dark:text-primary" target="_blank" rel="noopener noreferrer">Playground</a>
-            ·
-            <a href="{{ github_url }}" class="font-medium text-primary-ink hover:underline dark:text-primary" target="_blank" rel="noopener noreferrer">GitHub</a>
-            ·
-            <a href="{{ ai_url }}" class="font-medium text-primary-ink hover:underline dark:text-primary" target="_blank" rel="noopener noreferrer">Agents</a>
-          </p>
-          <p class="mt-4 text-sm text-muted-foreground">
-            Platform ops on this host:
-            <a href="{{ admin_url }}" class="font-medium text-primary-ink hover:underline dark:text-primary">Admin</a>
-            ·
-            <a href="{{ swagger_url }}" class="font-medium text-primary-ink hover:underline dark:text-primary">API docs</a>
-            ·
-            <a href="{{ redoc_url }}" class="font-medium text-primary-ink hover:underline dark:text-primary">ReDoc</a>
-          </p>
+          <div
+            class="mt-12 rounded-xl border border-border bg-muted p-6 sm:p-8"
+          >
+            <h2 class="text-lg font-semibold text-foreground">Explore</h2>
+            <p class="mt-3 text-sm leading-relaxed text-muted-foreground">
+              <a
+                href="{{ website_url }}"
+                class="font-medium text-primary-ink hover:underline dark:text-primary"
+                target="_blank"
+                rel="noopener noreferrer"
+                >Website</a
+              >
+              ·
+              <a
+                href="{{ docs_url }}"
+                class="font-medium text-primary-ink hover:underline dark:text-primary"
+                target="_blank"
+                rel="noopener noreferrer"
+                >Documentation</a
+              >
+              ·
+              <a
+                href="{{ playground_url }}"
+                class="font-medium text-primary-ink hover:underline dark:text-primary"
+                target="_blank"
+                rel="noopener noreferrer"
+                >Playground</a
+              >
+              ·
+              <a
+                href="{{ github_url }}"
+                class="font-medium text-primary-ink hover:underline dark:text-primary"
+                target="_blank"
+                rel="noopener noreferrer"
+                >GitHub</a
+              >
+              ·
+              <a
+                href="{{ ai_url }}"
+                class="font-medium text-primary-ink hover:underline dark:text-primary"
+                target="_blank"
+                rel="noopener noreferrer"
+                >Agents</a
+              >
+            </p>
+            <p class="mt-4 text-sm text-muted-foreground">
+              Platform ops on this host:
+              <a
+                href="{{ admin_url }}"
+                class="font-medium text-primary-ink hover:underline dark:text-primary"
+                >Admin</a
+              >
+              ·
+              <a
+                href="{{ swagger_url }}"
+                class="font-medium text-primary-ink hover:underline dark:text-primary"
+                >API docs</a
+              >
+              ·
+              <a
+                href="{{ redoc_url }}"
+                class="font-medium text-primary-ink hover:underline dark:text-primary"
+                >ReDoc</a
+              >
+            </p>
+          </div>
         </div>
       </div>
-    </div>
-    {% endif %}
-  </main>
+      {% endif %}
+    </main>
 
-  <footer class="relative z-10 border-t border-border bg-muted page-x py-10">
-    <div class="mx-auto flex max-w-5xl flex-col gap-6 sm:flex-row sm:items-start sm:justify-between">
-      <div>
-        <a href="/" class="inline-flex items-center text-foreground" aria-label="shellui.app" translate="no">
-          <svg class="h-5 w-auto" viewBox="0 0 1024 270" role="img" aria-hidden="true">
-            <use href="#logo-shellui"></use>
-          </svg>
-        </a>
-        <p class="mt-2 max-w-xs text-sm text-muted-foreground">Deploy and serve Shellui apps on a stable subdomain.</p>
-        <p class="mt-4 text-xs text-muted-foreground">© 2026 Shellui</p>
+    <footer class="relative z-10 border-t border-border bg-muted page-x py-10">
+      <div
+        class="mx-auto flex max-w-5xl flex-col gap-6 sm:flex-row sm:items-start sm:justify-between"
+      >
+        <div>
+          <a
+            href="/"
+            class="inline-flex items-center text-foreground"
+            aria-label="shellui.app"
+            translate="no"
+          >
+            <svg
+              class="h-5 w-auto"
+              viewBox="0 0 1024 270"
+              role="img"
+              aria-hidden="true"
+            >
+              <use href="#logo-shellui"></use>
+            </svg>
+          </a>
+          <p class="mt-2 max-w-xs text-sm text-muted-foreground">
+            Deploy and serve Shellui apps on a stable subdomain.
+          </p>
+          <p class="mt-4 text-xs text-muted-foreground">© 2026 Shellui</p>
+        </div>
+        <div class="sm:text-right md:pt-4 md:space-y-3">
+          <nav
+            class="flex flex-wrap gap-x-5 gap-y-2 text-sm text-muted-foreground sm:justify-end"
+            aria-label="Footer"
+          >
+            <a
+              href="{{ website_url }}"
+              class="transition-colors hover:text-foreground"
+              target="_blank"
+              rel="noopener noreferrer"
+              >Website</a
+            >
+            <a
+              href="{{ docs_url }}"
+              class="transition-colors hover:text-foreground"
+              target="_blank"
+              rel="noopener noreferrer"
+              >Docs</a
+            >
+            <a
+              href="{{ playground_url }}"
+              class="transition-colors hover:text-foreground"
+              target="_blank"
+              rel="noopener noreferrer"
+              >Playground</a
+            >
+            <a
+              href="{{ github_url }}"
+              class="transition-colors hover:text-foreground"
+              target="_blank"
+              rel="noopener noreferrer"
+              >GitHub</a
+            >
+            <a
+              href="{{ ai_url }}"
+              class="transition-colors hover:text-foreground"
+              target="_blank"
+              rel="noopener noreferrer"
+              >Agents</a
+            >
+          </nav>
+          <nav
+            class="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground sm:justify-end"
+            aria-label="Platform"
+          >
+            <a
+              href="{{ schema_url }}"
+              class="transition-colors hover:text-foreground"
+              >OpenAPI</a
+            >
+            <span>v{{ version }}</span>
+            <a href="/llms.txt" class="transition-colors hover:text-foreground"
+              >llms.txt</a
+            >
+          </nav>
+        </div>
       </div>
-      <div class="sm:text-right">
-        <nav class="flex flex-wrap gap-x-5 gap-y-2 text-sm text-muted-foreground sm:justify-end" aria-label="Footer">
-          <a href="{{ website_url }}" class="transition-colors hover:text-foreground" target="_blank" rel="noopener noreferrer">Website</a>
-          <a href="{{ docs_url }}" class="transition-colors hover:text-foreground" target="_blank" rel="noopener noreferrer">Docs</a>
-          <a href="{{ playground_url }}" class="transition-colors hover:text-foreground" target="_blank" rel="noopener noreferrer">Playground</a>
-          <a href="{{ github_url }}" class="transition-colors hover:text-foreground" target="_blank" rel="noopener noreferrer">GitHub</a>
-          <a href="{{ ai_url }}" class="transition-colors hover:text-foreground" target="_blank" rel="noopener noreferrer">Agents</a>
-        </nav>
-        <nav class="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground sm:justify-end" aria-label="Platform">
-          <a href="{{ schema_url }}" class="transition-colors hover:text-foreground">OpenAPI</a>
-          <span>v{{ version }}</span>
-          <a href="/llms.txt" class="transition-colors hover:text-foreground">llms.txt</a>
-        </nav>
-      </div>
-    </div>
-  </footer>
+    </footer>
 
-  <script>
-    (function () {
-      var html = document.documentElement;
-      var toggles = document.querySelectorAll(".theme-toggle");
-      function applyTheme(mode) {
-        var isDark = mode === "dark";
-        html.classList.toggle("dark", isDark);
-        localStorage.setItem("theme", mode);
-        toggles.forEach(function (toggle) {
-          toggle.setAttribute("aria-label", isDark ? "Switch to light mode" : "Switch to dark mode");
-        });
-      }
-      function setTheme(theme, event) {
-        var prefersReduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-        var apply = function () { applyTheme(theme); };
-        if (!document.startViewTransition || prefersReduced) { apply(); return; }
-        if (event) {
-          html.style.setProperty("--x", event.clientX + "px");
-          html.style.setProperty("--y", event.clientY + "px");
+    <script>
+      (function () {
+        var html = document.documentElement;
+        var toggles = document.querySelectorAll(".theme-toggle");
+        function applyTheme(mode) {
+          var isDark = mode === "dark";
+          html.classList.toggle("dark", isDark);
+          localStorage.setItem("theme", mode);
+          toggles.forEach(function (toggle) {
+            toggle.setAttribute(
+              "aria-label",
+              isDark ? "Switch to light mode" : "Switch to dark mode",
+            );
+          });
         }
-        document.startViewTransition(apply);
-      }
-      toggles.forEach(function (toggle) {
-        toggle.addEventListener("click", function (event) {
-          setTheme(html.classList.contains("dark") ? "light" : "dark", event);
+        function setTheme(theme, event) {
+          var prefersReduced = window.matchMedia(
+            "(prefers-reduced-motion: reduce)",
+          ).matches;
+          var apply = function () {
+            applyTheme(theme);
+          };
+          if (!document.startViewTransition || prefersReduced) {
+            apply();
+            return;
+          }
+          if (event) {
+            html.style.setProperty("--x", event.clientX + "px");
+            html.style.setProperty("--y", event.clientY + "px");
+          }
+          document.startViewTransition(apply);
+        }
+        toggles.forEach(function (toggle) {
+          toggle.addEventListener("click", function (event) {
+            setTheme(html.classList.contains("dark") ? "light" : "dark", event);
+          });
         });
-      });
-    })();
-  </script>
-</body>
+      })();
+    </script>
+  </body>
 </html>
