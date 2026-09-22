@@ -66,34 +66,36 @@
   </symbol>
 </svg>
 
-  <header class="fixed inset-x-0 top-0 z-50 border-b border-border/50 bg-background/80 backdrop-blur-md page-x">
-    <nav class="mx-auto flex h-16 max-w-5xl items-center justify-between gap-4" aria-label="Global">
-      <a href="/" class="inline-flex shrink-0 items-center text-foreground" aria-label="shellui.app" translate="no">
-        <svg class="size-8.5" viewBox="0 0 1080 1080" role="img" aria-hidden="true">
-          <use href="#logo-shellui-mark"></use>
-        </svg>
-      </a>
-      <div class="flex flex-wrap items-center justify-end gap-3 sm:gap-4">
-        <a href="{{ website_url }}" class="text-sm font-medium text-muted-foreground transition-colors hover:text-foreground" target="_blank" rel="noopener noreferrer">Website</a>
-        <a href="{{ docs_url }}" class="text-sm font-medium text-muted-foreground transition-colors hover:text-foreground" target="_blank" rel="noopener noreferrer">Docs</a>
-        <a href="{{ playground_url }}" class="hidden text-sm font-medium text-muted-foreground transition-colors hover:text-foreground sm:inline" target="_blank" rel="noopener noreferrer">Playground</a>
-        <a href="{{ github_url }}" class="text-sm font-medium text-muted-foreground transition-colors hover:text-foreground" target="_blank" rel="noopener noreferrer">GitHub</a>
-        <a href="{{ ai_url }}" class="text-sm font-medium text-muted-foreground transition-colors hover:text-foreground" target="_blank" rel="noopener noreferrer">Agents</a>
-        <button type="button" class="theme-toggle inline-flex size-11 items-center justify-center rounded-md p-2 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary" aria-label="Toggle dark mode">
-          <svg class="size-5 dark:hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+  <header class="fixed inset-x-0 top-0 z-50">
+    <div class="relative z-50 border-b border-border/50 bg-background/80 backdrop-blur-md page-x dark:border-border/50">
+      <nav class="mx-auto flex h-16 max-w-5xl items-center justify-between gap-4" aria-label="Global">
+        <a href="/" class="inline-flex shrink-0 items-center text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary" aria-label="shellui.app" translate="no">
+          <svg class="size-8.5" viewBox="0 0 1080 1080" role="img" aria-hidden="true">
+            <use href="#logo-shellui-mark"></use>
           </svg>
-          <svg class="hidden size-5 dark:block" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
-          </svg>
-        </button>
-      </div>
-    </nav>
+        </a>
+        <div class="flex items-center gap-3 sm:gap-5">
+          <a href="{{ website_url }}" class="hidden text-sm font-medium text-muted-foreground transition-colors hover:text-foreground sm:inline" target="_blank" rel="noopener noreferrer">Website</a>
+          <a href="{{ docs_url }}" class="text-sm font-medium text-muted-foreground transition-colors hover:text-foreground" target="_blank" rel="noopener noreferrer">Docs</a>
+          <a href="{{ playground_url }}" class="hidden text-sm font-medium text-muted-foreground transition-colors hover:text-foreground md:inline" target="_blank" rel="noopener noreferrer">Playground</a>
+          <a href="{{ github_url }}" class="hidden text-sm font-medium text-muted-foreground transition-colors hover:text-foreground sm:inline" target="_blank" rel="noopener noreferrer">GitHub</a>
+          <a href="{{ ai_url }}" class="text-sm font-medium text-muted-foreground transition-colors hover:text-foreground" target="_blank" rel="noopener noreferrer">Agents</a>
+          <button type="button" class="theme-toggle inline-flex size-11 items-center justify-center rounded-md p-2 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary" aria-label="Toggle dark mode">
+            <svg class="h-5 w-5 dark:hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+            </svg>
+            <svg class="hidden h-5 w-5 dark:block" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+            </svg>
+          </button>
+        </div>
+      </nav>
+    </div>
   </header>
 
-  <main class="flex-1 pt-28 pb-12">
+  <main class="flex-1 pb-12">
     {% if show_setup_form %}
-    <div class="page-x">
+    <div class="page-x page-top">
       <div class="mx-auto w-full max-w-md rounded-xl border border-border bg-card p-6 shadow-sm hosting-form">
         <h1 class="text-xl font-semibold tracking-tight text-foreground">Shellui Hosting setup</h1>
         <p class="mt-3 text-sm leading-relaxed text-muted-foreground">Create the initial administrator account. This setup is available only once and disappears permanently after the first user is created.</p>
@@ -131,7 +133,7 @@
       </div>
     </div>
     {% elif bootstrap_blocked %}
-    <div class="page-x">
+    <div class="page-x page-top">
       <div class="mx-auto w-full max-w-md rounded-xl border border-border bg-card p-6 shadow-sm">
         <h1 class="text-xl font-semibold tracking-tight text-foreground">Shellui Hosting setup</h1>
         <p class="mt-3 text-sm leading-relaxed text-muted-foreground">No administrator account exists yet. Public bootstrap is disabled in this environment. Create the first superuser with:</p>
@@ -140,7 +142,7 @@
       </div>
     </div>
     {% else %}
-    <div class="relative isolate">
+    <div class="relative isolate page-x page-top">
       <div class="pointer-events-none absolute inset-x-0 -top-40 -z-10 transform-gpu overflow-hidden blur-3xl sm:-top-80" aria-hidden="true">
         <div
           class="relative left-[calc(50%-11rem)] aspect-[1155/678] w-[36.125rem] -translate-x-1/2 rotate-30 bg-linear-to-tr from-primary to-amber-200 opacity-30 sm:left-[calc(50%-30rem)] sm:w-[72.1875rem] dark:opacity-20"
@@ -148,7 +150,7 @@
         ></div>
       </div>
 
-      <div class="mx-auto max-w-3xl page-x pb-12 sm:pb-16">
+      <div class="mx-auto max-w-3xl pb-12 sm:pb-16">
         {% if setup_done %}
           <div class="mb-6 rounded-md border border-green-200 bg-green-50 px-3 py-2 text-sm text-green-800 dark:border-green-800 dark:bg-green-950/40 dark:text-green-200">Initial user created successfully. Setup is now locked.</div>
         {% endif %}
@@ -221,8 +223,8 @@
     {% endif %}
   </main>
 
-  <footer class="border-t border-border bg-muted py-10 page-x">
-    <div class="mx-auto flex max-w-5xl flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
+  <footer class="relative z-10 border-t border-border bg-muted page-x py-10">
+    <div class="mx-auto flex max-w-5xl flex-col gap-6 sm:flex-row sm:items-start sm:justify-between">
       <div>
         <a href="/" class="inline-flex items-center text-foreground" aria-label="shellui.app" translate="no">
           <svg class="h-5 w-auto" viewBox="0 0 1024 270" role="img" aria-hidden="true">
@@ -230,18 +232,23 @@
           </svg>
         </a>
         <p class="mt-2 max-w-xs text-sm text-muted-foreground">Deploy and serve Shellui apps on a stable subdomain.</p>
+        <p class="mt-4 text-xs text-muted-foreground">© 2026 Shellui</p>
       </div>
-      <nav class="flex flex-wrap gap-x-5 gap-y-2 text-sm">
-        <a href="{{ website_url }}" class="text-muted-foreground transition-colors hover:text-foreground" target="_blank" rel="noopener noreferrer">Website</a>
-        <a href="{{ docs_url }}" class="text-muted-foreground transition-colors hover:text-foreground" target="_blank" rel="noopener noreferrer">Docs</a>
-        <a href="{{ playground_url }}" class="text-muted-foreground transition-colors hover:text-foreground" target="_blank" rel="noopener noreferrer">Playground</a>
-        <a href="{{ github_url }}" class="text-muted-foreground transition-colors hover:text-foreground" target="_blank" rel="noopener noreferrer">GitHub</a>
-        <a href="{{ ai_url }}" class="text-muted-foreground transition-colors hover:text-foreground" target="_blank" rel="noopener noreferrer">Agents</a>
-      </nav>
+      <div class="sm:text-right">
+        <nav class="flex flex-wrap gap-x-5 gap-y-2 text-sm text-muted-foreground sm:justify-end" aria-label="Footer">
+          <a href="{{ website_url }}" class="transition-colors hover:text-foreground" target="_blank" rel="noopener noreferrer">Website</a>
+          <a href="{{ docs_url }}" class="transition-colors hover:text-foreground" target="_blank" rel="noopener noreferrer">Docs</a>
+          <a href="{{ playground_url }}" class="transition-colors hover:text-foreground" target="_blank" rel="noopener noreferrer">Playground</a>
+          <a href="{{ github_url }}" class="transition-colors hover:text-foreground" target="_blank" rel="noopener noreferrer">GitHub</a>
+          <a href="{{ ai_url }}" class="transition-colors hover:text-foreground" target="_blank" rel="noopener noreferrer">Agents</a>
+        </nav>
+        <nav class="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground sm:justify-end" aria-label="Platform">
+          <a href="{{ schema_url }}" class="transition-colors hover:text-foreground">OpenAPI</a>
+          <span>v{{ version }}</span>
+          <a href="/llms.txt" class="transition-colors hover:text-foreground">llms.txt</a>
+        </nav>
+      </div>
     </div>
-    <p class="mx-auto mt-8 max-w-5xl text-xs text-muted-foreground">
-      <a href="{{ schema_url }}" class="text-muted-foreground transition-colors hover:text-foreground">OpenAPI</a> · v{{ version }} · <a href="/llms.txt" class="text-muted-foreground transition-colors hover:text-foreground">llms.txt</a>
-    </p>
   </footer>
 
   <script>
