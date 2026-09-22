@@ -102,11 +102,16 @@
     }
     .brand:hover { text-decoration: none; }
     .brand .logo-mark { width: 2.125rem; height: 2.125rem; display: block; color: inherit; flex-shrink: 0; }
-    .foot-brand { display: inline-flex; align-items: center; color: inherit; text-decoration: none; margin-bottom: 0.5rem; }
+    .foot-brand {
+      display: inline-flex; align-items: center;
+      color: var(--text); text-decoration: none;
+    }
     .foot-brand:hover { text-decoration: none; }
     .foot-brand .logo-wordmark { height: 1.25rem; width: auto; display: block; color: inherit; }
-    .foot-tag { margin: 0; font-size: 0.875rem; color: var(--muted); }
-    .foot-brand + .tiny { margin-top: 0.75rem; }
+    .foot-tag {
+      margin: 0.5rem 0 0; max-width: 20rem;
+      font-size: 0.875rem; line-height: 1.5; color: var(--muted);
+    }
     .nav-links { display: flex; align-items: center; gap: 1rem; flex-wrap: wrap; justify-content: flex-end; }
     .nav-links a { color: var(--muted); font-size: 0.875rem; font-weight: 500; text-decoration: none; }
     .nav-links a:hover { color: var(--text); text-decoration: none; }
@@ -203,13 +208,28 @@
     }
     .foot {
       max-width: 64rem; margin: 0 auto;
-      display: flex; flex-wrap: wrap; gap: 1rem 1.5rem;
-      justify-content: space-between; align-items: flex-start;
-      font-size: 0.875rem; color: var(--muted);
+      display: flex; flex-direction: column; gap: 1.5rem;
+      font-size: 0.875rem;
     }
-    .foot nav { display: flex; flex-wrap: wrap; gap: 0.75rem 1.25rem; height: auto; padding: 0; }
-    .foot a { color: var(--muted); text-decoration: none; }
-    .foot a:hover { color: var(--text); }
+    @media (min-width: 640px) {
+      .foot {
+        flex-direction: row;
+        align-items: center;
+        justify-content: space-between;
+      }
+    }
+    .foot nav {
+      display: flex; flex-wrap: wrap; gap: 0.75rem 1.25rem;
+      height: auto; padding: 0;
+    }
+    .foot nav a { color: var(--muted); text-decoration: none; }
+    .foot nav a:hover { color: var(--text); text-decoration: none; }
+    .foot-meta {
+      max-width: 64rem; margin: 2rem auto 0;
+      font-size: 0.75rem; color: var(--faint);
+    }
+    .foot-meta a { color: var(--muted); text-decoration: none; }
+    .foot-meta a:hover { color: var(--text); text-decoration: none; }
     .tiny { margin-top: 1.5rem; font-size: 0.75rem; color: var(--faint); }
     .card-setup {
       width: min(100%, 28rem); margin: 0 auto;
@@ -477,8 +497,7 @@
             <use href="#logo-shellui"></use>
           </svg>
         </a>
-        <p class="foot-tag">Shellui Hosting</p>
-        <div class="tiny"><a href="{{ schema_url }}">OpenAPI</a> · v{{ version }} · <a href="/llms.txt">llms.txt</a></div>
+        <p class="foot-tag">Deploy and serve Shellui apps on a stable subdomain.</p>
       </div>
       <nav>
         <a href="{{ website_url }}" target="_blank" rel="noopener noreferrer">Website</a>
@@ -488,6 +507,9 @@
         <a href="{{ ai_url }}" target="_blank" rel="noopener noreferrer">Agents</a>
       </nav>
     </div>
+    <p class="foot-meta">
+      <a href="{{ schema_url }}">OpenAPI</a> · v{{ version }} · <a href="/llms.txt">llms.txt</a>
+    </p>
   </footer>
 
   <script>

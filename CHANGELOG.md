@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - Soft primary hero ambient (shellui.ai blur wrapper + clipped gradient), calmer hierarchy, and monospace only for terminal and command snippets.
 - Nav and footer chrome width `64rem` (shellui.ai `max-w-5xl`) with matching horizontal gutters.
 - Add Shellui favicons on the apex landing and other public HTML pages (same set as shellui.com / shellui.ai).
+- Footer layout aligned with shellui.ai: brand and links on one row, meta line below, foreground wordmark.
 
 ## [0.4.0] - 2026-09-18
 
