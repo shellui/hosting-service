@@ -57,6 +57,8 @@ class RootViewTests(TestCase):
         self.assertEqual(response.status_code, 200)
         body = response.content.decode()
         self.assertIn('logo-shellui-mark', body)
+        self.assertIn('logo-shellui', body)
+        self.assertIn('viewBox="0 0 1024 270"', body)
         self.assertIn('shellui login', body)
         self.assertIn('shellui deploy', body)
         self.assertIn('https://q8n4m2xk7wph.shellui.app/', body)
