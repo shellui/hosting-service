@@ -53,12 +53,21 @@ Hosting validates JWTs from identity. Run identity on port **8000** (see `identi
 cd hosting-service
 uv sync
 cp .env.example .env   # SECRET_KEY and JWKS are pre-filled for local dev
-npm ci && npm run build:css   # Tailwind v4 for the shellui.app apex landing (static/css/site.css)
+npm ci && npm run build:css   # first run only (or skip if watch:css is already running)
 uv run python manage.py migrate
+```
+
+When you work on the apex landing (`templates/home.html`, `assets/css/`), run **two terminals**:
+
+```bash
+# Terminal 1 — Tailwind watch (required when editing templates/CSS)
+npm run watch:css
+
+# Terminal 2 — Django (auto-reloads Python + templates when DEBUG=true)
 uv run python manage.py runserver 8002
 ```
 
-After editing `templates/home.html` or `assets/css/`, run `npm run build:css` again so WhiteNoise serves the updated stylesheet.
+Django already hot-reloads templates in `DEBUG=true`. **New Tailwind class names only land after the CSS rebuild** (`watch:css` writes `static/css/site.css` on save). Hard refresh once if the browser cached `site.css`. Production and Docker still use one-shot `npm run build:css` (minified) before `collectstatic`.
 
 With `DEBUG=true` (local default), visiting `http://localhost:8002/` shows a one-time web form to create the first Django superuser when the user table is empty. In production (`DEBUG=false`), use `uv run python manage.py createsuperuser` instead, or set `SETUP_TOKEN` and open `/?setup_token=<token>` for a one-time web setup (same pattern as identity-service).
 

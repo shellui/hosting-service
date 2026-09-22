@@ -3,7 +3,9 @@
   "private": true,
   "description": "Tailwind CSS build for shellui.app apex landing",
   "scripts": {
-    "build:css": "tailwindcss -i ./assets/css/input.css -o ./static/css/site.css --minify"
+    "build:css": "tailwindcss -i ./assets/css/input.css -o ./static/css/site.css --minify",
+    "watch:css": "tailwindcss -i ./assets/css/input.css -o ./static/css/site.css --watch",
+    "dev:css": "npm run watch:css"
   },
   "devDependencies": {
     "@tailwindcss/cli": "^4.3.3",

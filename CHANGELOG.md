@@ -18,6 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - Footer layout aligned with shellui.ai: brand and links on one row, meta line below, foreground wordmark.
 - Replace the apex landing inline CSS with Tailwind CSS v4 (`npm run build:css` → `static/css/site.css`), sharing Shellui design tokens with shellui.ai.
 - Match shellui.ai header chrome (responsive nav visibility, `page-top` rhythm) and stack footer platform links under the primary nav with brand-column copyright.
+- Add `npm run watch:css` for local Tailwind rebuilds; enable WhiteNoise finders in `DEBUG` so `static/css/site.css` updates without `collectstatic`.
 
 ## [0.4.0] - 2026-09-18
 
