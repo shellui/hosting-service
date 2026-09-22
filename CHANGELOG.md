@@ -16,6 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - Nav and footer chrome width `64rem` (shellui.ai `max-w-5xl`) with matching horizontal gutters.
 - Add Shellui favicons on the apex landing and other public HTML pages (same set as shellui.com / shellui.ai).
 - Footer layout aligned with shellui.ai: brand and links on one row, meta line below, foreground wordmark.
+- Replace the apex landing inline CSS with Tailwind CSS v4 (`npm run build:css` → `static/css/site.css`), sharing Shellui design tokens with shellui.ai.
 
 ## [0.4.0] - 2026-09-18
 

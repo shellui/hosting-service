@@ -53,9 +53,12 @@ Hosting validates JWTs from identity. Run identity on port **8000** (see `identi
 cd hosting-service
 uv sync
 cp .env.example .env   # SECRET_KEY and JWKS are pre-filled for local dev
+npm ci && npm run build:css   # Tailwind v4 for the shellui.app apex landing (static/css/site.css)
 uv run python manage.py migrate
 uv run python manage.py runserver 8002
 ```
+
+After editing `templates/home.html` or `assets/css/`, run `npm run build:css` again so WhiteNoise serves the updated stylesheet.
 
 With `DEBUG=true` (local default), visiting `http://localhost:8002/` shows a one-time web form to create the first Django superuser when the user table is empty. In production (`DEBUG=false`), use `uv run python manage.py createsuperuser` instead, or set `SETUP_TOKEN` and open `/?setup_token=<token>` for a one-time web setup (same pattern as identity-service).
 

@@ -48,6 +48,7 @@ class RootViewTests(TestCase):
         self.assertIn('Agents', body)
         self.assertIn('apple-touch-icon.png', body)
         self.assertIn('favicon-32x32.png', body)
+        self.assertIn('/static/css/site.css', body)
 
     def test_root_landing_shows_deploy_ready_copy_and_logo(self):
         from django.contrib.auth import get_user_model
