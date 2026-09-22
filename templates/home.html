@@ -91,10 +91,10 @@
       color: inherit; text-decoration: none; font-size: 0.875rem;
     }
     .brand:hover { text-decoration: none; }
-    .brand .logo-wordmark { height: 1.25rem; width: auto; display: block; color: inherit; }
+    .brand .logo-mark { width: 2.125rem; height: 2.125rem; display: block; color: inherit; flex-shrink: 0; }
     .foot-brand { display: inline-flex; align-items: center; color: inherit; text-decoration: none; margin-bottom: 0.5rem; }
     .foot-brand:hover { text-decoration: none; }
-    .foot-brand .logo-mark { width: 2.125rem; height: 2.125rem; display: block; color: inherit; }
+    .foot-brand .logo-wordmark { height: 1.25rem; width: auto; display: block; color: inherit; }
     .foot-tag { margin: 0; font-size: 0.875rem; color: var(--muted); }
     .foot-brand + .tiny { margin-top: 0.75rem; }
     .nav-links { display: flex; align-items: center; gap: 1rem; flex-wrap: wrap; justify-content: flex-end; }
@@ -295,8 +295,8 @@
   <header>
     <nav aria-label="Global">
       <a class="brand" href="/" aria-label="shellui.app" translate="no">
-        <svg class="logo-wordmark" viewBox="0 0 1024 270" role="img" aria-hidden="true">
-          <use href="#logo-shellui"></use>
+        <svg class="logo-mark" viewBox="0 0 1080 1080" role="img" aria-hidden="true">
+          <use href="#logo-shellui-mark"></use>
         </svg>
       </a>
       <div class="nav-links">
@@ -441,8 +441,8 @@
     <div class="foot">
       <div>
         <a class="foot-brand" href="/" aria-label="shellui.app" translate="no">
-          <svg class="logo-mark" viewBox="0 0 1080 1080" role="img" aria-hidden="true">
-            <use href="#logo-shellui-mark"></use>
+          <svg class="logo-wordmark" viewBox="0 0 1024 270" role="img" aria-hidden="true">
+            <use href="#logo-shellui"></use>
           </svg>
         </a>
         <p class="foot-tag">Shellui Hosting</p>
