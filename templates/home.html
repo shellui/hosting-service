@@ -70,6 +70,16 @@
     a { color: var(--primary); text-decoration: none; }
     a:hover { text-decoration: underline; text-underline-offset: 2px; }
     .logo-sprite { position: absolute; width: 0; height: 0; overflow: hidden; }
+    .page-x {
+      padding-left: 1rem;
+      padding-right: 1rem;
+    }
+    @media (min-width: 640px) {
+      .page-x { padding-left: 1.5rem; padding-right: 1.5rem; }
+    }
+    @media (min-width: 1024px) {
+      .page-x { padding-left: 2rem; padding-right: 2rem; }
+    }
     header {
       position: fixed; inset: 0 0 auto 0; z-index: 50;
       border-bottom: 1px solid var(--border);
@@ -77,10 +87,10 @@
       backdrop-filter: blur(12px);
     }
     nav {
-      max-width: 48rem;
+      max-width: 64rem;
       margin: 0 auto;
       height: 4rem;
-      padding: 0 1rem;
+      padding: 0;
       display: flex;
       align-items: center;
       justify-content: space-between;
@@ -110,22 +120,39 @@
     html:not(.dark) .icon-moon { display: none; }
     main { flex: 1; padding: 7rem 1rem 3rem; position: relative; }
     .wrap { max-width: 48rem; margin: 0 auto; }
-    .hero-wrap { position: relative; isolation: isolate; }
+    .hero-shell { position: relative; isolation: isolate; }
     .hero-ambient {
       pointer-events: none;
       position: absolute;
-      left: 50%;
-      top: -6rem;
+      left: 0;
+      right: 0;
+      top: -10rem;
       z-index: -1;
-      width: min(36rem, 95vw);
+      overflow: hidden;
+      filter: blur(64px);
+      transform: translateZ(0);
+    }
+    @media (min-width: 640px) {
+      .hero-ambient { top: -20rem; }
+    }
+    .hero-ambient-inner {
+      position: relative;
+      left: calc(50% - 11rem);
+      width: 36.125rem;
+      max-width: none;
       aspect-ratio: 1155 / 678;
       transform: translateX(-50%) rotate(30deg);
       background: linear-gradient(to top right, var(--primary), var(--hero-amber));
-      opacity: 0.28;
-      filter: blur(3rem);
+      opacity: 0.3;
       clip-path: polygon(74.1% 44.1%, 100% 61.6%, 97.5% 26.9%, 85.5% 0.1%, 80.7% 2%, 72.5% 32.5%, 60.2% 62.4%, 52.4% 68.1%, 47.5% 58.3%, 45.2% 34.5%, 27.5% 76.7%, 0.1% 64.9%, 17.9% 100%, 27.6% 76.8%, 76.1% 97.7%, 74.1% 44.1%);
     }
-    html.dark .hero-ambient { opacity: 0.18; }
+    html.dark .hero-ambient-inner { opacity: 0.2; }
+    @media (min-width: 640px) {
+      .hero-ambient-inner {
+        left: calc(50% - 30rem);
+        width: 72.1875rem;
+      }
+    }
     .eyebrow { font-size: 0.875rem; font-weight: 500; color: var(--primary-ink); margin: 0 0 1rem; }
     html.dark .eyebrow { color: var(--primary); }
     h1 { margin: 0; font-size: clamp(2rem, 4vw, 2.75rem); font-weight: 700; letter-spacing: -0.025em; line-height: 1.15; }
@@ -171,10 +198,11 @@
     footer {
       border-top: 1px solid var(--border);
       background: var(--bg-muted);
-      padding: 2rem 1rem;
+      padding-top: 2rem;
+      padding-bottom: 2rem;
     }
     .foot {
-      max-width: 48rem; margin: 0 auto;
+      max-width: 64rem; margin: 0 auto;
       display: flex; flex-wrap: wrap; gap: 1rem 1.5rem;
       justify-content: space-between; align-items: flex-start;
       font-size: 0.875rem; color: var(--muted);
@@ -292,7 +320,7 @@
   </symbol>
 </svg>
 
-  <header>
+  <header class="page-x">
     <nav aria-label="Global">
       <a class="brand" href="/" aria-label="shellui.app" translate="no">
         <svg class="logo-mark" viewBox="0 0 1080 1080" role="img" aria-hidden="true">
@@ -366,8 +394,11 @@
       </div>
     </div>
     {% else %}
-    <div class="wrap hero-wrap">
-      <div class="hero-ambient" aria-hidden="true"></div>
+    <div class="hero-shell">
+      <div class="hero-ambient" aria-hidden="true">
+        <div class="hero-ambient-inner"></div>
+      </div>
+      <div class="wrap">
       {% if setup_done %}
         <div class="success">Initial user created successfully. Setup is now locked.</div>
       {% endif %}
@@ -433,11 +464,12 @@
           <a href="{{ redoc_url }}">ReDoc</a>
         </p>
       </div>
+      </div>
     </div>
     {% endif %}
   </main>
 
-  <footer>
+  <footer class="page-x">
     <div class="foot">
       <div>
         <a class="foot-brand" href="/" aria-label="shellui.app" translate="no">

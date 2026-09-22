@@ -12,7 +12,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - Align the shellui.app apex landing with Shellui brand assets and shellui.com design tokens (gray canvas, honey gold primary, system typography).
 - Nav: Shellui **mark** (`#logo-shellui-mark`, ~34px, same as shellui.com header); footer brand: Shellui **wordmark** (`#logo-shellui`, 1.25rem height). No domain suffix beside either logo.
 - Product links in nav, footer, and Explore: Website, Docs, Playground, GitHub, then **Agents** / shellui.ai last.
-- Soft primary hero ambient, calmer hierarchy, and monospace only for terminal and command snippets.
+- Soft primary hero ambient (shellui.ai blur wrapper + clipped gradient), calmer hierarchy, and monospace only for terminal and command snippets.
+- Nav and footer chrome width `64rem` (shellui.ai `max-w-5xl`) with matching horizontal gutters.
 - Add Shellui favicons on the apex landing and other public HTML pages (same set as shellui.com / shellui.ai).
 
 ## [0.4.0] - 2026-09-18
