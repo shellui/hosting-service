@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.4.1] - 2026-09-22
+
+### 🛠 Improvements
+
+- Align the shellui.app apex landing with Shellui brand assets and shellui.com design tokens (gray canvas, honey gold primary, system typography).
+- Sync the wordmark SVG sprite with shellui.com; show the logo alone in the nav (no `.app` suffix beside the mark).
+- Add **Agents** / shellui.ai in the nav and Explore panel; keep website, docs, playground, and GitHub links.
+- Soft primary hero ambient, calmer hierarchy, and monospace only for terminal and command snippets.
+
 ## [0.4.0] - 2026-09-18
 
 ### 🔒 Security

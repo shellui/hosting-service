@@ -44,6 +44,8 @@ class RootViewTests(TestCase):
         self.assertIn('https://shellui.com', body)
         self.assertIn('https://docs.shellui.com', body)
         self.assertIn('shellui.app', body)
+        self.assertIn('https://shellui.ai', body)
+        self.assertIn('Agents', body)
 
 
     def test_root_landing_shows_deploy_ready_copy_and_logo(self):
