@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### 📚 Documentation
+
+- Add root `AGENTS.md` with Shellui writing and design guidelines for coding agents.
+
 ### 🐛 Bug Fixes
 
 - Pre-release Docker smoke test supplies production identity env (`IDENTITY_ISSUER`, `IDENTITY_AUDIENCE`), disables HTTP SSL redirect for local curls, and dumps container logs when health never becomes ready.
