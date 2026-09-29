@@ -11,7 +11,9 @@ from apps.actions.emit import emit_event
 from apps.actions.handlers.webhook import WebhookDeliveryError
 from apps.actions.models import ActionOutbox, ActionRule, DeliveryAttempt
 from apps.actions.ssrf import SSRFError, validate_webhook_url
-from apps.actions.webhook_signing import sign_webhook_body
+from apps.actions.webhook_body import serialize_webhook_envelope
+from apps.actions.webhook_retry import next_attempt_delay_seconds, permanent_http_status
+from apps.actions.webhook_signing import generate_whsec_secret, sign_webhook_body, signing_secret_key
 
 
 @override_settings(ACTIONS_WEBHOOK_SYNC_DELIVERY=True)
@@ -24,7 +26,7 @@ class EmitEventTests(TestCase):
             name='Hook',
             event_type='hosting.app.created',
             action_kind=ActionRule.ACTION_WEBHOOK,
-            config={'url': 'https://example.com/hook', 'secret': 'whsec_test'},
+            config={'url': 'https://example.com/hook', 'secret': 'plain-secret'},
         )
 
     def test_unknown_event_type_raises(self):
@@ -40,7 +42,7 @@ class EmitEventTests(TestCase):
         self.assertEqual(rows, [])
         self.assertEqual(ActionOutbox.objects.count(), 0)
 
-    @patch('apps.actions.handlers.webhook.post_webhook_url', return_value=(200, ''))
+    @patch('apps.actions.handlers.webhook.post_webhook_url', return_value=(200, '', {}))
     def test_emit_creates_outbox_and_delivers_on_commit(self, _mock_post):
         with self.captureOnCommitCallbacks(execute=True):
             rows = emit_event(
@@ -68,11 +70,11 @@ class WebhookHandlerTests(TestCase):
             enabled=True,
             config={
                 'url': 'https://example.com/hook',
-                'secret': 'whsec_test',
+                'secret': 'plain-secret',
             },
         )
 
-    @patch('apps.actions.handlers.webhook.post_webhook_url', return_value=(200, ''))
+    @patch('apps.actions.handlers.webhook.post_webhook_url', return_value=(200, '', {}))
     def test_webhook_posts_signed_json(self, mock_post):
         envelope = {
             'id': 'evt-1',
@@ -90,14 +92,43 @@ class WebhookHandlerTests(TestCase):
         deliver_outbox_row(row.pk)
         mock_post.assert_called_once()
         _args, kwargs = mock_post.call_args
-        self.assertEqual(kwargs['body'], json.dumps(envelope, separators=(',', ':'), sort_keys=True).encode())
+        self.assertEqual(kwargs['body'], serialize_webhook_envelope(envelope))
         headers = kwargs['headers']
         self.assertIn('webhook-signature', headers)
         self.assertIn('webhook-id', headers)
+        self.assertEqual(headers['webhook-id'], 'evt-1')
+        self.assertEqual(headers['X-Shellui-Event'], 'hosting.app.created')
+        self.assertEqual(headers['X-Shellui-Delivery-Attempt'], '1')
         row.refresh_from_db()
         self.assertEqual(row.status, ActionOutbox.STATUS_DELIVERED)
 
-    @patch('apps.actions.handlers.webhook.post_webhook_url', return_value=(500, 'err'))
+    @patch('apps.actions.handlers.webhook.post_webhook_url', return_value=(200, '', {}))
+    def test_unicode_payload_and_whsec_secret(self, mock_post):
+        secret = generate_whsec_secret()
+        self.rule.config = {'url': 'https://example.com/hook', 'secret': secret}
+        self.rule.save()
+        envelope = {
+            'id': 'evt-unicode',
+            'type': 'hosting.app.created',
+            'time': '2026-01-01T00:00:00+00:00',
+            'company': {'id': self.company_id},
+            'data': {'display_name': 'Café Shellui'},
+        }
+        body = serialize_webhook_envelope(envelope)
+        self.assertIn('Café'.encode('utf-8'), body)
+        row = ActionOutbox.objects.create(
+            company_id=self.company_id,
+            action_rule=self.rule,
+            event_type=envelope['type'],
+            envelope=envelope,
+        )
+        deliver_outbox_row(row.pk)
+        headers = mock_post.call_args.kwargs['headers']
+        expected_sig = sign_webhook_body(secret=secret, body=body, webhook_id='evt-unicode')
+        self.assertEqual(headers['webhook-signature'], expected_sig['webhook-signature'])
+        self.assertEqual(mock_post.call_args.kwargs['body'], body)
+
+    @patch('apps.actions.handlers.webhook.post_webhook_url', return_value=(500, 'err', {}))
     def test_webhook_failure_records_attempt(self, mock_post):
         row = ActionOutbox.objects.create(
             company_id=self.company_id,
@@ -113,8 +144,21 @@ class WebhookHandlerTests(TestCase):
         self.assertEqual(attempt.http_status, 500)
         self.assertIn('HTTP 500', attempt.error_message)
 
-    @patch('apps.actions.handlers.webhook.post_webhook_url', return_value=(404, 'missing'))
-    def test_permanent_4xx_goes_dead(self, _mock_post):
+    @patch('apps.actions.handlers.webhook.post_webhook_url', return_value=(404, 'missing', {}))
+    def test_404_is_retryable_for_n8n(self, _mock_post):
+        row = ActionOutbox.objects.create(
+            company_id=self.company_id,
+            action_rule=self.rule,
+            event_type='hosting.app.created',
+            envelope={'id': 'x', 'type': 'hosting.app.created', 'data': {}},
+        )
+        deliver_outbox_row(row.pk)
+        row.refresh_from_db()
+        self.assertEqual(row.status, ActionOutbox.STATUS_FAILED)
+        self.assertIsNotNone(row.next_attempt_at)
+
+    @patch('apps.actions.handlers.webhook.post_webhook_url', return_value=(403, 'forbidden', {}))
+    def test_permanent_403_goes_dead(self, _mock_post):
         row = ActionOutbox.objects.create(
             company_id=self.company_id,
             action_rule=self.rule,
@@ -125,6 +169,24 @@ class WebhookHandlerTests(TestCase):
         row.refresh_from_db()
         self.assertEqual(row.status, ActionOutbox.STATUS_DEAD)
         self.assertIsNone(row.next_attempt_at)
+
+    @patch(
+        'apps.actions.handlers.webhook.post_webhook_url',
+        return_value=(429, 'rate limited', {'retry-after': '120'}),
+    )
+    def test_retry_after_on_429(self, _mock_post):
+        row = ActionOutbox.objects.create(
+            company_id=self.company_id,
+            action_rule=self.rule,
+            event_type='hosting.app.created',
+            envelope={'id': 'x', 'type': 'hosting.app.created', 'data': {}},
+        )
+        deliver_outbox_row(row.pk)
+        row.refresh_from_db()
+        self.assertEqual(row.status, ActionOutbox.STATUS_FAILED)
+        delay = (row.next_attempt_at - timezone.now()).total_seconds()
+        self.assertGreaterEqual(delay, 115)
+        self.assertLessEqual(delay, 125)
 
     def test_ssrf_blocks_private_ip(self):
         with self.assertRaises(SSRFError):
@@ -158,7 +220,7 @@ class RetryDeliveryTests(TestCase):
             config={'url': 'https://example.com/h', 'secret': 's'},
         )
 
-    @patch('apps.actions.handlers.webhook.post_webhook_url', return_value=(500, ''))
+    @patch('apps.actions.handlers.webhook.post_webhook_url', return_value=(500, '', {}))
     def test_dead_after_max_attempts(self, _mock):
         row = ActionOutbox.objects.create(
             company_id=self.company_id,
@@ -183,7 +245,7 @@ class RetryCommandTests(TestCase):
             config={'url': 'https://example.com/h', 'secret': 's'},
         )
 
-    @patch('apps.actions.handlers.webhook.post_webhook_url', return_value=(200, ''))
+    @patch('apps.actions.handlers.webhook.post_webhook_url', return_value=(200, '', {}))
     def test_retry_command_processes_batch(self, _mock):
         ActionOutbox.objects.create(
             company_id=self.company_id,
@@ -246,3 +308,33 @@ class WebhookSigningTests(TestCase):
         body = b'{"ok":true}'
         headers = sign_webhook_body(secret='secret', body=body, webhook_id='id-1')
         self.assertTrue(headers['webhook-signature'].startswith('v1,'))
+
+    def test_whsec_decodes_base64_key(self):
+        secret = generate_whsec_secret()
+        self.assertTrue(secret.startswith('whsec_'))
+        key = signing_secret_key(secret)
+        self.assertEqual(len(key), 32)
+
+
+class WebhookRetryPolicyTests(TestCase):
+    def test_permanent_statuses(self):
+        for code in (400, 401, 403, 405, 410, 413, 422):
+            self.assertTrue(permanent_http_status(code), code)
+        for code in (404, 408, 409, 425, 429, 500, 503):
+            self.assertFalse(permanent_http_status(code), code)
+
+    def test_next_attempt_honors_retry_after(self):
+        delay = next_attempt_delay_seconds(
+            attempt_number=1,
+            http_status=503,
+            retry_after_seconds=90,
+            default_backoff=backoff_seconds,
+        )
+        self.assertEqual(delay, 90)
+        capped = next_attempt_delay_seconds(
+            attempt_number=1,
+            http_status=429,
+            retry_after_seconds=99999,
+            default_backoff=backoff_seconds,
+        )
+        self.assertEqual(capped, 3600)

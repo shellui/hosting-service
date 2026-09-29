@@ -27,6 +27,7 @@ DeliveryAttempt audit log; retries via manage.py retry_webhooks
 - **No Celery / Redis required** for Shellui Actions.
 - API paths do not block on slow external HTTP: delivery runs only after commit (default 5s timeout).
 - Delivery is **at-least-once**; dedupe on the envelope `id` (same value as the `webhook-id` header).
+- **n8n:** step-by-step setup, signature verification, and retry table in [n8n.md](n8n.md).
 
 ---
 
@@ -42,7 +43,11 @@ DeliveryAttempt audit log; retries via manage.py retry_webhooks
 
 ### Envelope shape
 
-CloudEvents-inspired JSON (same headers and signing as identity-service Shellui Actions):
+CloudEvents-inspired JSON (same headers and signing as identity-service Shellui Actions). The POST body uses UTF-8 JSON with `ensure_ascii=false`; verify signatures on the **raw body bytes**.
+
+Extra headers: `X-Shellui-Event`, `X-Shellui-Delivery-Attempt`.
+
+Signing secrets may be plain text or Standard Webhooks `whsec_<base64>` (Shellui decodes the suffix for HMAC).
 
 ```json
 {
@@ -78,7 +83,16 @@ Staff may pass `?company_id=` on these routes. Company owners use the `company_i
 
 ## Retries (cron)
 
-Backoff: `30s * 2^(n-1)` capped at 1 hour, max 8 attempts. Permanent HTTP 4xx (except 408 and 429) marks a delivery dead.
+Backoff: `30s * 2^(n-1)` capped at 1 hour, max 8 attempts. Default HTTP timeout per attempt: **5 seconds** (`ACTIONS_WEBHOOK_TIMEOUT_SECONDS`).
+
+| Result | Retry? |
+| ------ | ------ |
+| 2xx | No (delivered) |
+| 404, 408, 409, 425, 429 | Yes (404 covers inactive n8n workflows) |
+| 400, 401, 403, 405, 410, 413, 422 | No (dead) |
+| Other 4xx | Yes |
+| 5xx, timeouts, connection errors | Yes |
+| 429 / 503 with `Retry-After` | Yes; delay honors header (max 1 hour) |
 
 ```bash
 python manage.py retry_webhooks --batch-size 50 --max-seconds 50 --concurrency 4

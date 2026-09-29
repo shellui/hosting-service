@@ -42,7 +42,7 @@ def post_resolved_webhook(
     body: bytes,
     headers: dict[str, str],
     timeout: float,
-) -> tuple[int, str]:
+) -> tuple[int, str, dict[str, str]]:
     req_headers = dict(headers)
     req_headers['Host'] = endpoint.host_header
     if endpoint.scheme == 'https':
@@ -61,7 +61,10 @@ def post_resolved_webhook(
         response = conn.getresponse()
         status = int(response.status)
         excerpt = _read_response_excerpt(response)
-        return status, excerpt
+        resp_headers: dict[str, str] = {}
+        for key, value in response.getheaders():
+            resp_headers[key.lower()] = value
+        return status, excerpt, resp_headers
     finally:
         conn.close()
 
@@ -73,7 +76,7 @@ def post_webhook_url(
     headers: dict[str, str],
     timeout: float,
     allow_private: bool,
-) -> tuple[int, str]:
+) -> tuple[int, str, dict[str, str]]:
     try:
         endpoint = resolve_webhook_endpoint(url, allow_private=allow_private)
     except SSRFError as exc:

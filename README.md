@@ -15,7 +15,7 @@ It authenticates with JWTs issued by [identity-service](https://github.com/shell
 - OpenAPI docs (Swagger + ReDoc); opening Swagger from Django Admin auto-applies the Shellui session access token
 - Prometheus metrics (`/hosting/v1/metrics`, `/hosting/v1/metrics/all`) for staff or company-owner JWT / PAT
 - Permissive API CORS by default (`CORS_ALLOW_ALL_ORIGINS=true`, `CORS_ALLOW_CREDENTIALS=false`); auth is Bearer JWT — hosted preview origins do not need CORS env entries
-- **Shellui Actions** webhooks on hosting domain events (`hosting.*`), admin REST API under `/api/v1/actions/`, retries via `manage.py retry_webhooks` — see [`docs/actions.md`](docs/actions.md)
+- **Shellui Actions** webhooks on hosting domain events (`hosting.*`), admin REST API under `/api/v1/actions/`, retries via `manage.py retry_webhooks` — see [`docs/actions.md`](docs/actions.md) and [**n8n setup**](docs/n8n.md)
 - Production security hardening: rate limits, HSTS/secure cookies, Postgres SSL, pinned JWKS — see [`docs/security-hardening.md`](docs/security-hardening.md) and [`docs/claim-trust.md`](docs/claim-trust.md)
 
 ## Project structure

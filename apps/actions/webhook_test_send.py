@@ -22,5 +22,5 @@ def send_webhook_test_for_rule(*, rule, company_id: int) -> dict:
         company_id=company_id,
         data=_sample_data(rule.event_type),
     )
-    deliver_webhook_action(config=rule.config or {}, envelope=envelope)
+    deliver_webhook_action(config=rule.config or {}, envelope=envelope, attempt_number=1)
     return {'ok': True, 'webhook_id': envelope['id'], 'event_type': rule.event_type}
