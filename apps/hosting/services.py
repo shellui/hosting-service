@@ -39,6 +39,15 @@ from .storage import (
     _delete_filesystem_tree,
 )
 
+from apps.actions.emit import emit_event_if_rules
+from apps.actions.hosting_payloads import app_event_payload, deployment_event_payload
+
+
+def _action_actor(user_id: int | None) -> dict | None:
+    if user_id is None:
+        return None
+    return {'user_id': user_id}
+
 
 class HostingError(Exception):
     def __init__(self, message: str, *, status: int = 400, code: str = 'hosting_error'):
@@ -256,6 +265,12 @@ def create_preview_app(
     )
     token = (access_token or '').strip() or None
     transaction.on_commit(lambda: upsert_hosting_oauth_redirect(app, access_token=token))
+    emit_event_if_rules(
+        'hosting.app.created',
+        company_id,
+        app_event_payload(app),
+        actor=_action_actor(user_id),
+    )
     return app
 
 
@@ -367,6 +382,11 @@ def create_app(
     )
     token = (access_token or '').strip() or None
     transaction.on_commit(lambda: upsert_hosting_oauth_redirect(app, access_token=token))
+    emit_event_if_rules(
+        'hosting.app.created',
+        company_id,
+        app_event_payload(app),
+    )
     return app
 
 
@@ -390,7 +410,7 @@ def create_deployment(
     SemVer.parse(shellui_version)
     deployment_id = uuid.uuid4()
     prefix = f'{app.id}/deployments/{deployment_id}/'
-    return Deployment.objects.create(
+    deployment = Deployment.objects.create(
         id=deployment_id,
         app=app,
         app_version=app_version.strip(),
@@ -400,6 +420,13 @@ def create_deployment(
         storage_prefix=prefix,
         deployed_by_id=deployed_by_id,
     )
+    emit_event_if_rules(
+        'hosting.deployment.created',
+        app.company_id,
+        deployment_event_payload(deployment, status=DeploymentStatus.DRAFT),
+        actor=_action_actor(deployed_by_id),
+    )
+    return deployment
 
 
 def upload_deployment_artifact(
@@ -444,6 +471,14 @@ def finalize_deployment(*, deployment: Deployment) -> Deployment:
     except FileNotFoundError as exc:
         raise HostingError(str(exc), code='artifact_missing') from exc
     except ExtractError as exc:
+        deployment.status = DeploymentStatus.FAILED
+        deployment.save(update_fields=['status', 'updated_at'])
+        emit_event_if_rules(
+            'hosting.deployment.failed',
+            deployment.app.company_id,
+            deployment_event_payload(deployment, status=DeploymentStatus.FAILED, error='artifact_extract_failed'),
+            actor=_action_actor(deployment.deployed_by_id),
+        )
         raise HostingError(str(exc), code='artifact_extract_failed') from exc
     app = deployment.app
     now = timezone.now()
@@ -461,6 +496,12 @@ def finalize_deployment(*, deployment: Deployment) -> Deployment:
     from .serve import invalidate_serve_cache
 
     invalidate_serve_cache(app.slug)
+    emit_event_if_rules(
+        'hosting.deployment.succeeded',
+        app.company_id,
+        deployment_event_payload(deployment, status=DeploymentStatus.ACTIVE),
+        actor=_action_actor(deployment.deployed_by_id),
+    )
     return deployment
 
 
@@ -511,15 +552,19 @@ def delete_app_artifacts(app: App) -> None:
             _delete_filesystem_tree(build_storage_key(deployment.storage_prefix.rstrip('/')))
 
 
+@transaction.atomic
 def delete_app(app: App, *, access_token: str | None = None) -> None:
     """Remove a hosted app, its deployments, and stored artifacts."""
     # Capture before delete; unsync after local removal so a failed delete does not
     # strip login while the site still exists.
+    payload = app_event_payload(app)
+    company_id = app.company_id
     try:
         origin = app_origin_for_sync(app)
     except Exception:
         origin = None
     delete_app_artifacts(app)
     app.delete()
+    emit_event_if_rules('hosting.app.deleted', company_id, payload)
     if origin:
         delete_hosting_oauth_redirect_origin(origin=origin, access_token=access_token)

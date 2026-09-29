@@ -7,9 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### ✨ Features
+
+- **Shellui Actions (webhooks):** Direct webhook delivery on hosting domain events (`hosting.*`), DB outbox with post-commit dispatch, `manage.py retry_webhooks`, and admin REST API under `/api/v1/actions/` (same shape as identity-service).
+
 ### 📚 Documentation
 
 - Add root `AGENTS.md` with Shellui writing and design guidelines for coding agents.
+- Add `docs/actions.md` for webhook rules, event catalog, and retry cron.
 
 ### 🐛 Bug Fixes
 

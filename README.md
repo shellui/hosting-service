@@ -15,6 +15,7 @@ It authenticates with JWTs issued by [identity-service](https://github.com/shell
 - OpenAPI docs (Swagger + ReDoc); opening Swagger from Django Admin auto-applies the Shellui session access token
 - Prometheus metrics (`/hosting/v1/metrics`, `/hosting/v1/metrics/all`) for staff or company-owner JWT / PAT
 - Permissive API CORS by default (`CORS_ALLOW_ALL_ORIGINS=true`, `CORS_ALLOW_CREDENTIALS=false`); auth is Bearer JWT — hosted preview origins do not need CORS env entries
+- **Shellui Actions** webhooks on hosting domain events (`hosting.*`), admin REST API under `/api/v1/actions/`, retries via `manage.py retry_webhooks` — see [`docs/actions.md`](docs/actions.md)
 - Production security hardening: rate limits, HSTS/secure cookies, Postgres SSL, pinned JWKS — see [`docs/security-hardening.md`](docs/security-hardening.md) and [`docs/claim-trust.md`](docs/claim-trust.md)
 
 ## Project structure
@@ -22,6 +23,7 @@ It authenticates with JWTs issued by [identity-service](https://github.com/shell
 - `config/` — Django settings and URL routing
 - `apps/authapi/` — JWKS JWT authentication
 - `apps/hosting/` — apps, deployments, access, static serving
+- `apps/actions/` — Shellui Actions webhook outbox, delivery, admin API
 
 ## Main endpoints
 
@@ -38,6 +40,7 @@ It authenticates with JWTs issued by [identity-service](https://github.com/shell
 | Django admin | `/admin/` |
 | **Browse** | `GET https://{site_slug}.{HOSTING_APP_DOMAIN}/` |
 | OpenAPI | `/api/docs/`, `/api/docs/redoc/` |
+| Shellui Actions | `/api/v1/actions/events`, `/api/v1/actions/rules`, `/api/v1/actions/deliveries` |
 
 Auth header: `Authorization: Bearer <access_token>` from identity-service.
 
@@ -217,6 +220,14 @@ Full check list, optional env vars (`HOSTING_APP_DOMAIN`, `CORS_PROBE_ORIGIN`), 
 docker build -t hosting-service .
 docker run --rm -p 8002:8000 -v hosting-service-data:/app/data --env-file .env hosting-service
 ```
+
+Schedule webhook retries (every minute) in production, for example:
+
+```cron
+* * * * * cd /app && python manage.py retry_webhooks >> /var/log/retry_webhooks.log 2>&1
+```
+
+Use your orchestrator's cron or a sidecar that execs into the hosting-service container with the same command.
 
 ## License
 
