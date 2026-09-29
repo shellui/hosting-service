@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import socket
 import ssl
 from dataclasses import dataclass
 from http.client import HTTPConnection, HTTPSConnection, HTTPResponse
@@ -36,6 +37,30 @@ class WebhookPostResult:
     retry_after_seconds: int | None = None
 
 
+class PinnedHTTPSConnection(HTTPSConnection):
+    """
+    Connect to a pinned IP (SSRF-safe) while verifying TLS for the original hostname (SNI).
+    """
+
+    def __init__(
+        self,
+        host: str,
+        port: int,
+        *,
+        timeout: float,
+        context: ssl.SSLContext,
+        connect_host: str,
+    ) -> None:
+        super().__init__(host, port, timeout=timeout, context=context)
+        self._pinned_connect_host = connect_host
+
+    def connect(self) -> None:
+        address = (self._pinned_connect_host, self.port)
+        self.sock = socket.create_connection(address, self.timeout, self.source_address)
+        if self._context is not None:
+            self.sock = self._context.wrap_socket(self.sock, server_hostname=self.host)
+
+
 def _read_response_excerpt(response: HTTPResponse) -> str:
     try:
         raw = response.read(_RESPONSE_EXCERPT_MAX + 1)
@@ -49,6 +74,19 @@ def _read_response_excerpt(response: HTTPResponse) -> str:
     return text.strip()
 
 
+def _tls_server_name(endpoint: ResolvedWebhookEndpoint) -> str:
+    header = endpoint.host_header
+    if header.startswith('['):
+        end = header.find(']')
+        if end != -1:
+            return header[1:end]
+    if ':' in header:
+        host, _, port_part = header.rpartition(':')
+        if port_part.isdigit():
+            return host
+    return header
+
+
 def post_resolved_webhook(
     endpoint: ResolvedWebhookEndpoint,
     *,
@@ -60,12 +98,13 @@ def post_resolved_webhook(
     req_headers['Host'] = endpoint.host_header
     if endpoint.scheme == 'https':
         context = ssl.create_default_context()
-        conn: HTTPConnection | HTTPSConnection = HTTPSConnection(
-            endpoint.connect_host,
+        server_name = _tls_server_name(endpoint)
+        conn: HTTPConnection | HTTPSConnection = PinnedHTTPSConnection(
+            server_name,
             endpoint.port,
             timeout=timeout,
             context=context,
-            server_hostname=endpoint.host_header.split(':')[0],
+            connect_host=endpoint.connect_host,
         )
     else:
         conn = HTTPConnection(endpoint.connect_host, endpoint.port, timeout=timeout)

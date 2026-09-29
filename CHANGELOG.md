@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 - **Shellui Actions (webhooks):** Direct webhook delivery on hosting domain events (`hosting.*`), DB outbox with post-commit dispatch, `manage.py retry_webhooks`, and admin REST API under `/api/v1/actions/` (same shape as identity-service).
 - **n8n integration:** Retryable HTTP 404, `whsec_` signing secrets (auto-generate on create, `rotate-secret` API), UTF-8 JSON bodies, `X-Shellui-Event` / `X-Shellui-Delivery-Attempt` headers, `Retry-After` on 429/503 (`max` with backoff); guide in `docs/n8n.md` and `docs/examples/verify-shellui-webhook.mjs`.
+- **Webhook HTTPS:** `PinnedHTTPSConnection` connects to pinned SSRF-safe IP with correct TLS SNI (fixes `server_hostname` on `HTTPSConnection` constructor).
 
 ### 📚 Documentation
 
