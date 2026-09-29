@@ -147,7 +147,7 @@ docker run -d \
   shellui/hosting-service:0.4.0
 ```
 
-The entrypoint runs migrations on start, then starts Gunicorn on port 8000.
+The entrypoint runs migrations on start, then starts **Gunicorn** (`config.wsgi:application`) as user `appuser`. Env vars `GUNICORN_WORKERS` (default `2`), `GUNICORN_THREADS` (default `2`), and `GUNICORN_TIMEOUT` (default `120`) are passed through.
 
 ### Post-deploy production config check
 
@@ -199,11 +199,24 @@ Create the first Django superuser with `python manage.py createsuperuser` inside
 | `ROOT_REDIRECT_URL` | Optional 301 for apex `/` |
 | `SETUP_TOKEN` | One-time token for web superuser bootstrap when `DEBUG=false` (`/?setup_token=<token>`) |
 | `POSTGRES_DATABASE_URL` | Use Postgres instead of SQLite |
+| `REDIS_URL` | Shared Redis cache (recommended when `GUNICORN_WORKERS` > 1). Example: `redis://redis:6379/0`. Without it, LocMem is per-worker. |
 | `HOSTING_RATE_LIMIT_*` | Tune deploy/upload/delete rate limits — see `docs/security-hardening.md` |
 | `SENTRY_DSN` / `SENTRY_ENVIRONMENT` | Error reporting |
 | `AWS_*` | django-storages when `HOSTING_BACKEND=s3` |
 
 Do not list every preview slug in CORS env — OAuth redirect sync on identity handles login bounce origins.
+
+### Redis (Coolify / multi-worker Gunicorn)
+
+When `GUNICORN_WORKERS` is greater than 1 (Docker default), hosting rate limits rely on Django cache. In-process LocMem is **not** shared between workers.
+
+1. Add a **Redis** service in Coolify (or run Redis on the VPS).
+2. On the hosting-service container, set **`REDIS_URL`** to the Redis connection URL, for example:
+   - Same Coolify project, internal hostname: `redis://redis:6379/0`
+   - Managed Redis with password: `redis://:password@host:6379/0`
+3. Redeploy hosting-service. `manage.py check --deploy` warns (`authapi.W001`) if production still uses LocMem with multiple workers.
+
+Local dev and single-worker installs can leave `REDIS_URL` unset.
 
 ## Security notes
 
