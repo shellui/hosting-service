@@ -13,6 +13,7 @@ Canonical source lives in `shellui/website` (`content/guidelines/`, `skills/writ
 ### Hard rules from writing guidelines
 
 - Product name is **Shellui** only
+- In docs and UI copy, say **Shellui Actions** (not bare "Actions") when referring to webhook rules and delivery
 - Ban em dashes (`—`) and en dashes (`–`) used as punctuation; prefer a hyphen (`-`) or split the sentence
 - Straight quotes in markdown source; ellipsis `…`, not three dots `...`
 - Avoid banned filler: easy, simple, quick, seamless, robust, powerful, just, very, really, simply

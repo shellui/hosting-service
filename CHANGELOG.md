@@ -9,21 +9,38 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [0.5.0] - 2026-09-29
 
+### ✨ Feature
+
+- **Shellui Actions webhooks:** Outbound webhook delivery for `hosting.*` domain events with DB-backed outbox, signed envelopes, SSRF-safe HTTP, `python manage.py retry_webhooks`, and company admin REST API at `/api/v1/actions/*` (aligned with identity-service).
+- **n8n integration:** Retry-friendly HTTP semantics (404 retryable), `whsec_` signing secrets, UTF-8 JSON bodies, `X-Shellui-Event` / `X-Shellui-Delivery-Attempt` headers, `Retry-After` on 429/503, `POST …/rotate-secret`, create/rotate-only `secret` responses with `has_secret` / `secret_hint`, [docs/n8n.md](docs/n8n.md), and [docs/examples/verify-shellui-webhook.mjs](docs/examples/verify-shellui-webhook.mjs).
+- **Redis cache:** Set optional `REDIS_URL` for shared cache (deploy, upload, destructive, and access-request rate limits). Without it, LocMem stays the default. Deploy check `authapi.W001` warns when production uses LocMem with `GUNICORN_WORKERS` > 1.
+
 ### Added
 
-- Optional **`REDIS_URL`** shared cache for deploy, upload, destructive, and access-request rate limits across Gunicorn workers. Without it, LocMem remains the default (single-process only).
+- **Shellui Actions webhooks:** Outbound webhook delivery for `hosting.*` domain events with a DB-backed outbox, signed envelopes, SSRF-safe HTTP, `python manage.py retry_webhooks`, and company admin REST API at `/api/v1/actions/*` (aligned with identity-service).
+- **n8n integration:** Retry-friendly HTTP semantics (404 retryable), `whsec_` signing secrets, UTF-8 JSON bodies, `X-Shellui-Event` / `X-Shellui-Delivery-Attempt` headers, `Retry-After` on 429/503, `POST …/rotate-secret`, create/rotate-only `secret` responses with `has_secret` / `secret_hint`, [docs/n8n.md](docs/n8n.md), and [docs/examples/verify-shellui-webhook.mjs](docs/examples/verify-shellui-webhook.mjs).
+- **Redis cache:** Optional `REDIS_URL` for shared cache (deploy, upload, destructive, and access-request rate limits). Without it, LocMem stays the default. Deploy check `authapi.W001` warns when production uses LocMem with `GUNICORN_WORKERS` > 1.
+- Root `AGENTS.md` with Shellui writing and design guidelines for coding agents.
+- [docs/actions.md](docs/actions.md) for Shellui Actions webhook rules, event catalog, and retry cron.
 
 ### Changed
 
-- `manage.py check --deploy` warns with **`authapi.W001`** when `DEBUG=false`, the cache backend is LocMem, and `GUNICORN_WORKERS` is greater than 1.
-- Pre-release Docker smoke test sets production identity env (`IDENTITY_ISSUER`, `IDENTITY_AUDIENCE`), disables HTTP SSL redirect for local health curls, and prints container logs when the service never becomes ready.
-- Add root **`AGENTS.md`** with Shellui writing and design guidelines for coding agents.
-- Document **`REDIS_URL`** in `.env.example`, [README.md](README.md), [PUBLISH.md](PUBLISH.md), [docker-compose.yml](docker-compose.yml), and [docs/security-hardening.md](docs/security-hardening.md).
+- **Documentation:** `REDIS_URL` in `.env.example`, [README.md](README.md), [PUBLISH.md](PUBLISH.md), [docker-compose.yml](docker-compose.yml), and [docs/security-hardening.md](docs/security-hardening.md).
+
+### Fixed
+
+- Pre-release Docker smoke test supplies production identity env (`IDENTITY_ISSUER`, `IDENTITY_AUDIENCE`), disables HTTP SSL redirect for local curls, and dumps container logs when health never becomes ready.
+- **HTTPS webhooks (Python 3.14):** Align `webhook_transport.py` with identity-service pinned TLS connect (`PinnedHTTPSConnection`, IPv6 Host/SNI parsing); admin send-test uses fresh UUID/timestamp sample values via shared `sample_data.py` while events catalog previews stay static.
+
+### Security
+
+- **Webhook SSRF (identity v0.6.0):** Reject non-global resolved addresses (including CGNAT `100.64.0.0/10`); block NAT64, 6to4, and IPv4-compatible IPv6 literals via embedded IPv4 checks. Changing a webhook URL clears staff-granted `allow_private_urls` unless a superuser re-enables it.
 
 ### Upgrade notes
 
-- **Environment:** set optional `REDIS_URL` when you run more than one Gunicorn worker so rate limits stay consistent (see [PUBLISH.md](PUBLISH.md) and [docs/security-hardening.md](docs/security-hardening.md)).
-- **Database:** no new migrations in this release.
+- Run database migrations after upgrade (`apps.actions` initial migration creates webhook outbox tables).
+- Schedule `python manage.py retry_webhooks` every minute (for example `* * * * *` in cron) so failed webhook deliveries retry with backoff.
+- When `GUNICORN_WORKERS` is greater than 1, set **`REDIS_URL`** (for example `redis://redis:6379/0`) so cache-backed rate limits are shared across workers.
 
 ## [0.4.0] - 2026-09-18
 
