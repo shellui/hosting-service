@@ -7,22 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-### ✨ Feature
+## [0.5.0] - 2026-09-29
 
-- **Redis cache:** Set `REDIS_URL` for shared cache (deploy, upload, destructive, and access-request rate limits). Without it, LocMem stays the default.
+### Added
 
-### 🛠 Improvements
+- Optional **`REDIS_URL`** shared cache for deploy, upload, destructive, and access-request rate limits across Gunicorn workers. Without it, LocMem remains the default (single-process only).
 
-- Deploy check `authapi.W001` warns when `DEBUG=false`, LocMem is in use, and `GUNICORN_WORKERS` > 1.
+### Changed
 
-### 📚 Documentation
+- `manage.py check --deploy` warns with **`authapi.W001`** when `DEBUG=false`, the cache backend is LocMem, and `GUNICORN_WORKERS` is greater than 1.
+- Pre-release Docker smoke test sets production identity env (`IDENTITY_ISSUER`, `IDENTITY_AUDIENCE`), disables HTTP SSL redirect for local health curls, and prints container logs when the service never becomes ready.
+- Add root **`AGENTS.md`** with Shellui writing and design guidelines for coding agents.
+- Document **`REDIS_URL`** in `.env.example`, [README.md](README.md), [PUBLISH.md](PUBLISH.md), [docker-compose.yml](docker-compose.yml), and [docs/security-hardening.md](docs/security-hardening.md).
 
-- Add root `AGENTS.md` with Shellui writing and design guidelines for coding agents.
-- `REDIS_URL` in `.env.example`, [README.md](README.md), [PUBLISH.md](PUBLISH.md), [docker-compose.yml](docker-compose.yml), and [docs/security-hardening.md](docs/security-hardening.md).
+### Upgrade notes
 
-### 🐛 Bug Fixes
-
-- Pre-release Docker smoke test supplies production identity env (`IDENTITY_ISSUER`, `IDENTITY_AUDIENCE`), disables HTTP SSL redirect for local curls, and dumps container logs when health never becomes ready.
+- **Environment:** set optional `REDIS_URL` when you run more than one Gunicorn worker so rate limits stay consistent (see [PUBLISH.md](PUBLISH.md) and [docs/security-hardening.md](docs/security-hardening.md)).
+- **Database:** no new migrations in this release.
 
 ## [0.4.0] - 2026-09-18
 
