@@ -13,7 +13,7 @@ _APP = (
 _DEPLOYMENT = _APP + (
     EventFieldDoc('deployment_id', 'Deployment UUID', '660e8400-e29b-41d4-a716-446655440001'),
     EventFieldDoc('app_version', 'App semver from the artifact', '1.0.0'),
-    EventFieldDoc('shellui_version', 'Shellui semver from the artifact', '0.5.0'),
+    EventFieldDoc('shellui_version', 'Shellui semver from the artifact', '0.4.0'),
     EventFieldDoc('status', 'Deployment status after the event', 'active'),
 )
 
