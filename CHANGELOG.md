@@ -5,8 +5,6 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
-## [Unreleased]
-
 ## [0.5.0] - 2026-09-29
 
 ### ✨ Feature
@@ -41,6 +39,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - Run database migrations after upgrade (`apps.actions` initial migration creates webhook outbox tables).
 - Schedule `python manage.py retry_webhooks` every minute (for example `* * * * *` in cron) so failed webhook deliveries retry with backoff.
 - When `GUNICORN_WORKERS` is greater than 1, set **`REDIS_URL`** (for example `redis://redis:6379/0`) so cache-backed rate limits are shared across workers.
+
+### 🔒 Security
+
+- **Client IP behind proxies:** With `TRUSTED_PROXY_IPS` set, rate limits use the rightmost untrusted `X-Forwarded-For` hop instead of the client-controlled leftmost entry. IPv4-mapped proxy addresses match CIDRs, hops are normalized (ports, brackets, invalid entries), and IPv6 rate limits bucket by /64.
 
 ## [0.4.0] - 2026-09-18
 
