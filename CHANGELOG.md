@@ -7,9 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### ✨ Feature
+
+- **Redis cache:** Set `REDIS_URL` for shared cache (deploy, upload, destructive, and access-request rate limits). Without it, LocMem stays the default.
+
+### 🛠 Improvements
+
+- Deploy check `authapi.W001` warns when `DEBUG=false`, LocMem is in use, and `GUNICORN_WORKERS` > 1.
+
 ### 📚 Documentation
 
 - Add root `AGENTS.md` with Shellui writing and design guidelines for coding agents.
+- `REDIS_URL` in `.env.example`, [README.md](README.md), [PUBLISH.md](PUBLISH.md), [docker-compose.yml](docker-compose.yml), and [docs/security-hardening.md](docs/security-hardening.md).
 
 ### 🐛 Bug Fixes
 

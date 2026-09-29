@@ -88,6 +88,28 @@ def _env_bool(name, default: bool) -> bool:
     return raw.lower() in {'1', 'true', 'yes', 'on'}
 
 
+def _caches_config(redis_url: str) -> dict:
+    """
+    Shared cache for hosting rate limits (deploy, upload, destructive, access request).
+
+    When ``REDIS_URL`` is set, use Django's Redis backend (requires the ``redis`` package).
+    Otherwise use in-process LocMem (fine for single-process dev; not shared across Gunicorn workers).
+    """
+    if redis_url:
+        return {
+            'default': {
+                'BACKEND': 'django.core.cache.backends.redis.RedisCache',
+                'LOCATION': redis_url,
+            }
+        }
+    return {
+        'default': {
+            'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+            'LOCATION': 'hosting-service',
+        }
+    }
+
+
 def _env_bytes(name, default):
     raw = os.getenv(name, '').strip()
     if not raw:
@@ -544,12 +566,8 @@ CSRF_COOKIE_SECURE = _env_bool('CSRF_COOKIE_SECURE', not DEBUG)
 DJANGO_ADMIN_ENABLED = _env_bool('DJANGO_ADMIN_ENABLED', True)
 
 # Cache-backed rate limits for deploy/upload/finalize and related abuse-prone endpoints.
-CACHES = {
-    'default': {
-        'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
-        'LOCATION': 'hosting-service',
-    }
-}
+REDIS_URL = os.getenv('REDIS_URL', '').strip()
+CACHES = _caches_config(REDIS_URL)
 HOSTING_RATE_LIMIT_ENABLED = _env_bool('HOSTING_RATE_LIMIT_ENABLED', True)
 HOSTING_RATE_LIMITS = {
     'default': {'limit': 60, 'window': 60},

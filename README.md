@@ -218,6 +218,28 @@ docker build -t hosting-service .
 docker run --rm -p 8002:8000 -v hosting-service-data:/app/data --env-file .env hosting-service
 ```
 
+### Docker Compose (recommended local run)
+
+```bash
+cp .env.example .env
+docker compose up --build
+```
+
+Stop:
+
+```bash
+docker compose down
+```
+
+Data persists in named volume `hosting-service-data` (`/app/data` in the container).
+
+Runtime env vars (see `.env.example`):
+
+- `REDIS_URL` (optional; when set, Django uses Redis for shared cache — hosting rate limits). Unset uses in-process LocMem (single Gunicorn worker or local dev only; with multiple workers each process has its own cache)
+- `GUNICORN_WORKERS` (default `2`)
+- `GUNICORN_THREADS` (default `2`)
+- `GUNICORN_TIMEOUT` (default `120`)
+
 ## License
 
 See [LICENSE](LICENSE).
