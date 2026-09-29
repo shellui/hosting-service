@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### 🔒 Security
+
+- **Client IP behind proxies:** With `TRUSTED_PROXY_IPS` set, rate limits use the rightmost untrusted `X-Forwarded-For` hop instead of the client-controlled leftmost entry. IPv4-mapped proxy addresses match CIDRs, hops are normalized (ports, brackets, invalid entries), and IPv6 rate limits bucket by /64.
+
 ### ✨ Feature
 
 - **Redis cache:** Set `REDIS_URL` for shared cache (deploy, upload, destructive, and access-request rate limits). Without it, LocMem stays the default.
