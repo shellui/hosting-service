@@ -88,6 +88,28 @@ def _env_bool(name, default: bool) -> bool:
     return raw.lower() in {'1', 'true', 'yes', 'on'}
 
 
+def _caches_config(redis_url: str) -> dict:
+    """
+    Shared cache for hosting rate limits (deploy, upload, destructive, access request).
+
+    When ``REDIS_URL`` is set, use Django's Redis backend (requires the ``redis`` package).
+    Otherwise use in-process LocMem (fine for single-process dev; not shared across Gunicorn workers).
+    """
+    if redis_url:
+        return {
+            'default': {
+                'BACKEND': 'django.core.cache.backends.redis.RedisCache',
+                'LOCATION': redis_url,
+            }
+        }
+    return {
+        'default': {
+            'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+            'LOCATION': 'hosting-service',
+        }
+    }
+
+
 def _env_bytes(name, default):
     raw = os.getenv(name, '').strip()
     if not raw:
@@ -141,8 +163,8 @@ CSRF_TRUSTED_ORIGINS = _env_csv(
 )
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 
-# Trusted reverse proxies (comma-separated IPs/CIDRs). X-Forwarded-For is honored for rate
-# limits only when REMOTE_ADDR matches one of these entries. See docs/security-hardening.md.
+# Reverse proxies that may set X-Forwarded-For (IPs or CIDRs). Empty = trust REMOTE_ADDR only.
+# See docs/security-hardening.md.
 TRUSTED_PROXY_IPS = _env_csv('TRUSTED_PROXY_IPS', ())
 
 
@@ -171,7 +193,16 @@ INSTALLED_APPS = [
     'storages',
     'apps.authapi',
     'apps.hosting',
+    'apps.actions',
 ]
+
+# Shellui Actions (webhook outbox)
+ACTIONS_OUTBOX_MAX_ATTEMPTS = _env_int('ACTIONS_OUTBOX_MAX_ATTEMPTS', 8)
+ACTIONS_WEBHOOK_TIMEOUT_SECONDS = _env_float('ACTIONS_WEBHOOK_TIMEOUT_SECONDS', 5.0)
+ACTIONS_WEBHOOK_RETRY_LEASE_SECONDS = _env_int('ACTIONS_WEBHOOK_RETRY_LEASE_SECONDS', 120)
+ACTIONS_WEBHOOK_DISPATCH_WORKERS = _env_int('ACTIONS_WEBHOOK_DISPATCH_WORKERS', 4)
+ACTIONS_WEBHOOK_SYNC_DELIVERY = _env_bool('ACTIONS_WEBHOOK_SYNC_DELIVERY', False)
+ACTIONS_WEBHOOK_ALLOW_PRIVATE = _env_bool('ACTIONS_WEBHOOK_ALLOW_PRIVATE', DEBUG)
 
 REST_FRAMEWORK = {
     'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
@@ -550,12 +581,8 @@ CSRF_COOKIE_SECURE = _env_bool('CSRF_COOKIE_SECURE', not DEBUG)
 DJANGO_ADMIN_ENABLED = _env_bool('DJANGO_ADMIN_ENABLED', True)
 
 # Cache-backed rate limits for deploy/upload/finalize and related abuse-prone endpoints.
-CACHES = {
-    'default': {
-        'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
-        'LOCATION': 'hosting-service',
-    }
-}
+REDIS_URL = os.getenv('REDIS_URL', '').strip()
+CACHES = _caches_config(REDIS_URL)
 HOSTING_RATE_LIMIT_ENABLED = _env_bool('HOSTING_RATE_LIMIT_ENABLED', True)
 HOSTING_RATE_LIMITS = {
     'default': {'limit': 60, 'window': 60},

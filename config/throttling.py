@@ -8,7 +8,7 @@ from django.conf import settings
 from django.core.cache import cache
 from rest_framework.throttling import SimpleRateThrottle
 
-from config.client_ip import get_client_ip
+from config.client_ip import client_ip_rate_limit_key, get_client_ip
 
 
 def _limits_for_scope(scope: str) -> tuple[int, int]:
@@ -39,7 +39,7 @@ class HostingScopeThrottle(SimpleRateThrottle):
         if user and getattr(user, 'is_authenticated', False):
             ident = f'user_{getattr(user, "user_id", user.pk)}'
         else:
-            ident = f'ip_{get_client_ip(request) or "unknown"}'
+            ident = f'ip_{client_ip_rate_limit_key(get_client_ip(request))}'
         return self.cache_format % {'scope': scope, 'ident': ident}
 
     def allow_request(self, request, view):

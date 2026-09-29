@@ -27,6 +27,8 @@ Cache-backed limits apply to abuse-prone hosting endpoints (per authenticated us
 
 Tune with `HOSTING_RATE_LIMIT_*` env vars or set `HOSTING_RATE_LIMIT_ENABLED=false` to disable (not recommended in production).
 
+Limits use Django cache (`REDIS_URL` when set, otherwise in-process LocMem). With **`GUNICORN_WORKERS` > 1** (Docker default `2`), set **`REDIS_URL`** so counters are shared across workers. Example: `redis://redis:6379/0`. `manage.py check --deploy` emits **`authapi.W001`** when production uses LocMem with multiple workers.
+
 ## Waitlist bypass (`HOSTING_DEBUG_OPEN`)
 
 Fail-closed: only an explicit truthy env value skips the company waitlist. `DEBUG=true` does **not** auto-enable bypass.
@@ -66,7 +68,7 @@ The Django admin UI is cross-tenant (local Django users, not JWT company scope).
 
 ## Trusted proxies and client IP
 
-Rate limits derive client IP from `REMOTE_ADDR` unless the direct peer is listed in `TRUSTED_PROXY_IPS` (comma-separated IPs or CIDRs). When trusted, the first hop of `X-Forwarded-For` is used.
+Rate limits derive client IP from `REMOTE_ADDR` unless the direct peer is listed in `TRUSTED_PROXY_IPS` (comma-separated IPs or CIDRs). When the peer is trusted, the service walks `X-Forwarded-For` **from the right** (closest to hosting-service), skips hops that match `TRUSTED_PROXY_IPS` (including CIDR ranges), and uses the first untrusted address as the client IP. That ignores a client-controlled leftmost spoof entry when Traefik, Coolify, or nginx append the real chain.
 
 Example (nginx on the same host):
 
@@ -74,4 +76,14 @@ Example (nginx on the same host):
 TRUSTED_PROXY_IPS=127.0.0.1,::1
 ```
 
-Without trusted proxies, clients cannot spoof IPs by sending `X-Forwarded-For` directly.
+Example (private load balancer subnet):
+
+```bash
+TRUSTED_PROXY_IPS=10.0.0.0/8
+```
+
+Example (Coolify / Traefik forwarding to Gunicorn): list the Traefik container or ingress subnet in `TRUSTED_PROXY_IPS` so `REMOTE_ADDR` is the proxy while the client IP is taken from the rightmost untrusted `X-Forwarded-For` hop.
+
+Without trusted proxies, clients cannot spoof audit IPs by sending `X-Forwarded-For` directly; the app uses `REMOTE_ADDR` only.
+
+IPv6 rate limits bucket by /64 prefix; logs and audit use the full address from `get_client_ip`.

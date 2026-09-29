@@ -1,6 +1,6 @@
 [project]
 name = "hosting-service"
-version = "0.4.1"
+version = "0.5.0"
 description = "A hosting service for deploying and serving Shellui applications"
 readme = "README.md"
 requires-python = ">=3.14"
@@ -20,6 +20,7 @@ dependencies = [
     "pyjwt==2.13.0",
     "requests==2.33.0",
     "prometheus-client==0.21.1",
+    "redis==8.1.0",
 ]
 
 [dependency-groups]
