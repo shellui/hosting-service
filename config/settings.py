@@ -163,8 +163,8 @@ CSRF_TRUSTED_ORIGINS = _env_csv(
 )
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 
-# Trusted reverse proxies (comma-separated IPs/CIDRs). X-Forwarded-For is honored for rate
-# limits only when REMOTE_ADDR matches one of these entries. See docs/security-hardening.md.
+# Reverse proxies that may set X-Forwarded-For (IPs or CIDRs). Empty = trust REMOTE_ADDR only.
+# See docs/security-hardening.md.
 TRUSTED_PROXY_IPS = _env_csv('TRUSTED_PROXY_IPS', ())
 
 

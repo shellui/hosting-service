@@ -5,9 +5,9 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
-## [Unreleased]
+## [0.5.0] - 2026-09-29
 
-### ✨ Features
+### ✨ Feature
 
 - **Shellui Actions (webhooks):** Direct webhook delivery on hosting domain events (`hosting.*`), DB outbox with post-commit dispatch, `manage.py retry_webhooks`, and admin REST API under `/api/v1/actions/` (same shape as identity-service).
 - **n8n integration:** Retryable HTTP 404, `whsec_` signing secrets (auto-generate on create, `rotate-secret` API), UTF-8 JSON bodies, `X-Shellui-Event` / `X-Shellui-Delivery-Attempt` headers, `Retry-After` on 429/503 (`max` with backoff); guide in `docs/n8n.md` and `docs/examples/verify-shellui-webhook.mjs`.
@@ -30,6 +30,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - Pre-release Docker smoke test supplies production identity env (`IDENTITY_ISSUER`, `IDENTITY_AUDIENCE`), disables HTTP SSL redirect for local curls, and dumps container logs when health never becomes ready.
 - **Webhook SSRF:** Reject non-global resolved addresses (including CGNAT) and embedded IPv4 in NAT64, 6to4, and IPv4-compatible literal forms.
 - **Webhook rule config:** Changing a webhook URL clears `allow_private_urls` for non-staff callers; staff may set it again in the same patch.
+
+### 🔒 Security
+
+- **Client IP behind proxies:** With `TRUSTED_PROXY_IPS` set, rate limits use the rightmost untrusted `X-Forwarded-For` hop instead of the client-controlled leftmost entry. IPv4-mapped proxy addresses match CIDRs, hops are normalized (ports, brackets, invalid entries), and IPv6 rate limits bucket by /64.
 
 ## [0.4.0] - 2026-09-18
 
