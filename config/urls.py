@@ -26,6 +26,7 @@ urlpatterns = [
 if getattr(settings, 'DJANGO_ADMIN_ENABLED', True):
     urlpatterns.append(path('admin/', admin.site.urls))
 urlpatterns.extend([
+    path('api/v1/actions/', include('apps.actions.urls')),
     path('hosting/v1/', include('apps.hosting.urls')),
     path('api/schema/', SpectacularAPIView.as_view(), name='schema'),
     path(
