@@ -5,35 +5,38 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
 ## [0.5.0] - 2026-09-29
 
-### ✨ Feature
+### Added
 
-- **Shellui Actions (webhooks):** Direct webhook delivery on hosting domain events (`hosting.*`), DB outbox with post-commit dispatch, `manage.py retry_webhooks`, and admin REST API under `/api/v1/actions/` (same shape as identity-service).
-- **n8n integration:** Retryable HTTP 404, `whsec_` signing secrets (auto-generate on create, `rotate-secret` API), UTF-8 JSON bodies, `X-Shellui-Event` / `X-Shellui-Delivery-Attempt` headers, `Retry-After` on 429/503 (`max` with backoff); guide in `docs/n8n.md` and `docs/examples/verify-shellui-webhook.mjs`.
-- **Webhook HTTPS:** `PinnedHTTPSConnection` connects to pinned SSRF-safe IP with correct TLS SNI (fixes `server_hostname` on `HTTPSConnection` constructor); transport module aligned with identity-service.
-- **Send test webhooks:** `sample_data.payload_data_from_event` generates fresh UUIDs and timestamps on send-test; events catalog keeps static examples.
-- **Redis cache:** Set `REDIS_URL` for shared cache (deploy, upload, destructive, and access-request rate limits). Without it, LocMem stays the default.
+- **Shellui Actions webhooks:** Outbound webhook delivery for `hosting.*` domain events with a DB-backed outbox, signed envelopes, SSRF-safe HTTP, `python manage.py retry_webhooks`, and company admin REST API at `/api/v1/actions/*` (aligned with identity-service).
+- **n8n integration:** Retry-friendly HTTP semantics (404 retryable), `whsec_` signing secrets, UTF-8 JSON bodies, `X-Shellui-Event` / `X-Shellui-Delivery-Attempt` headers, `Retry-After` on 429/503, `POST …/rotate-secret`, create/rotate-only `secret` responses with `has_secret` / `secret_hint`, [docs/n8n.md](docs/n8n.md), and [docs/examples/verify-shellui-webhook.mjs](docs/examples/verify-shellui-webhook.mjs).
+- **Redis cache:** Optional `REDIS_URL` for shared cache (deploy, upload, destructive, and access-request rate limits). Without it, LocMem stays the default. Deploy check `authapi.W001` warns when production uses LocMem with `GUNICORN_WORKERS` > 1.
+- Root `AGENTS.md` with Shellui writing and design guidelines for coding agents.
+- [docs/actions.md](docs/actions.md) for Shellui Actions webhook rules, event catalog, and retry cron.
 
-### 🛠 Improvements
+### Changed
 
-- Deploy check `authapi.W001` warns when `DEBUG=false`, LocMem is in use, and `GUNICORN_WORKERS` > 1.
+- **Documentation:** `REDIS_URL` in `.env.example`, [README.md](README.md), [PUBLISH.md](PUBLISH.md), [docker-compose.yml](docker-compose.yml), and [docs/security-hardening.md](docs/security-hardening.md).
 
-### 📚 Documentation
-
-- Add root `AGENTS.md` with Shellui writing and design guidelines for coding agents.
-- Add `docs/actions.md` for webhook rules, event catalog, and retry cron.
-- `REDIS_URL` in `.env.example`, [README.md](README.md), [PUBLISH.md](PUBLISH.md), [docker-compose.yml](docker-compose.yml), and [docs/security-hardening.md](docs/security-hardening.md).
-
-### 🐛 Bug Fixes
+### Fixed
 
 - Pre-release Docker smoke test supplies production identity env (`IDENTITY_ISSUER`, `IDENTITY_AUDIENCE`), disables HTTP SSL redirect for local curls, and dumps container logs when health never becomes ready.
-- **Webhook SSRF:** Reject non-global resolved addresses (including CGNAT) and embedded IPv4 in NAT64, 6to4, and IPv4-compatible literal forms.
-- **Webhook rule config:** Changing a webhook URL clears `allow_private_urls` for non-staff callers; staff may set it again in the same patch.
+- **HTTPS webhooks (Python 3.14):** Align `webhook_transport.py` with identity-service pinned TLS connect (`PinnedHTTPSConnection`, IPv6 Host/SNI parsing); admin send-test uses fresh UUID/timestamp sample values via shared `sample_data.py` while events catalog previews stay static.
 
-### 🔒 Security
+### Security
 
+- **Webhook SSRF (identity v0.6.0):** Reject non-global resolved addresses (including CGNAT `100.64.0.0/10`); block NAT64, 6to4, and IPv4-compatible IPv6 literals via embedded IPv4 checks. Changing a webhook URL clears staff-granted `allow_private_urls` unless a superuser re-enables it.
 - **Client IP behind proxies:** With `TRUSTED_PROXY_IPS` set, rate limits use the rightmost untrusted `X-Forwarded-For` hop instead of the client-controlled leftmost entry. IPv4-mapped proxy addresses match CIDRs, hops are normalized (ports, brackets, invalid entries), and IPv6 rate limits bucket by /64.
+
+### Upgrade notes
+
+- Run database migrations after upgrade (`apps.actions` initial migration creates webhook outbox tables).
+- Schedule `python manage.py retry_webhooks` every minute (for example `* * * * *` in cron) so failed webhook deliveries retry with backoff.
+- When `GUNICORN_WORKERS` is greater than 1, set **`REDIS_URL`** (for example `redis://redis:6379/0`) so cache-backed rate limits are shared across workers.
+- When hosting-service sits behind a reverse proxy, set **`TRUSTED_PROXY_IPS`** to your proxy CIDRs so rate limits use the real client IP (see [docs/security-hardening.md](docs/security-hardening.md)).
 
 ## [0.4.0] - 2026-09-18
 
