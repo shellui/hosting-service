@@ -8,6 +8,15 @@ from apps.actions.models import ActionRule
 from apps.actions.webhook_signing import generate_webhook_signing_secret
 
 
+def _secret_hint(secret: str) -> str:
+    s = (secret or '').strip()
+    if not s:
+        return ''
+    if len(s) <= 4:
+        return '****'
+    return s[-4:]
+
+
 def build_webhook_config(
     *,
     existing: dict,
@@ -19,8 +28,12 @@ def build_webhook_config(
     partial: bool,
 ) -> dict:
     cfg = dict(existing or {})
+    previous_url = (existing.get('url') or '').strip()
+    url_changed = False
     if url is not None or not partial:
-        cfg['url'] = (url if url is not None else cfg.get('url') or '').strip()
+        new_url = (url if url is not None else cfg.get('url') or '').strip()
+        url_changed = url is not None and new_url != previous_url
+        cfg['url'] = new_url
     if not cfg.get('url'):
         raise ValidationError('Webhook url is required.')
 
@@ -51,22 +64,20 @@ def build_webhook_config(
             cfg['allow_private_urls'] = True
         elif allow_private_urls is False:
             cfg.pop('allow_private_urls', None)
-    elif not partial:
-        if existing.get('allow_private_urls'):
-            cfg['allow_private_urls'] = True
+    elif url_changed:
+        cfg.pop('allow_private_urls', None)
+    elif not partial and existing.get('allow_private_urls'):
+        cfg['allow_private_urls'] = True
     return cfg
 
 
 def mask_config_for_response(config: dict, action_kind: str) -> dict:
     cfg = dict(config or {})
     if action_kind == ActionRule.ACTION_WEBHOOK:
-        secret = (config or {}).get('secret') or ''
+        raw_secret = (config or {}).get('secret') or ''
         cfg.pop('secret', None)
         cfg.pop('authorization_header', None)
-        cfg['has_secret'] = bool(secret)
-        if secret:
-            cfg['secret_hint'] = secret[-4:] if len(secret) >= 4 else '****'
-        else:
-            cfg['secret_hint'] = None
+        cfg['has_secret'] = bool(raw_secret)
+        cfg['secret_hint'] = _secret_hint(str(raw_secret))
         cfg['authorization_header_set'] = bool((config or {}).get('authorization_header'))
     return cfg

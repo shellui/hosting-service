@@ -20,6 +20,7 @@ dependencies = [
     "pyjwt==2.13.0",
     "requests==2.33.0",
     "prometheus-client==0.21.1",
+    "redis==8.1.0",
 ]
 
 [dependency-groups]

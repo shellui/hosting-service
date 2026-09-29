@@ -86,6 +86,7 @@ def _apply_rule_config(
     partial: bool,
 ) -> Response | None:
     existing = dict(rule.config or {})
+    # Staff JWT may set allow_private_urls (mirrors storage-service; identity uses Django is_superuser).
     is_superuser = bool(getattr(actor, 'is_staff', False))
     try:
         rule.config = build_webhook_config(

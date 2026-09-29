@@ -13,15 +13,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - **n8n integration:** Retryable HTTP 404, `whsec_` signing secrets (auto-generate on create, `rotate-secret` API), UTF-8 JSON bodies, `X-Shellui-Event` / `X-Shellui-Delivery-Attempt` headers, `Retry-After` on 429/503 (`max` with backoff); guide in `docs/n8n.md` and `docs/examples/verify-shellui-webhook.mjs`.
 - **Webhook HTTPS:** `PinnedHTTPSConnection` connects to pinned SSRF-safe IP with correct TLS SNI (fixes `server_hostname` on `HTTPSConnection` constructor); transport module aligned with identity-service.
 - **Send test webhooks:** `sample_data.payload_data_from_event` generates fresh UUIDs and timestamps on send-test; events catalog keeps static examples.
+- **Redis cache:** Set `REDIS_URL` for shared cache (deploy, upload, destructive, and access-request rate limits). Without it, LocMem stays the default.
+
+### 🛠 Improvements
+
+- Deploy check `authapi.W001` warns when `DEBUG=false`, LocMem is in use, and `GUNICORN_WORKERS` > 1.
 
 ### 📚 Documentation
 
 - Add root `AGENTS.md` with Shellui writing and design guidelines for coding agents.
 - Add `docs/actions.md` for webhook rules, event catalog, and retry cron.
+- `REDIS_URL` in `.env.example`, [README.md](README.md), [PUBLISH.md](PUBLISH.md), [docker-compose.yml](docker-compose.yml), and [docs/security-hardening.md](docs/security-hardening.md).
 
 ### 🐛 Bug Fixes
 
 - Pre-release Docker smoke test supplies production identity env (`IDENTITY_ISSUER`, `IDENTITY_AUDIENCE`), disables HTTP SSL redirect for local curls, and dumps container logs when health never becomes ready.
+- **Webhook SSRF:** Reject non-global resolved addresses (including CGNAT) and embedded IPv4 in NAT64, 6to4, and IPv4-compatible literal forms.
+- **Webhook rule config:** Changing a webhook URL clears `allow_private_urls` for non-staff callers; staff may set it again in the same patch.
 
 ## [0.4.0] - 2026-09-18
 
