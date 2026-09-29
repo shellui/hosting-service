@@ -14,6 +14,7 @@ from apps.actions.permissions import ActionsAdminPermission
 from apps.actions.registry import all_event_types, event_field_doc_dict, get_event_type
 from apps.actions.rule_config import build_webhook_config, mask_config_for_response
 from apps.actions.serializers import ActionRuleCreateSerializer, ActionRuleUpdateSerializer
+from apps.actions.webhook_signing import generate_webhook_signing_secret
 from apps.actions.webhook_test_send import send_webhook_test_for_rule
 
 SUPPORTED_ACTION_KINDS = [ActionRule.ACTION_WEBHOOK]
@@ -186,7 +187,9 @@ class ShellUIAdminActionRuleListCreateView(APIView):
         if cfg_err:
             return cfg_err
         rule.save()
-        return Response(_action_rule_payload(rule), status=status.HTTP_201_CREATED)
+        payload = _action_rule_payload(rule)
+        payload['secret'] = (rule.config or {}).get('secret')
+        return Response(payload, status=status.HTTP_201_CREATED)
 
 
 @extend_schema_view(
@@ -262,6 +265,37 @@ class ShellUIAdminActionRuleDetailView(APIView):
         },
     ),
 )
+@extend_schema_view(
+    post=extend_schema(
+        tags=['actions-admin'],
+        summary='Rotate webhook signing secret (staff or company owner)',
+        operation_id='api_v1_actions_rules_rotate_secret',
+        responses={
+            200: OpenApiResponse(description='New secret returned once in response body'),
+        },
+    ),
+)
+class ShellUIAdminActionRuleRotateSecretView(APIView):
+    permission_classes = [ActionsAdminPermission]
+
+    def post(self, request, pk):
+        _actor, company_id, err = require_staff_or_company_owner(request)
+        if err:
+            return err
+        try:
+            rule = ActionRule.objects.get(pk=pk, company_id=company_id)
+        except ActionRule.DoesNotExist:
+            return Response({'error': 'Not found.'}, status=status.HTTP_404_NOT_FOUND)
+        new_secret = generate_webhook_signing_secret()
+        cfg = dict(rule.config or {})
+        cfg['secret'] = new_secret
+        rule.config = cfg
+        rule.save(update_fields=['config', 'updated_at'])
+        payload = _action_rule_payload(rule)
+        payload['secret'] = new_secret
+        return Response(payload)
+
+
 class ShellUIAdminActionRuleSendTestView(APIView):
     permission_classes = [ActionsAdminPermission]
 

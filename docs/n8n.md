@@ -42,9 +42,13 @@ Shellui accepts:
 Generate a compatible secret in Python:
 
 ```python
-from apps.actions.webhook_signing import generate_whsec_secret
-print(generate_whsec_secret())
+from apps.actions.webhook_signing import generate_webhook_signing_secret
+print(generate_webhook_signing_secret())
 ```
+
+Shellui auto-generates a `whsec_` secret when you create a rule without one. The **create** and **rotate-secret** API responses return the full `secret` once; later reads expose `has_secret` and `secret_hint` (last four characters) only.
+
+Reference verifier script: [verify-shellui-webhook.mjs](examples/verify-shellui-webhook.mjs) (run with Node.js).
 
 Store the same value in n8n (for manual verification) and in the Shellui Action rule.
 

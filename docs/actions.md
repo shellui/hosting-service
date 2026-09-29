@@ -70,8 +70,9 @@ Signing secrets may be plain text or Standard Webhooks `whsec_<base64>` (Shellui
 Same paths as identity-service (Bearer JWT from identity-service):
 
 - `GET /api/v1/actions/events` — catalog with `sample_envelope`
-- `GET/POST /api/v1/actions/rules` — list/create webhook rules
+- `GET/POST /api/v1/actions/rules` — list/create webhook rules (create returns `secret` once if generated)
 - `GET/PATCH/DELETE /api/v1/actions/rules/<id>`
+- `POST /api/v1/actions/rules/<id>/rotate-secret` — new signing secret (returned once)
 - `POST /api/v1/actions/rules/<id>/send-test`
 - `GET /api/v1/actions/deliveries` — paginated delivery log
 - `GET /api/v1/actions/deliveries/<uuid>` — detail with attempts
@@ -92,7 +93,7 @@ Backoff: `30s * 2^(n-1)` capped at 1 hour, max 8 attempts. Default HTTP timeout 
 | 400, 401, 403, 405, 410, 413, 422 | No (dead) |
 | Other 4xx | Yes |
 | 5xx, timeouts, connection errors | Yes |
-| 429 / 503 with `Retry-After` | Yes; delay honors header (max 1 hour) |
+| 429 / 503 with `Retry-After` | Yes; delay is `max(backoff, Retry-After)` capped at 1 hour |
 
 ```bash
 python manage.py retry_webhooks --batch-size 50 --max-seconds 50 --concurrency 4

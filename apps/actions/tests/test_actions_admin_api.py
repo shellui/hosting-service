@@ -56,20 +56,43 @@ class ActionsAdminApiTests(TestCase):
         self.assertIn('sample_envelope', row)
         self.assertEqual(row['supported_action_kinds'], ['webhook'])
 
-    def test_create_webhook_rule(self):
+    def test_create_webhook_rule_returns_secret_once(self):
         response = self.client.post(
             '/api/v1/actions/rules',
             {
                 'name': 'n8n',
                 'event_type': 'hosting.app.created',
                 'url': 'https://hooks.example.com/app',
-                'secret': 'whsec_test',
             },
             format='json',
         )
         self.assertEqual(response.status_code, 201)
         self.assertEqual(response.data['action_kind'], 'webhook')
-        self.assertTrue(response.data['config']['secret_set'])
+        self.assertTrue(response.data['secret'].startswith('whsec_'))
+        self.assertTrue(response.data['config']['has_secret'])
+        self.assertNotIn('secret', response.data['config'])
+
+        listed = self.client.get('/api/v1/actions/rules')
+        self.assertNotIn('secret', listed.data['results'][0])
+        self.assertTrue(listed.data['results'][0]['config']['has_secret'])
+
+    def test_rotate_secret_returns_new_secret_once(self):
+        create = self.client.post(
+            '/api/v1/actions/rules',
+            {
+                'name': 'Hook',
+                'event_type': 'hosting.app.created',
+                'url': 'https://hooks.example.com/app',
+            },
+            format='json',
+        )
+        rule_id = create.data['id']
+        first_secret = create.data['secret']
+        rotate = self.client.post(f'/api/v1/actions/rules/{rule_id}/rotate-secret')
+        self.assertEqual(rotate.status_code, 200)
+        self.assertTrue(rotate.data['secret'].startswith('whsec_'))
+        self.assertNotEqual(rotate.data['secret'], first_secret)
+        self.assertNotIn('secret', rotate.data.get('config', {}))
 
     def test_list_deliveries_and_requeue(self):
         rule = ActionRule.objects.create(
