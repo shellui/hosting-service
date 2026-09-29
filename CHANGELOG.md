@@ -5,7 +5,21 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
-## [Unreleased]
+<!---
+## [Unreleased] - yyyy-mm-dd
+
+### ✨ Feature - for new features
+### 🛠 Improvements - for general improvements
+### 🚨 Changed - for changes in existing functionality
+### ⚠️ Deprecated - for soon-to-be removed features
+### 📚 Documentation - for documentation update
+### 🗑 Removed - for removed features
+### 🐛 Bug Fixes - for any bug fixes
+### 🔒 Security - in case of vulnerabilities
+### 🏗 Chore - for tidying code
+
+See for sample https://raw.githubusercontent.com/favoloso/conventional-changelog-emoji/master/CHANGELOG.md
+-->
 
 ## [0.5.0] - 2026-09-29
 
@@ -38,6 +52,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - When `GUNICORN_WORKERS` is greater than 1, set **`REDIS_URL`** (for example `redis://redis:6379/0`) so cache-backed rate limits are shared across workers.
 - When hosting-service sits behind a reverse proxy, set **`TRUSTED_PROXY_IPS`** to your proxy CIDRs so rate limits use the real client IP (see [docs/security-hardening.md](docs/security-hardening.md)).
 
+## [0.4.1] - 2026-09-22
+
+### 🛠 Improvements
+
+- Overall refresh of the homepage (branding, layout, and styling).
+
 ## [0.4.0] - 2026-09-18
 
 ### 🔒 Security
@@ -54,6 +74,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - Add `./tools/prod-config-check.sh` for post-deploy HTTPS smoke tests of the hosting platform (mirrors identity-service); documented in README and PUBLISH.md.
 - README, `.env.example`, and production checklist in `PUBLISH.md` document staff-only approval and explicit `HOSTING_DEBUG_OPEN` opt-in.
 - Add `docs/security-hardening.md` (CORS, rate limits, transport, admin isolation, Postgres SSL) and `docs/claim-trust.md` (JWT privileged claims and JWKS pinning).
+
+### 🐛 Bug Fixes
+
+- Pre-release Docker smoke test supplies production identity env (`IDENTITY_ISSUER`, `IDENTITY_AUDIENCE`), disables HTTP SSL redirect for local curls, and dumps container logs when health never becomes ready.
 
 ## [0.3.0] - 2026-09-12
 

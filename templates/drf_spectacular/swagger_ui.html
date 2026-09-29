@@ -5,7 +5,7 @@
     <title>{{ title|default:"Swagger" }}</title>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    {% if favicon_href %}<link rel="icon" href="{{ favicon_href }}">{% endif %}
+    {% include "includes/shellui_favicons.html" %}
     <link rel="stylesheet" href="{{ swagger_ui_css }}">
     <style>
       html { box-sizing: border-box; overflow-y: scroll; }
