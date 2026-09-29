@@ -23,128 +23,134 @@ See for sample https://raw.githubusercontent.com/favoloso/conventional-changelog
 
 ## [0.5.0] - 2026-09-29
 
-### Added
+### ✨ Feature
 
-- **Shellui Actions webhooks:** Outbound webhook delivery for `hosting.*` domain events with a DB-backed outbox, signed envelopes, SSRF-safe HTTP, `python manage.py retry_webhooks`, and company admin REST API at `/api/v1/actions/*` (aligned with identity-service).
-- **n8n integration:** Retry-friendly HTTP semantics (404 retryable), `whsec_` signing secrets, UTF-8 JSON bodies, `X-Shellui-Event` / `X-Shellui-Delivery-Attempt` headers, `Retry-After` on 429/503, `POST …/rotate-secret`, create/rotate-only `secret` responses with `has_secret` / `secret_hint`, [docs/n8n.md](docs/n8n.md), and [docs/examples/verify-shellui-webhook.mjs](docs/examples/verify-shellui-webhook.mjs).
-- **Redis cache:** Optional `REDIS_URL` for shared cache (deploy, upload, destructive, and access-request rate limits). Without it, LocMem stays the default. Deploy check `authapi.W001` warns when production uses LocMem with `GUNICORN_WORKERS` > 1.
-- Root `AGENTS.md` with Shellui writing and design guidelines for coding agents.
-- [docs/actions.md](docs/actions.md) for Shellui Actions webhook rules, event catalog, and retry cron.
+- **Shellui Actions webhooks:** Deliver `hosting.*` events through a DB-backed outbox with signed envelopes and SSRF-safe HTTP. Manage rules via the company admin API at `/api/v1/actions/*` (aligned with identity-service). Failed deliveries retry with backoff via `python manage.py retry_webhooks`.
+- **n8n integration:** `whsec_` signing secrets, UTF-8 JSON bodies, `X-Shellui-Event` and `X-Shellui-Delivery-Attempt` headers, `Retry-After` on 429/503, and retryable 404s. Rotate with `POST …/rotate-secret`; the secret is only returned on create and rotate (`has_secret` and `secret_hint` otherwise).
+- **Redis cache:** Optional `REDIS_URL` shares rate-limit counters across workers (LocMem stays the default). Deploy check `authapi.W001` warns when production runs LocMem with `GUNICORN_WORKERS` > 1.
 
-### Changed
+### 📚 Documentation
 
-- **Documentation:** `REDIS_URL` in `.env.example`, [README.md](README.md), [PUBLISH.md](PUBLISH.md), [docker-compose.yml](docker-compose.yml), and [docs/security-hardening.md](docs/security-hardening.md).
+- **Shellui Actions:** [docs/actions.md](docs/actions.md) covers webhook rules, the event catalog, and the retry cron.
+- **n8n:** [docs/n8n.md](docs/n8n.md) and a [signature verification example](docs/examples/verify-shellui-webhook.mjs).
+- **Redis:** `REDIS_URL` documented in `.env.example`, [README.md](README.md), [PUBLISH.md](PUBLISH.md), [docker-compose.yml](docker-compose.yml), and [docs/security-hardening.md](docs/security-hardening.md).
+- **Agent notes:** Root `AGENTS.md` with Shellui writing and design guidelines for coding agents.
 
-### Fixed
+### 🐛 Bug Fixes
 
-- Pre-release Docker smoke test supplies production identity env (`IDENTITY_ISSUER`, `IDENTITY_AUDIENCE`), disables HTTP SSL redirect for local curls, and dumps container logs when health never becomes ready.
-- **HTTPS webhooks (Python 3.14):** Align `webhook_transport.py` with identity-service pinned TLS connect (`PinnedHTTPSConnection`, IPv6 Host/SNI parsing); admin send-test uses fresh UUID/timestamp sample values via shared `sample_data.py` while events catalog previews stay static.
+- **Pre-release smoke test:** Supplies `IDENTITY_ISSUER` / `IDENTITY_AUDIENCE`, disables the SSL redirect for local curls, and dumps container logs if health never goes ready.
+- **HTTPS webhooks on Python 3.14:** `webhook_transport.py` uses identity-service pinned TLS connect (`PinnedHTTPSConnection`, IPv6 Host/SNI parsing).
+- **Admin send-test:** Sends fresh UUID and timestamp sample values; the events catalog preview stays static.
 
-### Security
+### 🔒 Security
 
-- **Webhook SSRF (identity v0.6.0):** Reject non-global resolved addresses (including CGNAT `100.64.0.0/10`); block NAT64, 6to4, and IPv4-compatible IPv6 literals via embedded IPv4 checks. Changing a webhook URL clears staff-granted `allow_private_urls` unless a superuser re-enables it.
-- **Client IP behind proxies:** With `TRUSTED_PROXY_IPS` set, rate limits use the rightmost untrusted `X-Forwarded-For` hop instead of the client-controlled leftmost entry. IPv4-mapped proxy addresses match CIDRs, hops are normalized (ports, brackets, invalid entries), and IPv6 rate limits bucket by /64.
+- **Webhook SSRF (matches identity v0.6.0):** Rejects non-global resolved addresses, including CGNAT `100.64.0.0/10`, plus NAT64, 6to4, and IPv4-compatible IPv6 literals. Changing a webhook URL clears `allow_private_urls` until a superuser re-enables it.
+- **Client IP behind proxies:** With `TRUSTED_PROXY_IPS` set, rate limits key on the rightmost untrusted `X-Forwarded-For` hop, not the client-controlled leftmost one. Hops are normalized, IPv4-mapped proxies match CIDRs, and IPv6 buckets by /64.
 
-### Upgrade notes
+### ⬆️ Upgrade notes
 
-- Run database migrations after upgrade (`apps.actions` initial migration creates webhook outbox tables).
-- Schedule `python manage.py retry_webhooks` every minute (for example `* * * * *` in cron) so failed webhook deliveries retry with backoff.
-- When `GUNICORN_WORKERS` is greater than 1, set **`REDIS_URL`** (for example `redis://redis:6379/0`) so cache-backed rate limits are shared across workers.
-- When hosting-service sits behind a reverse proxy, set **`TRUSTED_PROXY_IPS`** to your proxy CIDRs so rate limits use the real client IP (see [docs/security-hardening.md](docs/security-hardening.md)).
+- **Migrations:** Run them after upgrading (`apps.actions` adds the webhook outbox tables).
+- **Webhook retries:** Schedule `python manage.py retry_webhooks` every minute (`* * * * *`).
+- **Multiple workers:** Set `REDIS_URL` (e.g. `redis://redis:6379/0`) when `GUNICORN_WORKERS` > 1.
+- **Reverse proxy:** Set `TRUSTED_PROXY_IPS` to your proxy CIDRs so rate limits see the real client IP ([docs/security-hardening.md](docs/security-hardening.md)).
 
 ## [0.4.1] - 2026-09-22
 
 ### 🛠 Improvements
 
-- Overall refresh of the homepage (branding, layout, and styling).
+- **Homepage:** Overall refresh of branding, layout, and styling.
 
 ## [0.4.0] - 2026-09-18
 
-### 🔒 Security
-
-- Gate public first-run superuser bootstrap at `/`: when the user table is empty and `DEBUG=false`, the web form is hidden and POST returns 403 unless a valid `SETUP_TOKEN` is provided (query param, hidden field, or `X-Setup-Token` header). Prefer `python manage.py createsuperuser` in production (mirrors identity-service).
-- **H-11:** `POST /hosting/v1/access` transitions to `approved` or `denied` are staff-only; company owners can no longer self-approve the hosting waitlist.
-- **M-28:** `HOSTING_DEBUG_OPEN` is fail-closed — only an explicit truthy env value skips the waitlist (`DEBUG=true` no longer auto-enables bypass).
-- **M-01 / M-07 / M-23 / H-12 (#12):** CORS allow-all + `CORS_ALLOW_CREDENTIALS=false` (startup fails on unsafe combo); HSTS and secure cookies when `DEBUG=false`; Postgres `ssl_require` by default with `POSTGRES_SSL_REQUIRE=false` escape; `IDENTITY_ISSUER` / `IDENTITY_AUDIENCE` and pinned JWKS required in production; optional `DJANGO_ADMIN_ENABLED=false`.
-- **M-02 (#12):** Cache-backed rate limits on preview/deploy, upload, finalize, rollback, delete, and access-request endpoints.
-- **M-25/M-26/M-27:** Tar extract resource caps (max files, total uncompressed bytes, per-file size) with atomic rollback on violation; hardened member path validation (`normpath`, reject `..` components). Static AppServe rejects literal and URL-encoded path traversal before opening storage.
-
 ### 📚 Documentation
 
-- Add `./tools/prod-config-check.sh` for post-deploy HTTPS smoke tests of the hosting platform (mirrors identity-service); documented in README and PUBLISH.md.
-- README, `.env.example`, and production checklist in `PUBLISH.md` document staff-only approval and explicit `HOSTING_DEBUG_OPEN` opt-in.
-- Add `docs/security-hardening.md` (CORS, rate limits, transport, admin isolation, Postgres SSL) and `docs/claim-trust.md` (JWT privileged claims and JWKS pinning).
+- **Prod config check:** `./tools/prod-config-check.sh` runs post-deploy HTTPS smoke tests (mirrors identity-service); documented in README and PUBLISH.md.
+- **Security guides:** [docs/security-hardening.md](docs/security-hardening.md) (CORS, rate limits, transport, admin isolation, Postgres SSL) and [docs/claim-trust.md](docs/claim-trust.md) (JWT privileged claims, JWKS pinning).
+- **Access approval:** README, `.env.example`, and PUBLISH.md cover staff-only approval and the explicit `HOSTING_DEBUG_OPEN` opt-in.
 
 ### 🐛 Bug Fixes
 
-- Pre-release Docker smoke test supplies production identity env (`IDENTITY_ISSUER`, `IDENTITY_AUDIENCE`), disables HTTP SSL redirect for local curls, and dumps container logs when health never becomes ready.
+- **Pre-release smoke test:** Supplies `IDENTITY_ISSUER` / `IDENTITY_AUDIENCE`, disables the SSL redirect for local curls, and dumps container logs if health never goes ready.
+
+### 🔒 Security
+
+- **First-run bootstrap:** With an empty user table and `DEBUG=false`, the `/` superuser form is hidden and POST returns 403 without a valid `SETUP_TOKEN` (query param, hidden field, or `X-Setup-Token` header). Prefer `python manage.py createsuperuser` in production.
+- **Staff-only access approval (H-11):** Only staff can move `POST /hosting/v1/access` requests to `approved` or `denied`; company owners can no longer self-approve.
+- **Fail-closed debug bypass (M-28):** Only an explicit truthy `HOSTING_DEBUG_OPEN` skips the waitlist; `DEBUG=true` no longer enables it.
+- **Production hardening (M-01, M-07, M-23, H-12, #12):**
+  - CORS allow-all requires `CORS_ALLOW_CREDENTIALS=false` (startup fails otherwise).
+  - HSTS and secure cookies when `DEBUG=false`.
+  - Postgres `ssl_require` by default (`POSTGRES_SSL_REQUIRE=false` to opt out).
+  - `IDENTITY_ISSUER`, `IDENTITY_AUDIENCE`, and pinned JWKS required in production.
+  - Optional `DJANGO_ADMIN_ENABLED=false`.
+- **Rate limits (M-02, #12):** Cache-backed limits on preview/deploy, upload, finalize, rollback, delete, and access requests.
+- **Tar extraction (M-25, M-26, M-27):** Caps on file count, total uncompressed size, and per-file size, with atomic rollback. Member paths are normalized and `..` components rejected; static serving rejects literal and URL-encoded path traversal.
 
 ## [0.3.0] - 2026-09-12
 
-### 🛠 Improvements
-
-- Faster hosted-app serving (#4): one storage round-trip per file (no exists-before-open), skip `index.html` existence checks for static assets, short in-process slug→App cache (`HOSTING_SERVE_CACHE_TTL_SECONDS`, default 45, auto-cleared on deploy), and long-lived `immutable` Cache-Control for content-hashed assets (Vite-style `name-hash.ext`).
-- Apex marketing landing: Shellui wordmark (shellui.ai-style), deploy-ready copy with `shellui login` / `shellui deploy` example, and `/llms.txt` overview for agents.
-
 ### ✨ Feature
 
-- Apex landing page for `shellui.app` (shellui.ai-style UI, light/dark toggle, links to website / docs / playground / GitHub / shellui.ai). Leave `ROOT_REDIRECT_URL` empty to use it instead of redirecting to shellui.com.
+- **Apex landing page:** `shellui.app` gets a shellui.ai-style page with a light/dark toggle and links to the website, docs, playground, GitHub, and shellui.ai. Leave `ROOT_REDIRECT_URL` empty to show it.
+
+### 🛠 Improvements
+
+- **Faster app serving (#4):** One storage round-trip per file, no `index.html` checks for static assets, a short slug-to-app cache (`HOSTING_SERVE_CACHE_TTL_SECONDS`, default 45s, cleared on deploy), and `immutable` Cache-Control for content-hashed assets.
+- **Landing copy:** Shellui wordmark, deploy-ready copy with a `shellui login` / `shellui deploy` example, and a `/llms.txt` overview for agents.
 
 ### 📚 Documentation
 
-- Clarify that `ROOT_REDIRECT_URL` is optional; unset it on the public hosting apex to show the new landing.
+- **Root redirect:** `ROOT_REDIRECT_URL` is optional; unset it on the hosting apex to show the landing page.
 
 ## [0.2.1] - 2026-09-07
 
 ### ✨ Feature
 
-- Added Prometheus metrics (`GET /hosting/v1/metrics`, `GET /hosting/v1/metrics/all`) for apps, deployments, artifacts, and access — staff or company-owner JWT / PAT (same auth model as storage-service and identity-service).
+- **Prometheus metrics:** `GET /hosting/v1/metrics` and `/hosting/v1/metrics/all` for apps, deployments, artifacts, and access. Requires a staff or company-owner JWT or PAT (same model as storage-service and identity-service).
 
 ### 🛠 Improvements
 
-- Swagger UI now auto-applies the Shellui session access token when docs are opened from Admin (same `swagger_ui.js` preauthorize flow as identity-service / storage-service).
+- **Swagger from Admin:** Swagger UI auto-applies the Shellui session token when opened from Admin (same preauthorize flow as identity-service and storage-service).
 
 ### 📚 Documentation
 
-- Refresh [README](README.md) and [PUBLISH.md](PUBLISH.md) for `0.2.1` (metrics, Swagger Admin preauthorize, Docker Hub publish/deploy examples).
+- **README and PUBLISH.md:** Refreshed for metrics, Swagger preauthorize, and Docker Hub publish/deploy examples.
 
 ## [0.2.0] - 2026-09-04
 
-### 🚨 Changed
-
-- **Permissive API CORS:** default `CORS_ALLOW_ALL_ORIGINS=true` with `CORS_ALLOW_CREDENTIALS=false` (Bearer JWT auth). Hosted preview origins no longer need per-slug `CORS_ALLOWED_ORIGINS` entries.
-
 ### ✨ Feature
 
-- Custom HTML 404 for missing / expired / unpublished app subdomains (instead of Django’s plain Not Found page).
-- On create/redeploy and delete, forward the caller's identity JWT to register/remove the site origin on identity-service OAuth redirect allowlist (`IDENTITY_SERVICE_URL`) so hosted shells can log in without manual allowlist edits.
+- **Custom 404:** Friendly HTML page for missing, expired, or unpublished app subdomains.
+- **OAuth redirect sync:** Create, redeploy, and delete forward the caller's JWT to identity-service (`IDENTITY_SERVICE_URL`) to add or remove the site origin on the OAuth redirect allowlist. Hosted shells log in without manual allowlist edits.
 
-### 🐛 Fixed
+### 🚨 Changed
 
-- App subdomains (`{slug}.shellui.app`) now serve the hosted site for every path, including `/admin`. Django admin / API / docs stay on the apex host only — so React Router refreshes no longer hit Django admin.
+- **Permissive API CORS:** Defaults to `CORS_ALLOW_ALL_ORIGINS=true` with `CORS_ALLOW_CREDENTIALS=false` (Bearer JWT auth). Preview origins no longer need per-slug `CORS_ALLOWED_ORIGINS` entries.
+
+### 🐛 Bug Fixes
+
+- **App subdomains serve every path:** `{slug}.shellui.app` serves the hosted site for all paths, including `/admin`. Admin, API, and docs stay on the apex, so React Router refreshes no longer land on Django admin.
 
 ### 🔒 Security
 
-- Bump dependencies to clear `pip-audit` findings: Django `6.0.8`, cryptography `50.0.0`, djangorestframework `3.17.2`, requests `2.33.0`, PyJWT `2.13.0`.
+- **Dependency bumps:** Clear `pip-audit` findings with Django `6.0.8`, cryptography `50.0.0`, djangorestframework `3.17.2`, requests `2.33.0`, and PyJWT `2.13.0`.
 
 ### 🏗 Chore
 
-- Add GitHub Actions CI on PRs and `main`/`develop`: Django tests, `uv lock --check`, `pip-audit`, gitleaks, lychee link checks, and Docker build.
-- Automate pre-release checklist via `./tools/pre-release-check.sh` and `.github/workflows/pre-release.yml` (PRs to `main`).
+- **CI:** GitHub Actions runs Django tests, `uv lock --check`, `pip-audit`, gitleaks, lychee link checks, and a Docker build on PRs and `main`/`develop`.
+- **Pre-release checks:** `./tools/pre-release-check.sh` and `.github/workflows/pre-release.yml` run on PRs to `main`.
 
 ## [0.1.0] - 2026-09-03
 
-### 🗑️ Removed
-
-- App compatibility ranges and `GET /hosting/v1/apps/{app}/resolve` — preview hosting always serves the current deployment.
-
 ### ✨ Feature
 
-- `ROOT_REDIRECT_URL` — optional permanent (301) redirect for apex `/` (e.g. shellui.app → https://shellui.com); unset keeps the landing page. Hosted app subdomains are unchanged.
-- `DELETE /hosting/v1/apps/{ref}` removes a hosted app, deployments, and stored artifacts.
-- Preview deploy flow via `POST /hosting/v1/preview` — new slug per deploy, optional slug redeploy, 7-day TTL.
-- Public static serving at `https://{site_slug}.shellui.app/` (subdomain per app; local dev uses `/etc/hosts` + `HOSTING_APP_DOMAIN=shellui.local`).
-- Deployment finalize extracts `artifact.tar.gz` for browsing; API responses include `urls.url`.
-- `approve_hosting_access` management command for local/production waitlist bypass.
-- Initial hosting-service Django project with JWT auth, company access waitlist, app/deployment management, and stats API under `/hosting/v1/*`.
-- Bootstrap hosting-service from storage-service patterns.
+- **Initial service:** Django project with JWT auth, company access waitlist, app and deployment management, and stats API under `/hosting/v1/*`, bootstrapped from storage-service patterns.
+- **Preview deploys:** `POST /hosting/v1/preview` creates a new slug per deploy, with optional slug redeploy and a 7-day TTL.
+- **Subdomain serving:** Public static sites at `https://{site_slug}.shellui.app/` (local dev: `/etc/hosts` + `HOSTING_APP_DOMAIN=shellui.local`).
+- **Finalize and browse:** Deployment finalize extracts `artifact.tar.gz`; API responses include `urls.url`.
+- **App deletion:** `DELETE /hosting/v1/apps/{ref}` removes the app, its deployments, and stored artifacts.
+- **Apex redirect:** Optional `ROOT_REDIRECT_URL` for a 301 from apex `/` (e.g. to https://shellui.com). Unset keeps the landing page; app subdomains are unaffected.
+- **Waitlist bypass:** `approve_hosting_access` management command for local and production.
+
+### 🗑 Removed
+
+- **Compatibility ranges:** Dropped app compatibility ranges and `GET /hosting/v1/apps/{app}/resolve`; preview hosting always serves the current deployment.
