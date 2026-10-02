@@ -61,7 +61,9 @@ The forward runs after the database commit, on the same worker pool as webhook d
 }
 ```
 
-`payload` is the same object stored on the webhook envelope under `data`. hosting-service does not store a company name, so `company_name` is absent and the suggested template uses its fallback. A failed deployment includes `error` (for example `artifact_extract_failed`).
+`payload` is the same object stored on the webhook envelope under `data`. hosting-service omits `company_name`. email-service fills that variable from an earlier call for the company, or the suggested template uses its language default. A failed deployment includes `error` (for example `artifact_extract_failed`).
+
+When the token has no email, `recipients` is `[]`. email-service answers `202` with `skipped_reason: no_recipients`. hosting-service treats that response as delivered.
 
 Retries send this stored body again, including the same `idempotency_key`. The API key is not written into the outbox row or into logs.
 
@@ -73,11 +75,11 @@ The Shellui Actions deliveries API lists webhook rows only. Email rows stay on t
 
 | Result | What hosting-service does |
 | ------ | ------------------------- |
-| 2xx | Delivered. A disabled rule is still 202, with no message. |
-| 409, 429 | Retry. 429 and 503 honor `Retry-After`, capped at 1 hour. |
-| 5xx, timeouts, connection errors | Retry |
-| 400, 401, 403, 404, 422 | Dead. The body is not sent again. |
+| 2xx | Delivered. `skipped_reason` of `rule_disabled` or `no_recipients` is finished. |
+| 404, 408, 409, 425, 429, other 4xx not listed below, 5xx, timeouts, connection errors | Retry with the same body and `idempotency_key` |
+| 429 or 503 with `Retry-After` | Retry. The wait is `Retry-After`, capped at 1 hour. |
+| 400, 401, 403, 405, 410, 413, 422 | Dead. That body is not sent again. |
+
+`404` retries, the same way a Shellui Actions webhook retries an inactive n8n workflow. See [n8n.md](n8n.md).
 
 Finished rows are deleted with webhook deliveries after `EVENT_LOG_RETENTION_DAYS`.
-
-A 404 from email-service is dead. That differs from n8n, where 404 means the workflow is inactive and stays retryable. See [n8n.md](n8n.md) for webhook rules.

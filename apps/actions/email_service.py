@@ -14,15 +14,12 @@ import requests
 from django.conf import settings
 
 from apps.actions.models import ActionOutbox
-from apps.actions.webhook_retry import parse_retry_after_header
+from apps.actions.webhook_retry import is_permanent_http_status, parse_retry_after_header
 
 logger = logging.getLogger(__name__)
 
 SERVICE_NAME = 'hosting'
 EVENTS_PATH = '/api/v1/events'
-
-# 409 (lane_paused) and 429 retry. Other 4xx, including 404 and 422, do not.
-EMAIL_RETRYABLE_HTTP_STATUSES = frozenset({408, 409, 425, 429})
 
 
 class EmailDeliveryError(Exception):
@@ -67,15 +64,12 @@ def redact_api_key(text: str) -> str:
 
 
 def email_status_is_permanent(status: int | None) -> bool:
-    if status is None:
-        return False
-    if status in EMAIL_RETRYABLE_HTTP_STATUSES:
-        return False
-    if 500 <= status < 600:
-        return False
-    if 400 <= status < 500:
-        return True
-    return False
+    """Same HTTP classes as Shellui Actions webhook delivery.
+
+    2xx is handled before this runs. 404, 408, 409, 425, 429, other unlisted 4xx,
+    and 5xx retry. 400, 401, 403, 405, 410, 413, and 422 do not.
+    """
+    return is_permanent_http_status(status)
 
 
 def recipient_hints(actor: dict[str, Any] | None) -> list[dict[str, Any]]:

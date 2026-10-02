@@ -167,12 +167,45 @@ class EmailForwardingTests(TestCase):
         self.assertEqual(row.status, ActionOutbox.STATUS_DEAD)
 
     @patch('apps.actions.email_service.requests.post', return_value=_Response(404, 'missing'))
-    def test_not_found_is_not_retried(self, mock_post):
+    def test_not_found_is_retried_with_the_same_body(self, mock_post):
         with self.captureOnCommitCallbacks(execute=True):
             emit_event('hosting.app.deleted', self.company_id, {'display_name': 'My App'}, actor=self.actor)
-        self.assertEqual(ActionOutbox.objects.get().status, ActionOutbox.STATUS_DEAD)
+        row = ActionOutbox.objects.get()
+        self.assertEqual(row.status, ActionOutbox.STATUS_FAILED)
+        first_body = mock_post.call_args.kwargs['json']
+
+        mock_post.return_value = _Response(202, '{"rule_enabled": false, "skipped_reason": "rule_disabled", "messages": []}')
+        row.next_attempt_at = timezone.now()
+        row.locked_until = None
+        row.save(update_fields=['next_attempt_at', 'locked_until'])
+        call_command('retry_webhooks', '--concurrency', '1')
+
+        row.refresh_from_db()
+        self.assertEqual(row.status, ActionOutbox.STATUS_DELIVERED)
+        self.assertEqual(mock_post.call_count, 2)
+        self.assertEqual(mock_post.call_args.kwargs['json'], first_body)
+
+    @patch(
+        'apps.actions.email_service.requests.post',
+        return_value=_Response(202, '{"rule_enabled": true, "skipped_reason": "no_recipients", "messages": []}'),
+    )
+    def test_empty_recipients_skip_is_finished(self, mock_post):
+        with self.captureOnCommitCallbacks(execute=True):
+            emit_event('hosting.deployment.failed', self.company_id, _failed_payload())
+        row = ActionOutbox.objects.get()
+        self.assertEqual(row.status, ActionOutbox.STATUS_DELIVERED)
+        self.assertEqual(mock_post.call_args.kwargs['json']['recipients'], [])
         call_command('retry_webhooks', '--concurrency', '1')
         self.assertEqual(mock_post.call_count, 1)
+
+    def test_permanent_statuses_match_webhook_delivery(self):
+        from apps.actions.email_service import email_status_is_permanent
+
+        for code in (400, 401, 403, 405, 410, 413, 422):
+            self.assertTrue(email_status_is_permanent(code), code)
+        for code in (404, 408, 409, 425, 429, 402, 500, 502, 503):
+            self.assertFalse(email_status_is_permanent(code), code)
+        self.assertFalse(email_status_is_permanent(None))
 
     @patch('apps.actions.email_service.requests.post')
     def test_api_key_is_not_logged_or_stored(self, mock_post):
