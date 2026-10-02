@@ -106,3 +106,11 @@ Example cron (every minute):
 ```
 
 Run the same command in Docker sidecars or platform schedulers that can exec into the hosting-service container.
+
+Delivered and dead deliveries are deleted after `EVENT_LOG_RETENTION_DAYS` by the hourly `purge_expired_data` job (see [event-log.md](event-log.md#retention)).
+
+---
+
+## Event log
+
+Every catalog event is also stored in the event log, with or without a matching rule. See [event-log.md](event-log.md).

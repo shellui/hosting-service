@@ -16,6 +16,7 @@ It authenticates with JWTs issued by [identity-service](https://github.com/shell
 - Prometheus metrics (`/hosting/v1/metrics`, `/hosting/v1/metrics/all`) for staff or company-owner JWT / PAT
 - Permissive API CORS by default (`CORS_ALLOW_ALL_ORIGINS=true`, `CORS_ALLOW_CREDENTIALS=false`); auth is Bearer JWT — hosted preview origins do not need CORS env entries
 - **Shellui Actions** webhooks on hosting domain events (`hosting.*`), admin REST API under `/api/v1/actions/`, retries via `manage.py retry_webhooks` — see [`docs/actions.md`](docs/actions.md) and [**n8n setup**](docs/n8n.md)
+- **Event log** of every hosting event with the acting user, purged after `EVENT_LOG_RETENTION_DAYS` — see [`docs/event-log.md`](docs/event-log.md)
 - Production security hardening: rate limits, HSTS/secure cookies, Postgres SSL, pinned JWKS — see [`docs/security-hardening.md`](docs/security-hardening.md) and [`docs/claim-trust.md`](docs/claim-trust.md)
 
 ## Project structure
@@ -262,6 +263,12 @@ Schedule Shellui Actions webhook retries (every minute) in production, for examp
 ```
 
 Use your orchestrator's cron or a sidecar that execs into the hosting-service container with the same command.
+
+Every hosting event is also stored in an event log, kept for `EVENT_LOG_RETENTION_DAYS` (default 7). Schedule the purge every hour (see [docs/event-log.md](docs/event-log.md)):
+
+```cron
+17 * * * * cd /app && python manage.py purge_expired_data --max-seconds 300 >> /var/log/purge_expired_data.log 2>&1
+```
 
 ## License
 
