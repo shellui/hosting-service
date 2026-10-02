@@ -210,6 +210,7 @@ class PreviewPrepareView(APIView):
                 app_version=str(data.get('app_version') or ''),
                 shellui_version=str(data.get('shellui_version') or ''),
                 access_token=access_token,
+                actor_email=request.user.email,
             )
         except HostingError as exc:
             return _error(exc)
@@ -273,6 +274,8 @@ class AppListCreateView(APIView):
                 name=str(data.get('name') or data.get('slug') or ''),
                 display_name=str(data.get('display_name') or ''),
                 access_token=access_token,
+                user_id=request.user.user_id,
+                actor_email=request.user.email,
             )
         except HostingError as exc:
             return _error(exc)
@@ -313,7 +316,12 @@ class AppDetailView(APIView):
             company_id = require_company_id(request.user)
             app = resolve_app_ref(app_ref, company_id=company_id)
             access_token = request.auth if isinstance(request.auth, str) else None
-            delete_app(app, access_token=access_token)
+            delete_app(
+                app,
+                access_token=access_token,
+                user_id=request.user.user_id,
+                actor_email=request.user.email,
+            )
         except HostingError as exc:
             return _error(exc)
         return Response(status=status.HTTP_204_NO_CONTENT)
@@ -380,6 +388,7 @@ class DeploymentListCreateView(APIView):
                 shellui_version=str(data.get('shellui_version') or ''),
                 deployed_by_id=request.user.user_id,
                 pinned=bool(data.get('pinned', False)),
+                actor_email=request.user.email,
             )
         except HostingError as exc:
             return _error(exc)
@@ -451,7 +460,11 @@ class DeploymentFinalizeView(APIView):
             company_id = require_company_id(request.user)
             app = resolve_app_ref(app_ref, company_id=company_id)
             deployment = Deployment.objects.get(id=deployment_id, app=app)
-            deployment = finalize_deployment(deployment=deployment)
+            deployment = finalize_deployment(
+                deployment=deployment,
+                user_id=request.user.user_id,
+                actor_email=request.user.email,
+            )
             deployment.refresh_from_db()
             deployment.app.refresh_from_db()
         except Deployment.DoesNotExist:

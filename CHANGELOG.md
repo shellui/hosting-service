@@ -21,6 +21,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 See for sample https://raw.githubusercontent.com/favoloso/conventional-changelog-emoji/master/CHANGELOG.md
 -->
 
+## [Unreleased] - 2026-10-02
+
+### ✨ Feature
+
+- **Event log:** every `hosting.*` event is stored, with or without a webhook rule, together with the user who triggered it, and listed at `GET /api/v1/actions/event-log` (filters: type, user, date range) for the admin panel **Hosting > Log events** page. See [docs/event-log.md](docs/event-log.md).
+- **Data retention:** `EVENT_LOG_RETENTION_DAYS` (default 7). New `manage.py purge_expired_data` deletes expired events and finished webhook deliveries in short batches; schedule it every hour. `GET /api/v1/actions/event-log/retention` reports `stale_events` when the job is not running.
+
+### 🐛 Bug Fixes
+
+- A deployment whose artifact fails to extract now stays `failed` and emits `hosting.deployment.failed`. Both were previously rolled back with the error.
+- Every `hosting.*` event now includes the acting user and their email (`actor.user_id`, `actor.email` in webhook envelopes). Deployment `succeeded` and `failed` events are attributed to the user who finalized.
+
 ## [0.5.0] - 2026-09-29
 
 ### ✨ Feature
