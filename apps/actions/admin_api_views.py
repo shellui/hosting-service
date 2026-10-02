@@ -48,13 +48,18 @@ def _delivery_attempt_payload(row: DeliveryAttempt) -> dict:
     }
 
 
+def _webhook_outbox():
+    return ActionOutbox.objects.filter(delivery_kind=ActionOutbox.KIND_WEBHOOK)
+
+
 def _delivery_payload(row: ActionOutbox, *, include_attempts: bool = False) -> dict:
+    rule = row.action_rule if row.action_rule_id else None
     data = {
         'id': str(row.pk),
         'company_id': row.company_id,
         'action_rule_id': row.action_rule_id,
-        'action_rule_name': row.action_rule.name,
-        'action_kind': row.action_rule.action_kind,
+        'action_rule_name': rule.name if rule else '',
+        'action_kind': rule.action_kind if rule else row.delivery_kind,
         'event_type': row.event_type,
         'status': row.status,
         'attempt_count': row.attempt_count,
@@ -346,7 +351,8 @@ class ShellUIAdminActionDeliveryListView(APIView):
             return Response({'error': 'Invalid page or page_size.'}, status=status.HTTP_400_BAD_REQUEST)
 
         qs = (
-            ActionOutbox.objects.filter(company_id=company_id)
+            _webhook_outbox()
+            .filter(company_id=company_id)
             .select_related('action_rule')
             .order_by('-created_at', '-id')
         )
@@ -411,7 +417,7 @@ class ShellUIAdminActionDeliveryDetailView(APIView):
         if err:
             return err
         try:
-            row = ActionOutbox.objects.select_related('action_rule').get(pk=delivery_id, company_id=company_id)
+            row = _webhook_outbox().select_related('action_rule').get(pk=delivery_id, company_id=company_id)
         except ActionOutbox.DoesNotExist:
             return Response({'error': 'Not found.'}, status=status.HTTP_404_NOT_FOUND)
         return Response(_delivery_payload(row, include_attempts=True))
@@ -432,7 +438,7 @@ class ShellUIAdminActionDeliveryRequeueView(APIView):
         if err:
             return err
         try:
-            row = ActionOutbox.objects.select_related('action_rule').get(pk=delivery_id, company_id=company_id)
+            row = _webhook_outbox().select_related('action_rule').get(pk=delivery_id, company_id=company_id)
         except ActionOutbox.DoesNotExist:
             return Response({'error': 'Not found.'}, status=status.HTTP_404_NOT_FOUND)
         ActionOutbox.objects.filter(pk=row.pk).update(

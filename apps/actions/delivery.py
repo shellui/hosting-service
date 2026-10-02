@@ -12,6 +12,7 @@ from django.db import connection, transaction
 from django.db.models import Q
 from django.utils import timezone
 
+from apps.actions.email_service import EmailDeliveryError, post_email_event, redact_api_key
 from apps.actions.handlers.webhook import WebhookDeliveryError, deliver_webhook_action
 from apps.actions.models import ActionOutbox, ActionRule, DeliveryAttempt
 from apps.actions.webhook_retry import compute_retry_delay_seconds
@@ -64,6 +65,8 @@ def _format_attempt_error(
 
 
 def _load_rule_for_delivery(row: ActionOutbox) -> tuple[ActionRule | None, str | None]:
+    if row.delivery_kind == ActionOutbox.KIND_EMAIL:
+        return None, None
     try:
         rule = row.action_rule
     except ActionRule.DoesNotExist:
@@ -110,6 +113,37 @@ def _perform_http_delivery(*, rule: ActionRule, envelope: dict, attempt_number: 
     }
 
 
+def _perform_email_delivery(*, envelope: dict) -> tuple[bool, dict]:
+    started = time.monotonic()
+    http_status = None
+    response_excerpt = ''
+    error_message = ''
+    success = False
+    permanent = False
+    retry_after_seconds = None
+    try:
+        http_status = post_email_event(envelope if isinstance(envelope, dict) else {})
+        success = True
+    except EmailDeliveryError as exc:
+        error_message = redact_api_key(str(exc))
+        http_status = exc.http_status
+        response_excerpt = redact_api_key(exc.response_excerpt or '')
+        permanent = exc.permanent
+        retry_after_seconds = exc.retry_after_seconds
+    except Exception as exc:  # noqa: BLE001
+        error_message = redact_api_key(str(exc) or exc.__class__.__name__)
+        logger.warning('email_delivery failed')
+    duration_ms = int((time.monotonic() - started) * 1000)
+    return success, {
+        'http_status': http_status,
+        'response_excerpt': response_excerpt,
+        'error_message': error_message,
+        'permanent': permanent,
+        'retry_after_seconds': retry_after_seconds,
+        'duration_ms': duration_ms,
+    }
+
+
 def _apply_delivery_result(
     row: ActionOutbox,
     *,
@@ -128,10 +162,12 @@ def _apply_delivery_result(
     else:
         http_status = attempt_meta.get('http_status')
         duration_ms = attempt_meta.get('duration_ms')
-        attempt_error = _format_attempt_error(
-            error_message=attempt_meta.get('error_message') or '',
-            http_status=http_status,
-            response_excerpt=attempt_meta.get('response_excerpt') or '',
+        attempt_error = redact_api_key(
+            _format_attempt_error(
+                error_message=attempt_meta.get('error_message') or '',
+                http_status=http_status,
+                response_excerpt=attempt_meta.get('response_excerpt') or '',
+            )
         )
         permanent = bool(attempt_meta.get('permanent'))
 
@@ -143,8 +179,10 @@ def _apply_delivery_result(
         attempt_number=attempt_number,
         duration_ms=duration_ms,
     )
+    channel = 'email_delivery' if row.delivery_kind == ActionOutbox.KIND_EMAIL else 'webhook_delivery'
     logger.info(
-        'webhook_delivery outbox_id=%s attempt=%s success=%s http_status=%s duration_ms=%s',
+        '%s outbox_id=%s attempt=%s success=%s http_status=%s duration_ms=%s',
+        channel,
         row.pk,
         attempt_number,
         success,
@@ -221,11 +259,14 @@ def deliver_outbox_row(outbox_id) -> ActionOutbox | None:
                 attempt_meta={},
             )
 
-    success, attempt_meta = _perform_http_delivery(
-        rule=rule,
-        envelope=envelope,
-        attempt_number=snapshot_attempt + 1,
-    )
+    if row.delivery_kind == ActionOutbox.KIND_EMAIL:
+        success, attempt_meta = _perform_email_delivery(envelope=envelope)
+    else:
+        success, attempt_meta = _perform_http_delivery(
+            rule=rule,
+            envelope=envelope,
+            attempt_number=snapshot_attempt + 1,
+        )
 
     with transaction.atomic():
         row = ActionOutbox.objects.select_for_update().get(pk=outbox_id)
