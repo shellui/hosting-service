@@ -28,6 +28,7 @@ DeliveryAttempt audit log; retries via manage.py retry_webhooks
 - API paths do not block on slow external HTTP: delivery runs only after commit (default 5s timeout).
 - Delivery is **at-least-once**; dedupe on the envelope `id` (same value as the `webhook-id` header).
 - **n8n:** step-by-step setup, signature verification, and retry table in [n8n.md](n8n.md).
+- **Email:** the same emit also forwards the event to email-service when `EMAIL_SERVICE_API_KEY` is set. That forward is not a webhook rule. See [email.md](email.md).
 
 ---
 

@@ -2,6 +2,8 @@
 
 Shellui hosting (and other Shellui services) can POST signed JSON to an **n8n Webhook** node when hosting events fire. This guide matches the behavior shared with identity-service and storage-service Shellui Actions.
 
+Webhook rules do not send email. Mail is a separate forward to email-service, described in [email.md](email.md), and it uses the same `retry_webhooks` command.
+
 ---
 
 ## Quick checklist

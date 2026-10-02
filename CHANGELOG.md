@@ -25,6 +25,7 @@ See for sample https://raw.githubusercontent.com/favoloso/conventional-changelog
 
 ### ✨ Feature
 
+- **Email notifications:** when `EMAIL_SERVICE_API_KEY` is set, every `hosting.*` event is posted to email-service `POST /api/v1/events` through the existing outbox. `manage.py retry_webhooks` retries with the webhook schedule (8 attempts, `30s * 2^(n-1)`, cap 1 hour). `2xx` is finished, including `skipped_reason` `rule_disabled` and `no_recipients`. `404` retries. `400`, `401`, `403`, `405`, `410`, `413`, and `422` do not. Leave the key unset and nothing is forwarded. See [docs/email.md](docs/email.md).
 - **Event log:** every `hosting.*` event is stored, with or without a webhook rule, together with the user who triggered it, and listed at `GET /api/v1/actions/event-log` (filters: type, user, date range) for the admin panel **Hosting > Log events** page. See [docs/event-log.md](docs/event-log.md).
 - **Data retention:** `EVENT_LOG_RETENTION_DAYS` (default 7). New `manage.py purge_expired_data` deletes expired events and finished webhook deliveries in short batches; schedule it every hour. `GET /api/v1/actions/event-log/retention` reports `stale_events` when the job is not running.
 

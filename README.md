@@ -16,6 +16,7 @@ It authenticates with JWTs issued by [identity-service](https://github.com/shell
 - Prometheus metrics (`/hosting/v1/metrics`, `/hosting/v1/metrics/all`) for staff or company-owner JWT / PAT
 - Permissive API CORS by default (`CORS_ALLOW_ALL_ORIGINS=true`, `CORS_ALLOW_CREDENTIALS=false`); auth is Bearer JWT — hosted preview origins do not need CORS env entries
 - **Shellui Actions** webhooks on hosting domain events (`hosting.*`), admin REST API under `/api/v1/actions/`, retries via `manage.py retry_webhooks` — see [`docs/actions.md`](docs/actions.md) and [**n8n setup**](docs/n8n.md)
+- **Email notifications** for the same events, forwarded to email-service when `EMAIL_SERVICE_API_KEY` is set. See [`docs/email.md`](docs/email.md).
 - **Event log** of every hosting event with the acting user, purged after `EVENT_LOG_RETENTION_DAYS` — see [`docs/event-log.md`](docs/event-log.md)
 - Production security hardening: rate limits, HSTS/secure cookies, Postgres SSL, pinned JWKS — see [`docs/security-hardening.md`](docs/security-hardening.md) and [`docs/claim-trust.md`](docs/claim-trust.md)
 

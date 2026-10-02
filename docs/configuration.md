@@ -33,6 +33,17 @@ See [PUBLISH.md](../PUBLISH.md) for Coolify Redis setup.
 
 ---
 
+## Email notifications
+
+| Variable | Default | Purpose |
+| -------- | ------- | ------- |
+| `EMAIL_SERVICE_URL` | `https://email.shellui.com` | Origin of email-service. hosting-service appends `/api/v1/events`. |
+| `EMAIL_SERVICE_API_KEY` | unset | Service key (`esk_…`). Unset means hosting-service does not forward events. |
+
+See [Email notifications](email.md).
+
+---
+
 ## Related
 
 - [Security hardening](security-hardening.md)
