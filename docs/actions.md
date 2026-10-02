@@ -78,7 +78,7 @@ Same paths as identity-service (Bearer JWT from identity-service):
 - `GET /api/v1/actions/deliveries/<uuid>` — detail with attempts
 - `POST /api/v1/actions/deliveries/<uuid>/requeue`
 
-Staff may pass `?company_id=` on these routes. Company owners use the `company_id` claim in the JWT only.
+Staff may pass any `?company_id=` on these routes. Company owners are scoped to the `company_id` claim in the JWT: they may omit the parameter or pass the same value; another company returns 403.
 
 ---
 

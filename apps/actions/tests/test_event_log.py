@@ -116,6 +116,106 @@ class HostingLifecycleEventTests(TestCase):
     JWT_HS256_FALLBACK_SECRET='test-secret',
     ALLOW_JWT_HS256_FALLBACK=True,
     IDENTITY_JWKS_URL='http://jwks.test/.well-known/jwks.json',
+    IDENTITY_SERVICE_URL='',
+    HOSTING_DEBUG_OPEN=True,
+    HOSTING_RATE_LIMIT_ENABLED=False,
+    HOSTING_MAX_EXTRACT_FILE_BYTES=50,
+)
+class HostingApiEventTests(TestCase):
+    """Each hosting REST endpoint that changes state records its event with the caller."""
+
+    def setUp(self):
+        CompanyHostingAccess.objects.create(company_id=10, status=AccessStatus.APPROVED)
+        self.client = APIClient()
+        jwks_patch = patch('apps.authapi.authentication.get_jwks_client')
+        jwks_patch.start().return_value.get_signing_key.return_value = None
+        self.addCleanup(jwks_patch.stop)
+        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {make_token(user_id=7, company_id=10)}')
+
+    def _deploy(self, app_id, files):
+        res = self.client.post(
+            f'/hosting/v1/apps/{app_id}/deployments',
+            {'app_version': '1.0.0', 'shellui_version': '0.5.0'},
+            format='json',
+        )
+        self.assertEqual(res.status_code, 201, res.content)
+        deployment_id = res.data['id']
+        upload = io.BytesIO(_tarball(files))
+        upload.name = 'site.tar.gz'
+        res = self.client.put(
+            f'/hosting/v1/apps/{app_id}/deployments/{deployment_id}/upload',
+            {'file': upload},
+            format='multipart',
+        )
+        self.assertEqual(res.status_code, 200, res.content)
+        return self.client.post(f'/hosting/v1/apps/{app_id}/deployments/{deployment_id}/finalize')
+
+    def test_every_endpoint_records_its_event(self):
+        res = self.client.post('/hosting/v1/apps', {'name': 'demo', 'display_name': 'Demo'}, format='json')
+        self.assertEqual(res.status_code, 201, res.content)
+        app_id = res.data['id']
+        self.assertEqual(self._deploy(app_id, {'index.html': b'<html></html>'}).status_code, 200)
+        self.assertEqual(self._deploy(app_id, {'big.bin': b'x' * 51}).status_code, 400)
+        res = self.client.post(
+            '/hosting/v1/preview',
+            {'display_name': 'Preview', 'app_version': '1.0.0', 'shellui_version': '0.5.0'},
+            format='json',
+        )
+        self.assertEqual(res.status_code, 201, res.content)
+        self.assertEqual(self.client.delete(f'/hosting/v1/apps/{app_id}').status_code, 204)
+
+        self.assertEqual(
+            list(EventLog.objects.order_by('pk').values_list('event_type', flat=True)),
+            [
+                'hosting.app.created',
+                'hosting.deployment.created',
+                'hosting.deployment.succeeded',
+                'hosting.deployment.created',
+                'hosting.deployment.failed',
+                'hosting.app.created',
+                'hosting.deployment.created',
+                'hosting.app.deleted',
+            ],
+        )
+        self.assertEqual(
+            set(EventLog.objects.values_list('company_id', 'user_id', 'data__actor_email')),
+            {(10, 7, 'owner@acme.test')},
+        )
+
+
+class DjangoAdminAppDeleteTests(TestCase):
+    def setUp(self):
+        from django.contrib.auth import get_user_model
+
+        CompanyHostingAccess.objects.create(company_id=1, status=AccessStatus.APPROVED)
+        admin = get_user_model().objects.create_superuser('root', 'root@acme.test', 'pw')
+        self.client.force_login(admin)
+
+    def test_delete_and_bulk_delete_record_events(self):
+        with override_settings(HOSTING_DEBUG_OPEN=True):
+            one = create_app(company_id=1, name='one', display_name='One')
+            two = create_app(company_id=1, name='two', display_name='Two')
+        EventLog.objects.all().delete()
+
+        res = self.client.post(f'/admin/hosting/app/{one.pk}/delete/', {'post': 'yes'})
+        self.assertEqual(res.status_code, 302)
+        res = self.client.post(
+            '/admin/hosting/app/',
+            {'action': 'delete_selected', '_selected_action': [two.pk], 'post': 'yes'},
+        )
+        self.assertEqual(res.status_code, 302)
+
+        self.assertEqual(
+            sorted(EventLog.objects.values_list('event_type', 'data__name')),
+            [('hosting.app.deleted', 'one'), ('hosting.app.deleted', 'two')],
+        )
+
+
+@override_settings(
+    ALLOWED_HOSTS=['testserver'],
+    JWT_HS256_FALLBACK_SECRET='test-secret',
+    ALLOW_JWT_HS256_FALLBACK=True,
+    IDENTITY_JWKS_URL='http://jwks.test/.well-known/jwks.json',
 )
 class EventLogApiTests(TestCase):
     def setUp(self):

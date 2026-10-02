@@ -45,7 +45,7 @@ If events older than retention + 1 day are still stored, the job is not running.
 
 ## Admin REST API
 
-Bearer JWT from identity-service. Callers must be Django staff or a company owner. Staff may pass `?company_id=`; company owners use the `company_id` claim in the JWT only.
+Bearer JWT from identity-service. Callers must be Django staff or a company owner. Staff may pass any `?company_id=`; company owners are scoped to the JWT `company_id` (the same value is accepted, another company returns 403).
 
 | Method | Path | Purpose |
 | ------ | ---- | ------- |

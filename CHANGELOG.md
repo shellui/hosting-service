@@ -30,6 +30,8 @@ See for sample https://raw.githubusercontent.com/favoloso/conventional-changelog
 
 ### 🐛 Bug Fixes
 
+- **Webhooks admin API:** company owners who aren't staff got "Remove company_id from the query string" on every `/api/v1/actions/*` call from the admin panel, which always sends its own `company_id`. A `company_id` equal to the token company is now accepted; another company still returns 403 for non-staff, as in storage-service and identity-service.
+- **Django admin app delete:** deleting an app (single or bulk) now goes through the same path as the REST API: its stored artifacts are removed and `hosting.app.deleted` is emitted. It previously left the files behind and emitted nothing.
 - A deployment whose artifact fails to extract now stays `failed` and emits `hosting.deployment.failed`. Both were previously rolled back with the error.
 - Every `hosting.*` event now includes the acting user and their email (`actor.user_id`, `actor.email` in webhook envelopes). Deployment `succeeded` and `failed` events are attributed to the user who finalized.
 
