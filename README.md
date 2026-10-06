@@ -192,13 +192,19 @@ Deployment artifacts are stored at `{slug}/deployments/{id}/artifact.tar.gz` and
 uv run python manage.py test
 ```
 
-Pull requests and pushes to `main` / `develop` run [`.github/workflows/ci.yml`](.github/workflows/ci.yml): Django tests, lockfile check, dependency audit (`pip-audit`), secret scan (gitleaks), markdown link check (lychee), and a Docker image build.
+Pull requests and pushes to `main` / `develop` run [`.github/workflows/ci.yml`](.github/workflows/ci.yml): Django tests, lockfile check, dependency audit (`pip-audit`), secret scan (gitleaks), markdown link check (lychee), a docs build against [shellui/shellui](https://github.com/shellui/shellui), and a Docker image build.
 
 Pull requests **to `main`** also run the pre-release checklist ([`.github/workflows/pre-release.yml`](.github/workflows/pre-release.yml)) — same checks as:
 
 ```bash
 ./tools/pre-release-check.sh
 ```
+
+## Documentation
+
+Guides live in `docs/`, starting at [`docs/index.md`](docs/index.md), with the sidebar in `docs/sidebars.js`. They are published at [https://docs.shellui.com/hosting](https://docs.shellui.com/hosting) by [shellui/shellui](https://github.com/shellui/shellui), which builds the docs of every Shellui service into one site.
+
+Preview the docs with live reload: clone `shellui` next to this repository, then run `pnpm install` and `DOCS_SERVICES=hosting pnpm docs:start` in `../shellui`. See [Build the docs site](https://github.com/shellui/shellui/blob/develop/docs/docs-site.md). CI runs the same build on every pull request (the **Docs build** job), so a broken link or invalid page fails the check.
 
 ## Releases (Docker Hub)
 

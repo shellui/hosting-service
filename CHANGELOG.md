@@ -35,6 +35,10 @@ See for sample https://raw.githubusercontent.com/favoloso/conventional-changelog
 - A deployment whose artifact fails to extract now stays `failed` and emits `hosting.deployment.failed`. Both were previously rolled back with the error.
 - Every `hosting.*` event now includes the acting user and their email (`actor.user_id`, `actor.email` in webhook envelopes). Deployment `succeeded` and `failed` events are attributed to the user who finalized.
 
+### 📚 Documentation
+
+- **Docs on docs.shellui.com/hosting:** new `docs/index.md` landing page and `docs/sidebars.js`, so [shellui/shellui](https://github.com/shellui/shellui) publishes these guides with a proper sidebar. CI gains a **Docs build** job that builds `docs/` with the shellui docs site and fails on broken links.
+
 ## [0.5.0] - 2026-09-29
 
 ### ✨ Feature
