@@ -4,6 +4,12 @@
 
 It authenticates with JWTs issued by [identity-service](https://github.com/shellui/identity-service), stores deployment tarballs in **S3** (or local filesystem), extracts them for browsing, and manages company access waitlists, app slugs, and deployments.
 
+## Documentation
+
+The handbook is in [`docs/`](docs/index.md). It is published on [docs.shellui.com](https://docs.shellui.com) at `docs.shellui.com/hosting`.
+
+Start with the [overview](docs/index.md), then [Run hosting-service](docs/getting-started.md) and [Configuration](docs/configuration.md). Apps, preview URLs, company access, JWT claim trust, Shellui Actions webhooks, the event log, security, maintenance jobs, and the API each have a page in that sidebar.
+
 ## Features
 
 - REST API under `/hosting/v1/*` for access, apps, deployments, stats, and metrics
