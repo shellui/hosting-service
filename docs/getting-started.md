@@ -6,7 +6,7 @@ description: Run hosting-service locally with Docker Compose or uv, approve a co
 
 This page takes you from a clone to a browsable preview. You start hosting-service, point it at identity-service, approve your company, then run `shellui deploy`.
 
-Run identity-service first, on port 8000. hosting-service checks the JWTs identity-service issues. The identity handbook is [Run identity-service](https://docs.shellui.com/identity/getting-started).
+Run identity-service first, on port 8000. hosting-service checks the JWTs identity-service issues. Start with the [identity-service docs](https://docs.shellui.com/identity/).
 
 ## Start with Docker Compose
 
