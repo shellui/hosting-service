@@ -4,6 +4,14 @@
 
 It authenticates with JWTs issued by [identity-service](https://github.com/shellui/identity-service), stores deployment tarballs in **S3** (or local filesystem), extracts them for browsing, and manages company access waitlists, app slugs, and deployments.
 
+## Documentation
+
+The handbook is in [`docs/`](docs/index.md). It is published on [docs.shellui.com](https://docs.shellui.com) at `docs.shellui.com/hosting`.
+
+Start with the [overview](docs/index.md), then [Run hosting-service](docs/getting-started.md) and [Configuration](docs/configuration.md). Apps, preview URLs, company access, JWT claim trust, Shellui Actions webhooks, the event log, security, maintenance jobs, and the API each have a page in that sidebar.
+
+Preview with live reload from a sibling checkout of [shellui/shellui](https://github.com/shellui/shellui). In `../shellui`, run `pnpm install`, then `DOCS_SERVICES=hosting pnpm docs:start`. The steps are in [Build the docs site](https://github.com/shellui/shellui/blob/main/docs/docs-site.md).
+
 ## Features
 
 - REST API under `/hosting/v1/*` for access, apps, deployments, stats, and metrics
@@ -199,12 +207,6 @@ Pull requests **to `main`** also run the pre-release checklist ([`.github/workfl
 ```bash
 ./tools/pre-release-check.sh
 ```
-
-## Documentation
-
-Guides live in `docs/`, starting at [`docs/index.md`](docs/index.md), with the sidebar in `docs/sidebars.js`. They are published at [https://docs.shellui.com/hosting](https://docs.shellui.com/hosting) by [shellui/shellui](https://github.com/shellui/shellui), which builds the docs of every Shellui service into one site.
-
-Preview the docs with live reload: clone `shellui` next to this repository, then run `pnpm install` and `DOCS_SERVICES=hosting pnpm docs:start` in `../shellui`. See [Build the docs site](https://github.com/shellui/shellui/blob/develop/docs/docs-site.md). CI runs the same build on every pull request (the **Docs build** job), so a broken link or invalid page fails the check.
 
 ## Releases (Docker Hub)
 

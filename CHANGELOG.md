@@ -21,7 +21,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 See for sample https://raw.githubusercontent.com/favoloso/conventional-changelog-emoji/master/CHANGELOG.md
 -->
 
-## [Unreleased] - 2026-10-02
+## [Unreleased] - 2026-10-06
+
+### 📚 Documentation
+
+- **Handbook:** [`docs/index.md`](docs/index.md) is the hosting homepage, with [`docs/sidebars.js`](docs/sidebars.js) for the sidebar on `docs.shellui.com/hosting`. New pages cover running the service, apps and deployments, preview URLs, company access, maintenance jobs, and the API. Configuration now lists the environment variables from [`.env.example`](.env.example) and `config/settings.py`. CI builds the hosting docs with shellui/shellui.
 
 ### ✨ Feature
 
@@ -34,10 +38,6 @@ See for sample https://raw.githubusercontent.com/favoloso/conventional-changelog
 - **Django admin app delete:** deleting an app (single or bulk) now goes through the same path as the REST API: its stored artifacts are removed and `hosting.app.deleted` is emitted. It previously left the files behind and emitted nothing.
 - A deployment whose artifact fails to extract now stays `failed` and emits `hosting.deployment.failed`. Both were previously rolled back with the error.
 - Every `hosting.*` event now includes the acting user and their email (`actor.user_id`, `actor.email` in webhook envelopes). Deployment `succeeded` and `failed` events are attributed to the user who finalized.
-
-### 📚 Documentation
-
-- **Docs on docs.shellui.com/hosting:** new `docs/index.md` landing page and `docs/sidebars.js`, so [shellui/shellui](https://github.com/shellui/shellui) publishes these guides with a proper sidebar. CI gains a **Docs build** job that builds `docs/` with the shellui docs site and fails on broken links.
 
 ## [0.5.0] - 2026-09-29
 

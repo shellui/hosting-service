@@ -1,89 +1,91 @@
-# Security hardening (hosting-service)
+---
+description: Production controls for CORS, rate limits, JWT checks, HTTPS, Postgres, admin, and client IP.
+---
 
-Production deployments should configure the controls below. Defaults follow `DEBUG=false` unless noted.
+# Security hardening
 
-## CORS (browser API calls)
+Set the controls on this page before you expose hosting-service beyond a local machine. Defaults below follow `DEBUG=false` unless a row says otherwise. Variable names and defaults are also in [Configuration](configuration.md).
 
-Shellui customer shells run on unknown domains and call `/hosting/v1/*` from the browser with a Bearer JWT in the `Authorization` header. A static `CORS_ALLOWED_ORIGINS` list does not scale for multi-tenant hosting previews.
+## CORS for browser API calls
 
-**Default (recommended):** `CORS_ALLOW_ALL_ORIGINS=true` with `CORS_ALLOW_CREDENTIALS=false`. API auth is Bearer JWT, not cookies — permissive CORS is intentional (Supabase-style).
+Customer shells run on hostnames you do not list in advance, and they call `/hosting/v1/*` with a Bearer JWT. A fixed `CORS_ALLOWED_ORIGINS` list does not cover those previews.
 
-**Token delivery** after OAuth login is **not** governed by CORS. Identity-service `CompanyOAuthRedirect` remains the strict boundary for redirect targets.
+Leave `CORS_ALLOW_ALL_ORIGINS=true` and `CORS_ALLOW_CREDENTIALS=false`. Auth is the Bearer JWT, not a cookie, so the API allows every origin and refuses credentials.
 
-**Lock-down (optional):** set `CORS_ALLOW_ALL_ORIGINS=false` and list first-party origins in `CORS_ALLOWED_ORIGINS`.
+Token delivery after OAuth login is not governed by CORS. The identity-service redirect allowlist is the boundary for where the browser may return. hosting-service can register preview origins on that list. See [Preview sites and public URLs](preview-and-serving.md).
 
-**Blocked at startup:** `CORS_ALLOW_ALL_ORIGINS=true` with `CORS_ALLOW_CREDENTIALS=true` — wildcard origins cannot safely carry credentials.
+To lock the API to known origins, set `CORS_ALLOW_ALL_ORIGINS=false` and list them in `CORS_ALLOWED_ORIGINS`.
+
+Startup fails when `CORS_ALLOW_ALL_ORIGINS=true` and `CORS_ALLOW_CREDENTIALS=true`. Wildcard origins cannot carry credentials safely.
 
 ## Rate limiting
 
-Cache-backed limits apply to abuse-prone hosting endpoints (per authenticated user, falling back to client IP):
+Cache-backed limits apply per authenticated user, then per client IP:
 
 | Scope | Default | Endpoints |
-|-------|---------|-----------|
-| `deploy` | 30/min | `POST /hosting/v1/preview`, `POST …/deployments`, finalize, rollback |
-| `upload` | 20/min | `PUT …/deployments/{id}/upload` |
-| `destructive` | 10/min | `DELETE /hosting/v1/apps/{ref}` |
-| `access_request` | 10 per 5 min | `POST /hosting/v1/access/request` |
+| --- | --- | --- |
+| `deploy` | 30 per 60s | `POST /hosting/v1/preview`, create deployment, finalize, rollback |
+| `upload` | 20 per 60s | `PUT /hosting/v1/apps/{app_ref}/deployments/{id}/upload` |
+| `destructive` | 10 per 60s | `DELETE /hosting/v1/apps/{app_ref}` |
+| `access_request` | 10 per 300s | `POST /hosting/v1/access/request` |
 
-Tune with `HOSTING_RATE_LIMIT_*` env vars or set `HOSTING_RATE_LIMIT_ENABLED=false` to disable (not recommended in production).
+Tune them with `HOSTING_RATE_LIMIT_DEPLOY`, `HOSTING_RATE_LIMIT_UPLOAD`, `HOSTING_RATE_LIMIT_DESTRUCTIVE`, and `HOSTING_RATE_LIMIT_ACCESS_REQUEST`. `HOSTING_RATE_LIMIT_ENABLED=false` turns the limits off. Leave them on in production.
 
-Limits use Django cache (`REDIS_URL` when set, otherwise in-process LocMem). With **`GUNICORN_WORKERS` > 1** (Docker default `2`), set **`REDIS_URL`** so counters are shared across workers. Example: `redis://redis:6379/0`. `manage.py check --deploy` emits **`authapi.W001`** when production uses LocMem with multiple workers.
+The cache is Redis when `REDIS_URL` is set, and an in-process cache otherwise. Docker defaults to `GUNICORN_WORKERS=2`, so set `REDIS_URL` (for example `redis://redis:6379/0`) or each worker counts separately. `manage.py check --deploy` emits `authapi.W001` in that case.
 
-## Waitlist bypass (`HOSTING_DEBUG_OPEN`)
+## Waitlist bypass
 
-Fail-closed: only an explicit truthy env value skips the company waitlist. `DEBUG=true` does **not** auto-enable bypass.
+Only an explicit truthy `HOSTING_DEBUG_OPEN` skips the company waitlist. `DEBUG=true` does not. Startup fails when `HOSTING_DEBUG_OPEN=true` and `DEBUG=false`. See [Company access](company-access.md).
 
-**Blocked at startup:** `HOSTING_DEBUG_OPEN=true` when `DEBUG=false`.
-
-## JWT verification (production)
+## JWT verification in production
 
 When `DEBUG=false`:
 
-- `IDENTITY_ISSUER` and `IDENTITY_AUDIENCE` are **required** (iss/aud validation).
-- JWKS must be **pinned** via `IDENTITY_JWKS_FILE` or `IDENTITY_JWKS`. Runtime fetch from `IDENTITY_JWKS_URL` is for local/dev only.
+- `IDENTITY_ISSUER` and `IDENTITY_AUDIENCE` are required, and `iss` / `aud` are checked
+- The JWKS document must be pinned with `IDENTITY_JWKS_FILE` or `IDENTITY_JWKS`. Fetching `IDENTITY_JWKS_URL` at runtime is for local development
 
-See [claim-trust.md](claim-trust.md) for privileged JWT claims (`is_staff`, `is_company_owner`, `pat_agm`).
+Privileged claims are listed in [JWT and claim trust](claim-trust.md).
 
-## HTTPS, HSTS, and secure cookies
+## HTTPS, HSTS, and cookies
 
 When `DEBUG=false`:
 
-- `SECURE_SSL_REDIRECT=true` — redirect HTTP to HTTPS (disable only behind TLS-terminating proxies that handle redirects)
-- `SECURE_HSTS_SECONDS=31536000` (1 year)
-- `SESSION_COOKIE_SECURE=true`, `CSRF_COOKIE_SECURE=true`
+- `SECURE_SSL_REDIRECT=true` redirects HTTP to HTTPS. Turn it off only behind a TLS terminator that already redirects
+- `SECURE_HSTS_SECONDS=31536000` (1 year), including subdomains
+- `SESSION_COOKIE_SECURE=true` and `CSRF_COOKIE_SECURE=true`
 
-Override any flag via env (see `.env.example`).
+Override any of these in the environment. See [`.env.example`](../.env.example).
 
 ## Postgres SSL
 
-When `POSTGRES_DATABASE_URL` is set and `DEBUG=false`, connections use `ssl_require=true` by default. Set `POSTGRES_SSL_REQUIRE=false` only for local Postgres without TLS (e.g. Coolify internal DB on a private network).
+When `POSTGRES_DATABASE_URL` is set and `DEBUG=false`, connections use TLS (`ssl_require=true`). Set `POSTGRES_SSL_REQUIRE=false` only for a database without TLS on a private network, such as a Coolify internal database.
 
-## Django admin isolation
+## Django admin
 
-The Django admin UI is cross-tenant (local Django users, not JWT company scope). Operational controls:
+Django admin is cross-tenant. It uses local Django users, not the JWT company scope.
 
-- **Network lock:** expose `/admin/` only on an internal hostname or VPN; do not publish it on the public hosting apex.
-- **MFA:** enforce MFA on admin accounts at the identity / SSO layer where staff authenticate.
-- **Disable when unused:** set `DJANGO_ADMIN_ENABLED=false` to remove admin routes entirely.
+- Expose `/admin/` on an internal hostname or a VPN, not on the public apex
+- Require MFA for staff at the identity provider that signs them into admin
+- Set `DJANGO_ADMIN_ENABLED=false` to remove the admin routes when you do not use them
 
 ## Trusted proxies and client IP
 
-Rate limits derive client IP from `REMOTE_ADDR` unless the direct peer is listed in `TRUSTED_PROXY_IPS` (comma-separated IPs or CIDRs). When the peer is trusted, the service walks `X-Forwarded-For` **from the right** (closest to hosting-service), skips hops that match `TRUSTED_PROXY_IPS` (including CIDR ranges), and uses the first untrusted address as the client IP. That ignores a client-controlled leftmost spoof entry when Traefik, Coolify, or nginx append the real chain.
+Rate limits use `REMOTE_ADDR` unless the direct peer is listed in `TRUSTED_PROXY_IPS` (comma-separated IPs or CIDR ranges). When the peer is trusted, the service walks `X-Forwarded-For` from the right, skips hops that match the list, and uses the first untrusted address. A client-supplied leftmost value is ignored when your proxy appends the real chain.
 
-Example (nginx on the same host):
+Nginx on the same host:
 
 ```bash
 TRUSTED_PROXY_IPS=127.0.0.1,::1
 ```
 
-Example (private load balancer subnet):
+A private load-balancer subnet:
 
 ```bash
 TRUSTED_PROXY_IPS=10.0.0.0/8
 ```
 
-Example (Coolify / Traefik forwarding to Gunicorn): list the Traefik container or ingress subnet in `TRUSTED_PROXY_IPS` so `REMOTE_ADDR` is the proxy while the client IP is taken from the rightmost untrusted `X-Forwarded-For` hop.
+For Coolify or Traefik in front of Gunicorn, list the proxy address or ingress subnet. `REMOTE_ADDR` is then the proxy, and the client IP is the rightmost untrusted hop.
 
-Without trusted proxies, clients cannot spoof audit IPs by sending `X-Forwarded-For` directly; the app uses `REMOTE_ADDR` only.
+With an empty list, `X-Forwarded-For` from the client is ignored and the app uses `REMOTE_ADDR`.
 
-IPv6 rate limits bucket by /64 prefix; logs and audit use the full address from `get_client_ip`.
+IPv6 rate-limit keys use the /64 prefix. Logs keep the full address.
