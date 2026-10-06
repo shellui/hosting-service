@@ -21,7 +21,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 See for sample https://raw.githubusercontent.com/favoloso/conventional-changelog-emoji/master/CHANGELOG.md
 -->
 
-## [Unreleased] - 2026-10-02
+## [Unreleased] - 2026-10-06
+
+### 📚 Documentation
+
+- **Handbook:** [`docs/index.md`](docs/index.md) is the hosting homepage, with [`docs/sidebars.js`](docs/sidebars.js) for the sidebar on `docs.shellui.com/hosting`. New pages cover running the service, apps and deployments, preview URLs, company access, maintenance jobs, and the API. Configuration now lists the environment variables from [`.env.example`](.env.example) and `config/settings.py`. CI builds the hosting docs with shellui/shellui.
 
 ### ✨ Feature
 
