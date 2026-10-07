@@ -1,5 +1,5 @@
 ---
-description: Forward hosting events to email-service so a company rule can send mail. The email body omits sign-in links and tokens.
+description: Forward hosting events to email-service so a company rule can send mail. The email body omits sign-in links, tokens, and secret-shaped fields.
 ---
 
 # Email notifications
@@ -30,6 +30,7 @@ Set both variables on the hosting-service process. Names match the [email-servic
 | --- | --- | --- |
 | `EMAIL_SERVICE_URL` | `https://email.shellui.com` | Origin only. hosting-service appends `/api/v1/events` |
 | `EMAIL_SERVICE_API_KEY` | empty | Service key with prefix `esk_`. Sent as `Authorization: Bearer` |
+| `EMAIL_SERVICE_ALLOW_PRIVATE` | `false` | Allow a URL that resolves to a private or loopback address |
 
 Issue the key in email-service for service `hosting`, lane `transactional`, and template prefix `hosting.`. Store it in the hosting-service secret store. An empty key disables forwarding, including when the URL stays at the default.
 
@@ -37,8 +38,11 @@ Local email-service:
 
 ```bash
 EMAIL_SERVICE_URL=http://localhost:8003
+EMAIL_SERVICE_ALLOW_PRIVATE=true
 EMAIL_SERVICE_API_KEY=esk_your_service_key_here
 ```
+
+`localhost` is a loopback address. Leave `EMAIL_SERVICE_ALLOW_PRIVATE` unset when the URL is public. The POST uses the same address check as a Shellui Actions webhook, and it does not follow redirects.
 
 Docker Compose passes the same variables through. The full list is in [Configuration](configuration.md).
 
@@ -48,7 +52,7 @@ The forward runs after the database commit, on the same worker pool as webhook d
 
 `POST /api/v1/events` sends the hosting event data and one recipient hint. The hint is the acting user's email and user id, when the JWT included them. The body omits `language` so the company rule can choose `en` or `fr`.
 
-The email copy drops sign-in links and tokens before it is stored. Dropped keys include `magic_link_url`, `token`, `raw_token`, and any `*_token` name. A value that is a sign-in URL is dropped too, including a `magic-link` path or a `token` query parameter. The webhook envelope still carries the original `data` object.
+The email copy and the webhook envelope drop sign-in links, tokens, and secret-shaped fields before they are stored. Dropped keys include `magic_link_url`, `token`, `password`, `api_key`, `secret`, and any `*_token` or `*_secret` name. A value that is a sign-in URL is dropped too, including a `magic-link` path or a query parameter such as `token` or `access_token`. The event log stores the same reduced object.
 
 ```json
 {

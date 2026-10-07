@@ -89,3 +89,13 @@ For Coolify or Traefik in front of Gunicorn, list the proxy address or ingress s
 With an empty list, `X-Forwarded-For` from the client is ignored and the app uses `REMOTE_ADDR`.
 
 IPv6 rate-limit keys use the /64 prefix. Logs keep the full address.
+
+## Access logs and error reports
+
+Gunicorn writes an access line with the method and the path. The line omits the query string and the Referer header, so `/?setup_token=…` is not copied to stdout.
+
+When `SENTRY_DSN` is set, events omit stack locals, request bodies, and cookies. Authorization, Cookie, and Referer headers are removed. Query strings are removed from the request URL before the event is sent.
+
+## Email-service URLs
+
+`EMAIL_SERVICE_URL` is checked the same way as a Shellui Actions webhook URL. A private, loopback, or link-local address is refused unless `EMAIL_SERVICE_ALLOW_PRIVATE=true`. The POST does not follow redirects. The service key is not written to the outbox or to logs.

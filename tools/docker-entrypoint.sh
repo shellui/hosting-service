@@ -82,6 +82,8 @@ prepare_data_dir() {
 }
 
 gunicorn_cmd() {
+  # %(U)s is the path with no query string. Referer is replaced with "-" so a
+  # setup_token or a sign-in URL in the request line is not written to stdout.
   GUNICORN_ARGS=(
     gunicorn
     --bind 0.0.0.0:8000
@@ -90,6 +92,7 @@ gunicorn_cmd() {
     --timeout "${GUNICORN_TIMEOUT:-120}"
     --access-logfile -
     --error-logfile -
+    --access-logformat '%(h)s %(l)s %(u)s %(t)s "%(m)s %(U)s %(H)s" %(s)s %(b)s "-" "%(a)s"'
     config.wsgi:application
   )
 }

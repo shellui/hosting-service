@@ -59,7 +59,7 @@ Routine API calls use `company_id` from the JWT, so you only see that company's 
 
 Creating or deleting an app, and creating, finishing, or failing a deployment, writes an event. Matching Shellui Actions webhook rules receive a signed POST. Delivery is at-least-once. `manage.py retry_webhooks` retries failures. There is no separate actions service.
 
-The same command retries the email-service forward. That body never includes a sign-in link or a token. Webhook envelopes stay the original event data. See [Email notifications](email.md).
+The same command retries the email-service forward. That body omits sign-in links, tokens, and secret-shaped fields. Webhook envelopes omit the same fields. See [Email notifications](email.md).
 
 The event log keeps those events, including the acting user, for `EVENT_LOG_RETENTION_DAYS` (default 7).
 

@@ -8,6 +8,8 @@ from typing import Any
 
 from django.utils import timezone
 
+from apps.actions.secret_redaction import redact_secrets
+
 
 def build_envelope(
     *,
@@ -18,13 +20,16 @@ def build_envelope(
     event_id: uuid.UUID | None = None,
     occurred_at: datetime | None = None,
 ) -> dict[str, Any]:
+    cleaned = redact_secrets(dict(data))
     envelope: dict[str, Any] = {
         'id': str(event_id or uuid.uuid4()),
         'type': event_type,
         'time': (occurred_at or timezone.now()).isoformat(),
         'company': {'id': company_id},
-        'data': dict(data),
+        'data': cleaned if isinstance(cleaned, dict) else {},
     }
     if actor:
-        envelope['actor'] = dict(actor)
+        cleaned_actor = redact_secrets(dict(actor))
+        if isinstance(cleaned_actor, dict) and cleaned_actor:
+            envelope['actor'] = cleaned_actor
     return envelope

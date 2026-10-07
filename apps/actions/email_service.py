@@ -7,41 +7,22 @@ An empty API key means no forwarding.
 
 from __future__ import annotations
 
+import json
 import logging
-import re
 from typing import Any
 
-import requests
 from django.conf import settings
 
 from apps.actions.models import ActionOutbox
-from apps.actions.webhook_retry import is_permanent_http_status, parse_retry_after_header
+from apps.actions.secret_redaction import redact_secrets
+from apps.actions.webhook_retry import is_permanent_http_status
+from apps.actions.webhook_transport import WebhookHTTPError, post_webhook_url
 from config.request_context import request_id_var
 
 logger = logging.getLogger(__name__)
 
 SERVICE_NAME = 'hosting'
 EVENTS_PATH = '/api/v1/events'
-
-# Identity strips these before a webhook or an email post. Hosting webhooks keep
-# the original payload (same as storage-service). Only the email body drops them.
-_SENSITIVE_KEYS = frozenset({
-    'magic_link',
-    'magic_link_url',
-    'token',
-    'raw_token',
-    'access_token',
-    'refresh_token',
-    'id_token',
-    'sign_in_url',
-    'sign_in_link',
-    'signin_url',
-    'signin_link',
-})
-_SIGN_IN_URL = re.compile(
-    r'magic[-_]link|/sign-?in(?:[/?#]|$)|[?&#]token=',
-    re.IGNORECASE,
-)
 
 
 class EmailDeliveryError(Exception):
@@ -68,6 +49,11 @@ def email_service_api_key() -> str:
 def email_service_configured() -> bool:
     """True when a service key is set. The URL alone does not enable forwarding."""
     return bool(email_service_api_key())
+
+
+def email_service_allow_private() -> bool:
+    """Private and loopback email-service URLs need an explicit opt-in."""
+    return bool(getattr(settings, 'EMAIL_SERVICE_ALLOW_PRIVATE', False))
 
 
 def email_service_events_url() -> str:
@@ -108,52 +94,10 @@ def recipient_hints(actor: dict[str, Any] | None) -> list[dict[str, Any]]:
     return [hint]
 
 
-def _sensitive_key(key: str) -> bool:
-    name = str(key).strip().lower().replace('-', '_')
-    return name in _SENSITIVE_KEYS or name.endswith('_token') or name.endswith('_tokens')
-
-
-def _sensitive_string(value: str) -> bool:
-    """True when a string is a sign-in URL or carries a token query parameter."""
-    if '://' not in value:
-        return False
-    return _SIGN_IN_URL.search(value) is not None
-
-
 def email_event_payload(payload: dict[str, Any] | None) -> dict[str, Any]:
-    """Event data for email-service. Sign-in links and tokens are omitted."""
-    return _without_secrets(payload or {})
-
-
-def _without_secrets(value: Any) -> Any:
-    if isinstance(value, dict):
-        cleaned: dict[str, Any] = {}
-        for key, item in value.items():
-            if _sensitive_key(str(key)):
-                continue
-            kept = _without_secrets(item)
-            if kept is _DROP:
-                continue
-            cleaned[str(key)] = kept
-        return cleaned
-    if isinstance(value, list):
-        items = []
-        for item in value:
-            kept = _without_secrets(item)
-            if kept is _DROP:
-                continue
-            items.append(kept)
-        return items
-    if isinstance(value, str) and _sensitive_string(value):
-        return _DROP
-    return value
-
-
-class _Drop:
-    """Sentinel for a string that must not appear in the email body."""
-
-
-_DROP = _Drop()
+    """Event data for email-service. Sign-in links, tokens, and secret-shaped fields are omitted."""
+    cleaned = redact_secrets(payload or {})
+    return cleaned if isinstance(cleaned, dict) else {}
 
 
 def build_event_body(
@@ -222,15 +166,33 @@ def post_email_event(body: dict[str, Any]) -> int:
     if request_id and request_id != '-':
         headers['X-Request-ID'] = request_id
     timeout = float(getattr(settings, 'ACTIONS_WEBHOOK_TIMEOUT_SECONDS', 5.0))
+    payload = json.dumps(body).encode('utf-8')
     try:
-        response = requests.post(
+        result = post_webhook_url(
             url,
-            json=body,
+            body=payload,
             headers=headers,
             timeout=timeout,
-            allow_redirects=False,
+            allow_private=email_service_allow_private(),
         )
-    except requests.RequestException:
+    except WebhookHTTPError as exc:
+        logger.warning(
+            'email_service_delivery event_type=%s company_id=%s http_status=%s',
+            body.get('event_type'),
+            body.get('company_id'),
+            exc.status,
+        )
+        message = redact_api_key(str(exc))
+        if message.startswith('Webhook URL'):
+            message = 'Email service URL' + message[len('Webhook URL'):]
+        raise EmailDeliveryError(
+            message,
+            http_status=exc.status,
+            response_excerpt=redact_api_key(exc.response_excerpt or ''),
+            permanent=bool(exc.permanent) or email_status_is_permanent(exc.status),
+            retry_after_seconds=exc.retry_after_seconds,
+        ) from None
+    except OSError:
         logger.warning(
             'email_service_delivery event_type=%s company_id=%s http_status=%s',
             body.get('event_type'),
@@ -239,30 +201,28 @@ def post_email_event(body: dict[str, Any]) -> int:
         )
         raise EmailDeliveryError('Email service request failed.') from None
 
-    if 200 <= response.status_code < 300:
+    if 200 <= result.status < 300:
         logger.info(
             'email_service_delivery event_type=%s company_id=%s http_status=%s',
             body.get('event_type'),
             body.get('company_id'),
-            response.status_code,
+            result.status,
         )
-        return response.status_code
+        return result.status
 
-    excerpt = redact_api_key((response.text or '')[:512])
-    retry_after = None
-    if response.status_code in (429, 503):
-        retry_after = parse_retry_after_header(response.headers.get('Retry-After'))
+    excerpt = redact_api_key((result.excerpt or '')[:512])
+    retry_after = result.retry_after_seconds if result.status in (429, 503) else None
     logger.warning(
         'email_service_delivery event_type=%s company_id=%s http_status=%s',
         body.get('event_type'),
         body.get('company_id'),
-        response.status_code,
+        result.status,
     )
     raise EmailDeliveryError(
-        f'Email service returned HTTP {response.status_code}',
-        http_status=response.status_code,
+        f'Email service returned HTTP {result.status}',
+        http_status=result.status,
         response_excerpt=excerpt,
-        permanent=email_status_is_permanent(response.status_code),
+        permanent=email_status_is_permanent(result.status),
         retry_after_seconds=retry_after,
     )
 

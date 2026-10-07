@@ -27,7 +27,7 @@ Complete these steps **before** building and pushing a release tag. Prefer the a
 |------|------------------|
 | Version alignment | `pyproject.toml` version matches a dated `CHANGELOG.md` entry (`## [x.y.z] - YYYY-MM-DD`) and `uv.lock` |
 | Build secrets | `.env` / `*.sqlite3` not tracked; `.gitignore` / `.dockerignore` exclude `.env`; built image has no `/app/.env` |
-| Image smoke test | Container serves `/hosting/v1/health` with `status=ok` (static `IDENTITY_JWKS` + `HOSTING_APP_DOMAIN`) |
+| Image smoke test | Throwaway Redis on a Docker network, then the image serves `/hosting/v1/health` with `status=ok` (`REDIS_URL` is required when `DEBUG` is false) |
 
 Options: `--skip-docker`, `--image TAG`, `--port PORT`.
 

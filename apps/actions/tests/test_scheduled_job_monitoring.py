@@ -514,12 +514,11 @@ class DeliveryCorrelationTests(TestCase):
         self.assertEqual(post.call_args.kwargs['headers']['X-Request-ID'], 'sjr-77')
 
     @override_settings(EMAIL_SERVICE_API_KEY='esk_test_hosting_key', EMAIL_SERVICE_URL='https://email.shellui.com')  # gitleaks:allow
-    @mock.patch('apps.actions.email_service.requests.post')
+    @mock.patch('apps.actions.email_service.post_webhook_url')
     def test_email_retry_carries_run_id_and_request_id_header(self, post):
-        response = mock.Mock(status_code=202, headers={})
-        response.json.return_value = {'rule_enabled': True, 'messages': []}
-        response.text = ''
-        post.return_value = response
+        from apps.actions.webhook_transport import WebhookPostResult
+
+        post.return_value = WebhookPostResult(status=202, excerpt='')
         row = ActionOutbox.objects.create(
             company_id=10,
             delivery_kind=ActionOutbox.KIND_EMAIL,

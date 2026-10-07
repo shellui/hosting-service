@@ -240,6 +240,8 @@ EMAIL_SERVICE_URL = (
     os.getenv('EMAIL_SERVICE_URL', 'https://email.shellui.com').strip().rstrip('/') or 'https://email.shellui.com'
 )
 EMAIL_SERVICE_API_KEY = os.getenv('EMAIL_SERVICE_API_KEY', '').strip()
+# Private and loopback EMAIL_SERVICE_URL values are refused unless this is true.
+EMAIL_SERVICE_ALLOW_PRIVATE = _env_bool('EMAIL_SERVICE_ALLOW_PRIVATE', False)
 
 REST_FRAMEWORK = {
     'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
@@ -751,6 +753,8 @@ if SENTRY_DSN:
     from sentry_sdk.integrations.django import DjangoIntegration
     from sentry_sdk.integrations.logging import LoggingIntegration
 
+    from config.sentry_scrub import scrub_sentry_event
+
     sentry_sdk.init(
         dsn=SENTRY_DSN,
         integrations=[
@@ -762,5 +766,8 @@ if SENTRY_DSN:
         release=SENTRY_RELEASE,
         traces_sample_rate=SENTRY_TRACES_SAMPLE_RATE,
         send_default_pii=False,
+        include_local_variables=False,
+        max_request_body_size='never',
+        before_send=scrub_sentry_event,
         attach_stacktrace=True,
     )
