@@ -21,36 +21,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 See for sample https://raw.githubusercontent.com/favoloso/conventional-changelog-emoji/master/CHANGELOG.md
 -->
 
-## [Unreleased] - 2026-10-07
+## [0.6.0] - 2026-10-07
 
 ### ✨ Feature
 
-- **In-container scheduler:** the image runs a Celery worker with beat next to Gunicorn. `retry_webhooks` runs every minute. `purge_expired_data` runs every hour at minute 17. A Redis lock (`SET NX`) keeps one run per job across replicas. `SCHEDULER_ENABLED` defaults to true. `web` and `worker` are entrypoint modes. Staff read `GET /api/v1/scheduled-jobs`. Prometheus series `shellui_hosting_scheduled_job_*` and `shellui_hosting_scheduler_*` are on `GET /hosting/v1/metrics/all` only. Staff-only events `hosting.scheduled_job.succeeded` and `hosting.scheduled_job.failed` are not webhook rules and are not forwarded to email-service. Webhook and email-service posts made by a run send `X-Request-ID: sjr-<id>`. See [docs/maintenance-jobs.md](docs/maintenance-jobs.md).
-- **Email notifications:** when `EMAIL_SERVICE_API_KEY` is set, every `hosting.*` event is posted to email-service `POST /api/v1/events` through the existing outbox. The email body omits sign-in links and tokens. Webhook envelopes stay the original event data. `manage.py retry_webhooks` retries with the webhook schedule (8 attempts, `30s * 2^(n-1)`, cap 1 hour). `2xx` is finished, including `skipped_reason` `no_rule` and `no_recipients`. `404` retries. `400`, `401`, `403`, `405`, `410`, `413`, and `422` do not. Leave the key unset and nothing is forwarded. See [docs/email.md](docs/email.md).
-- **Event log:** every `hosting.*` event is stored, with or without a webhook rule, together with the user who triggered it, and listed at `GET /api/v1/actions/event-log` (filters: type, user, date range) for the admin panel **Hosting > Log events** page. See [docs/event-log.md](docs/event-log.md).
-- **Data retention:** `EVENT_LOG_RETENTION_DAYS` (default 7). `manage.py purge_expired_data` deletes expired events and finished webhook and email deliveries in short batches. The container runs it every hour at minute 17. `GET /api/v1/actions/event-log/retention` reports `stale_events` when the job is not running.
+- The image runs `retry_webhooks` every minute and `purge_expired_data` hourly at minute 17, with a Redis lock so one run proceeds across replicas.
+- Staff read job health at `GET /api/v1/scheduled-jobs`. Scheduler series stay on `GET /hosting/v1/metrics/all`.
+- With `EMAIL_SERVICE_API_KEY` set, hosting events are posted to email-service, and every event is stored for `GET /api/v1/actions/event-log`.
 
 ### 🚨 Changed
 
-- **Redis in production:** `REDIS_URL` is required when `DEBUG=false` (`authapi.E004` and the container entrypoint). It stays optional when `DEBUG=true`, and the scheduler stays off with a warning. `SCHEDULER_ENABLED=false` and `CELERY_BROKER_URL` do not replace `REDIS_URL`.
+- Production (`DEBUG` false) requires `REDIS_URL`. The container exits if it is missing.
 
 ### 📚 Documentation
 
-- **Scheduled jobs:** the handbook no longer tells operators to install an external scheduler. [docs/maintenance-jobs.md](docs/maintenance-jobs.md), [docs/configuration.md](docs/configuration.md), and [README.md](README.md) describe the in-container worker.
-- **Handbook:** [`docs/index.md`](docs/index.md) is the hosting homepage, with [`docs/sidebars.js`](docs/sidebars.js) for the sidebar on `docs.shellui.com/hosting`. New pages cover running the service, apps and deployments, preview URLs, company access, scheduled jobs, and the API. Configuration now lists the environment variables from [`.env.example`](.env.example) and `config/settings.py`. CI builds the hosting docs with shellui/shellui.
+- The handbook covers setup, apps, preview URLs, company access, scheduled jobs, email, and the API.
 
 ### 🐛 Bug Fixes
 
-- **Webhooks admin API:** company owners who aren't staff got "Remove company_id from the query string" on every `/api/v1/actions/*` call from the admin panel, which always sends its own `company_id`. A `company_id` equal to the token company is now accepted; another company still returns 403 for non-staff, as in storage-service and identity-service.
-- **Django admin app delete:** deleting an app (single or bulk) now goes through the same path as the REST API: its stored artifacts are removed and `hosting.app.deleted` is emitted. It previously left the files behind and emitted nothing.
-- A deployment whose artifact fails to extract now stays `failed` and emits `hosting.deployment.failed`. Both were previously rolled back with the error.
-- Every `hosting.*` event now includes the acting user and their email (`actor.user_id`, `actor.email` in webhook envelopes). Deployment `succeeded` and `failed` events are attributed to the user who finalized.
+- A `company_id` query that matches the token is accepted on Shellui Actions admin routes. Django admin deletes remove stored artifacts, and a failed extract stays `failed`.
+
+### 🔒 Security
+
+- Private email-service URLs need `EMAIL_SERVICE_ALLOW_PRIVATE`. Webhook and email bodies omit tokens, sign-in links, and secret-shaped fields.
+- Access logs omit query strings and Referer. Sentry drops those, authorization headers, and stack locals.
 
 ### ⬆️ Upgrade notes
 
-- **Migrations:** run them after upgrading (`apps.actions` `0004_scheduled_job_runs`, plus the email outbox migration `0003_email_service_outbox` if you have not applied it).
-- **Redis:** set `REDIS_URL` (for example `redis://redis:6379/0`) on every production container. The image exits if `DEBUG=false` and `REDIS_URL` is unset.
-- **Scheduler:** remove an external schedule of `retry_webhooks` and `purge_expired_data`, or set `SCHEDULER_ENABLED=false` and keep running those commands yourself (every minute, and hourly at minute 17 with `--max-seconds 300`).
+- Apply migrations through `0004_scheduled_job_runs`, set `REDIS_URL`, and drop any external cron for these two jobs (or set `SCHEDULER_ENABLED=false`).
 
 ## [0.5.0] - 2026-09-29
 

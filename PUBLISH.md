@@ -37,11 +37,11 @@ Manual equivalents (if you are not using the script):
 
 ### 1. Version alignment
 
-Ensure these match the release version (e.g. `0.5.0`):
+Ensure these match the release version (e.g. `0.6.0`):
 
 - `version` in `pyproject.toml` (OpenAPI / API metadata via `config.settings.VERSION`)
 - `CHANGELOG.md` entry with date
-- Git tag `v0.5.0` (optional but recommended; not enforced by the script)
+- Git tag `v0.6.0` (optional but recommended; not enforced by the script)
 - CI green on the release commit (`.github/workflows/ci.yml` + pre-release workflow)
 
 ### 2. No secrets in the build context
@@ -76,12 +76,12 @@ docker login
 
 ### Tagging
 
-For semver release `0.5.0`, typical Docker Hub tags:
+For semver release `0.6.0`, typical Docker Hub tags:
 
 | Tag      | Purpose                                  |
 | -------- | ---------------------------------------- |
-| `0.5.0`  | Exact release (pin in production)        |
-| `0.5`    | Latest patch in the 0.5 line             |
+| `0.6.0`  | Exact release (pin in production)        |
+| `0.6`    | Latest patch in the 0.6 line             |
 | `latest` | Newest published release (use with care) |
 
 ### Option A — single platform (fastest, not recommended, see option B)
@@ -89,16 +89,16 @@ For semver release `0.5.0`, typical Docker Hub tags:
 From the repository root:
 
 ```bash
-VERSION=0.5.0
+VERSION=0.6.0
 IMAGE=shellui/hosting-service
 
 docker build -t "${IMAGE}:${VERSION}" .
 docker push "${IMAGE}:${VERSION}"
 
 # Optional extra tags
-docker tag "${IMAGE}:${VERSION}" "${IMAGE}:0.5"
+docker tag "${IMAGE}:${VERSION}" "${IMAGE}:0.6"
 docker tag "${IMAGE}:${VERSION}" "${IMAGE}:latest"
-docker push "${IMAGE}:0.5"
+docker push "${IMAGE}:0.6"
 docker push "${IMAGE}:latest"
 ```
 
@@ -107,7 +107,7 @@ docker push "${IMAGE}:latest"
 If you build on Apple Silicon, a plain `docker build` may produce `linux/arm64` only. Most cloud VMs expect `linux/amd64`. Publish both with buildx:
 
 ```bash
-VERSION=0.5.0
+VERSION=0.6.0
 IMAGE=shellui/hosting-service
 
 docker buildx create --use --name multi 2>/dev/null || docker buildx use multi
@@ -115,7 +115,7 @@ docker buildx create --use --name multi 2>/dev/null || docker buildx use multi
 docker buildx build \
   --platform linux/amd64,linux/arm64 \
   -t "${IMAGE}:${VERSION}" \
-  -t "${IMAGE}:0.5" \
+  -t "${IMAGE}:0.6" \
   -t "${IMAGE}:latest" \
   --push .
 ```
@@ -123,7 +123,7 @@ docker buildx build \
 ### Git tag (recommended)
 
 ```bash
-VERSION=0.5.0
+VERSION=0.6.0
 git tag -a "v${VERSION}" -m "Release ${VERSION}"
 git push origin "v${VERSION}"
 ```
@@ -144,10 +144,11 @@ docker run -d \
   -e CSRF_TRUSTED_ORIGINS='https://hosting.example.com' \
   -e HOSTING_APP_DOMAIN='shellui.app' \
   -e IDENTITY_JWKS='{"keys":[...]}' \
-  shellui/hosting-service:0.5.0
+  -e REDIS_URL='redis://redis:6379/0' \
+  shellui/hosting-service:0.6.0
 ```
 
-The entrypoint runs migrations on start, then starts **Gunicorn** (`config.wsgi:application`) as user `appuser`. Env vars `GUNICORN_WORKERS` (default `2`), `GUNICORN_THREADS` (default `2`), and `GUNICORN_TIMEOUT` (default `120`) are passed through.
+The entrypoint runs migrations on start, then starts **Gunicorn** (`config.wsgi:application`) and the in-container scheduler as user `appuser`. `REDIS_URL` is required when `DEBUG` is false. Env vars `GUNICORN_WORKERS` (default `2`), `GUNICORN_THREADS` (default `2`), and `GUNICORN_TIMEOUT` (default `120`) are passed through.
 
 ### Post-deploy production config check
 
