@@ -56,6 +56,16 @@ class ActionsAdminApiTests(TestCase):
         self.assertIn('sample_envelope', row)
         self.assertEqual(row['supported_action_kinds'], ['webhook'])
 
+    def test_owner_company_id_query_must_match_token(self):
+        # The admin panel always sends its own company_id.
+        self.assertEqual(self.client.get('/api/v1/actions/rules', {'company_id': 10}).status_code, 200)
+        self.assertEqual(self.client.get('/api/v1/actions/rules', {'company_id': 11}).status_code, 403)
+        self.assertEqual(self.client.get('/api/v1/actions/rules', {'company_id': 'x'}).status_code, 400)
+
+    def test_staff_may_query_another_company(self):
+        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {make_token(company_id=10, is_staff=True)}')
+        self.assertEqual(self.client.get('/api/v1/actions/rules', {'company_id': 11}).status_code, 200)
+
     def test_create_webhook_rule_returns_secret_once(self):
         response = self.client.post(
             '/api/v1/actions/rules',

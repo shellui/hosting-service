@@ -43,10 +43,13 @@ from apps.actions.emit import emit_event_if_rules
 from apps.actions.hosting_payloads import app_event_payload, deployment_event_payload
 
 
-def _action_actor(user_id: int | None) -> dict | None:
+def _action_actor(user_id: int | None, email: str = '') -> dict | None:
     if user_id is None:
         return None
-    return {'user_id': user_id}
+    actor: dict = {'user_id': user_id}
+    if email:
+        actor['email'] = email
+    return actor
 
 
 class HostingError(Exception):
@@ -245,6 +248,7 @@ def create_preview_app(
     user_id: int,
     display_name: str = '',
     access_token: str | None = None,
+    actor_email: str = '',
 ) -> App:
     assert_hosting_access(company_id)
     max_apps = settings.HOSTING_MAX_APPS_PER_COMPANY
@@ -269,7 +273,7 @@ def create_preview_app(
         'hosting.app.created',
         company_id,
         app_event_payload(app),
-        actor=_action_actor(user_id),
+        actor=_action_actor(user_id, actor_email),
     )
     return app
 
@@ -284,6 +288,7 @@ def prepare_preview_deploy(
     app_version: str,
     shellui_version: str,
     access_token: str | None = None,
+    actor_email: str = '',
 ) -> tuple[App, Deployment]:
     token = (access_token or '').strip() or None
     if slug and slug.strip():
@@ -295,12 +300,14 @@ def prepare_preview_deploy(
             user_id=user_id,
             display_name=display_name,
             access_token=token,
+            actor_email=actor_email,
         )
     deployment = create_deployment(
         app=app,
         app_version=app_version,
         shellui_version=shellui_version,
         deployed_by_id=user_id,
+        actor_email=actor_email,
     )
     return app, deployment
 
@@ -356,6 +363,8 @@ def create_app(
     name: str,
     display_name: str,
     access_token: str | None = None,
+    user_id: int | None = None,
+    actor_email: str = '',
 ) -> App:
     assert_hosting_access(company_id)
     max_apps = settings.HOSTING_MAX_APPS_PER_COMPANY
@@ -386,6 +395,7 @@ def create_app(
         'hosting.app.created',
         company_id,
         app_event_payload(app),
+        actor=_action_actor(user_id, actor_email),
     )
     return app
 
@@ -397,6 +407,7 @@ def create_deployment(
     shellui_version: str,
     deployed_by_id: int,
     pinned: bool = False,
+    actor_email: str = '',
 ) -> Deployment:
     assert_hosting_access(app.company_id)
     max_deployments = settings.HOSTING_MAX_DEPLOYMENTS_PER_APP
@@ -424,7 +435,7 @@ def create_deployment(
         'hosting.deployment.created',
         app.company_id,
         deployment_event_payload(deployment, status=DeploymentStatus.DRAFT),
-        actor=_action_actor(deployed_by_id),
+        actor=_action_actor(deployed_by_id, actor_email),
     )
     return deployment
 
@@ -456,8 +467,39 @@ def upload_deployment_artifact(
     return deployment
 
 
+def finalize_deployment(
+    *,
+    deployment: Deployment,
+    user_id: int | None = None,
+    actor_email: str = '',
+) -> Deployment:
+    """Extract and activate ``deployment``; on a bad artifact, mark it failed and raise.
+
+    ``user_id`` / ``actor_email`` identify who finalizes; events fall back to the deployer.
+    """
+    actor = _action_actor(user_id, actor_email) if user_id is not None else _action_actor(deployment.deployed_by_id)
+    try:
+        return _activate_deployment(deployment=deployment, actor=actor)
+    except ExtractError as exc:
+        # Recorded after the activation transaction rolled back, so the failure is kept.
+        _mark_deployment_failed(deployment, actor=actor)
+        raise HostingError(str(exc), code='artifact_extract_failed') from exc
+
+
 @transaction.atomic
-def finalize_deployment(*, deployment: Deployment) -> Deployment:
+def _mark_deployment_failed(deployment: Deployment, *, actor: dict | None) -> None:
+    deployment.status = DeploymentStatus.FAILED
+    deployment.save(update_fields=['status', 'updated_at'])
+    emit_event_if_rules(
+        'hosting.deployment.failed',
+        deployment.app.company_id,
+        deployment_event_payload(deployment, status=DeploymentStatus.FAILED, error='artifact_extract_failed'),
+        actor=actor,
+    )
+
+
+@transaction.atomic
+def _activate_deployment(*, deployment: Deployment, actor: dict | None) -> Deployment:
     if deployment.status not in {DeploymentStatus.UPLOADING, DeploymentStatus.READY, DeploymentStatus.DRAFT}:
         raise HostingError(
             'Deployment cannot be finalized in its current status.',
@@ -470,16 +512,6 @@ def finalize_deployment(*, deployment: Deployment) -> Deployment:
         extract_deployment_artifact(deployment)
     except FileNotFoundError as exc:
         raise HostingError(str(exc), code='artifact_missing') from exc
-    except ExtractError as exc:
-        deployment.status = DeploymentStatus.FAILED
-        deployment.save(update_fields=['status', 'updated_at'])
-        emit_event_if_rules(
-            'hosting.deployment.failed',
-            deployment.app.company_id,
-            deployment_event_payload(deployment, status=DeploymentStatus.FAILED, error='artifact_extract_failed'),
-            actor=_action_actor(deployment.deployed_by_id),
-        )
-        raise HostingError(str(exc), code='artifact_extract_failed') from exc
     app = deployment.app
     now = timezone.now()
     Deployment.objects.filter(app=app, status=DeploymentStatus.ACTIVE).exclude(id=deployment.id).update(
@@ -500,7 +532,7 @@ def finalize_deployment(*, deployment: Deployment) -> Deployment:
         'hosting.deployment.succeeded',
         app.company_id,
         deployment_event_payload(deployment, status=DeploymentStatus.ACTIVE),
-        actor=_action_actor(deployment.deployed_by_id),
+        actor=actor,
     )
     return deployment
 
@@ -553,7 +585,13 @@ def delete_app_artifacts(app: App) -> None:
 
 
 @transaction.atomic
-def delete_app(app: App, *, access_token: str | None = None) -> None:
+def delete_app(
+    app: App,
+    *,
+    access_token: str | None = None,
+    user_id: int | None = None,
+    actor_email: str = '',
+) -> None:
     """Remove a hosted app, its deployments, and stored artifacts."""
     # Capture before delete; unsync after local removal so a failed delete does not
     # strip login while the site still exists.
@@ -565,6 +603,6 @@ def delete_app(app: App, *, access_token: str | None = None) -> None:
         origin = None
     delete_app_artifacts(app)
     app.delete()
-    emit_event_if_rules('hosting.app.deleted', company_id, payload)
+    emit_event_if_rules('hosting.app.deleted', company_id, payload, actor=_action_actor(user_id, actor_email))
     if origin:
         delete_hosting_oauth_redirect_origin(origin=origin, access_token=access_token)

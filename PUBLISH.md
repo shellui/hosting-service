@@ -27,7 +27,7 @@ Complete these steps **before** building and pushing a release tag. Prefer the a
 |------|------------------|
 | Version alignment | `pyproject.toml` version matches a dated `CHANGELOG.md` entry (`## [x.y.z] - YYYY-MM-DD`) and `uv.lock` |
 | Build secrets | `.env` / `*.sqlite3` not tracked; `.gitignore` / `.dockerignore` exclude `.env`; built image has no `/app/.env` |
-| Image smoke test | Container serves `/hosting/v1/health` with `status=ok` (static `IDENTITY_JWKS` + `HOSTING_APP_DOMAIN`) |
+| Image smoke test | Throwaway Redis on a Docker network, then the image serves `/hosting/v1/health` with `status=ok` (`REDIS_URL` is required when `DEBUG` is false) |
 
 Options: `--skip-docker`, `--image TAG`, `--port PORT`.
 
@@ -37,11 +37,11 @@ Manual equivalents (if you are not using the script):
 
 ### 1. Version alignment
 
-Ensure these match the release version (e.g. `0.5.0`):
+Ensure these match the release version (e.g. `0.6.0`):
 
 - `version` in `pyproject.toml` (OpenAPI / API metadata via `config.settings.VERSION`)
 - `CHANGELOG.md` entry with date
-- Git tag `v0.5.0` (optional but recommended; not enforced by the script)
+- Git tag `v0.6.0` (optional but recommended; not enforced by the script)
 - CI green on the release commit (`.github/workflows/ci.yml` + pre-release workflow)
 
 ### 2. No secrets in the build context
@@ -76,12 +76,12 @@ docker login
 
 ### Tagging
 
-For semver release `0.5.0`, typical Docker Hub tags:
+For semver release `0.6.0`, typical Docker Hub tags:
 
 | Tag      | Purpose                                  |
 | -------- | ---------------------------------------- |
-| `0.5.0`  | Exact release (pin in production)        |
-| `0.5`    | Latest patch in the 0.5 line             |
+| `0.6.0`  | Exact release (pin in production)        |
+| `0.6`    | Latest patch in the 0.6 line             |
 | `latest` | Newest published release (use with care) |
 
 ### Option A — single platform (fastest, not recommended, see option B)
@@ -89,16 +89,16 @@ For semver release `0.5.0`, typical Docker Hub tags:
 From the repository root:
 
 ```bash
-VERSION=0.5.0
+VERSION=0.6.0
 IMAGE=shellui/hosting-service
 
 docker build -t "${IMAGE}:${VERSION}" .
 docker push "${IMAGE}:${VERSION}"
 
 # Optional extra tags
-docker tag "${IMAGE}:${VERSION}" "${IMAGE}:0.5"
+docker tag "${IMAGE}:${VERSION}" "${IMAGE}:0.6"
 docker tag "${IMAGE}:${VERSION}" "${IMAGE}:latest"
-docker push "${IMAGE}:0.5"
+docker push "${IMAGE}:0.6"
 docker push "${IMAGE}:latest"
 ```
 
@@ -107,7 +107,7 @@ docker push "${IMAGE}:latest"
 If you build on Apple Silicon, a plain `docker build` may produce `linux/arm64` only. Most cloud VMs expect `linux/amd64`. Publish both with buildx:
 
 ```bash
-VERSION=0.5.0
+VERSION=0.6.0
 IMAGE=shellui/hosting-service
 
 docker buildx create --use --name multi 2>/dev/null || docker buildx use multi
@@ -115,7 +115,7 @@ docker buildx create --use --name multi 2>/dev/null || docker buildx use multi
 docker buildx build \
   --platform linux/amd64,linux/arm64 \
   -t "${IMAGE}:${VERSION}" \
-  -t "${IMAGE}:0.5" \
+  -t "${IMAGE}:0.6" \
   -t "${IMAGE}:latest" \
   --push .
 ```
@@ -123,7 +123,7 @@ docker buildx build \
 ### Git tag (recommended)
 
 ```bash
-VERSION=0.5.0
+VERSION=0.6.0
 git tag -a "v${VERSION}" -m "Release ${VERSION}"
 git push origin "v${VERSION}"
 ```
@@ -144,10 +144,11 @@ docker run -d \
   -e CSRF_TRUSTED_ORIGINS='https://hosting.example.com' \
   -e HOSTING_APP_DOMAIN='shellui.app' \
   -e IDENTITY_JWKS='{"keys":[...]}' \
-  shellui/hosting-service:0.5.0
+  -e REDIS_URL='redis://redis:6379/0' \
+  shellui/hosting-service:0.6.0
 ```
 
-The entrypoint runs migrations on start, then starts **Gunicorn** (`config.wsgi:application`) as user `appuser`. Env vars `GUNICORN_WORKERS` (default `2`), `GUNICORN_THREADS` (default `2`), and `GUNICORN_TIMEOUT` (default `120`) are passed through.
+The entrypoint runs migrations on start, then starts **Gunicorn** (`config.wsgi:application`) and the in-container scheduler as user `appuser`. `REDIS_URL` is required when `DEBUG` is false. Env vars `GUNICORN_WORKERS` (default `2`), `GUNICORN_THREADS` (default `2`), and `GUNICORN_TIMEOUT` (default `120`) are passed through.
 
 ### Post-deploy production config check
 
@@ -196,27 +197,33 @@ Create the first Django superuser with `python manage.py createsuperuser` inside
 | `DJANGO_ADMIN_ENABLED` | Set `false` to disable `/admin/` when unused |
 | `POSTGRES_SSL_REQUIRE` | Default `true` when `DEBUG=false`; set `false` for internal Postgres without TLS |
 | `IDENTITY_SERVICE_URL` | Enables OAuth redirect sync for preview origins on identity-service |
+| `EMAIL_SERVICE_URL` | email-service origin. Default `https://email.shellui.com` |
+| `EMAIL_SERVICE_API_KEY` | Service key for event forwarding. Unset disables it |
 | `ROOT_REDIRECT_URL` | Optional 301 for apex `/` |
 | `SETUP_TOKEN` | One-time token for web superuser bootstrap when `DEBUG=false` (`/?setup_token=<token>`) |
 | `POSTGRES_DATABASE_URL` | Use Postgres instead of SQLite |
-| `REDIS_URL` | Shared Redis cache (recommended when `GUNICORN_WORKERS` > 1). Example: `redis://redis:6379/0`. Without it, LocMem is per-worker. |
+| `REDIS_URL` | Required when `DEBUG=false`. Shared cache and scheduled-job broker. Example: `redis://redis:6379/0`. Missing it fails `check --deploy` (`authapi.E004`) and the container exits 1. Optional when `DEBUG=true` |
+| `SCHEDULER_ENABLED` | Default `true`. `false` keeps the Celery worker out of this container. `REDIS_URL` is still required in production |
+| `CELERY_BROKER_URL` | Optional. Defaults to `REDIS_URL`. Does not replace `REDIS_URL` |
 | `HOSTING_RATE_LIMIT_*` | Tune deploy/upload/delete rate limits — see `docs/security-hardening.md` |
 | `SENTRY_DSN` / `SENTRY_ENVIRONMENT` | Error reporting |
 | `AWS_*` | django-storages when `HOSTING_BACKEND=s3` |
 
 Do not list every preview slug in CORS env — OAuth redirect sync on identity handles login bounce origins.
 
-### Redis (Coolify / multi-worker Gunicorn)
+### Redis (required in production)
 
-When `GUNICORN_WORKERS` is greater than 1 (Docker default), hosting rate limits rely on Django cache. In-process LocMem is **not** shared between workers.
+When `DEBUG=false`, hosting-service needs Redis for rate limits and for the in-container scheduler (`retry_webhooks`, `purge_expired_data`).
 
 1. Add a **Redis** service in Coolify (or run Redis on the VPS).
-2. On the hosting-service container, set **`REDIS_URL`** to the Redis connection URL, for example:
+2. On every hosting-service container (web and worker), set **`REDIS_URL`**, for example:
    - Same Coolify project, internal hostname: `redis://redis:6379/0`
-   - Managed Redis with password: `redis://:password@host:6379/0`
-3. Redeploy hosting-service. `manage.py check --deploy` warns (`authapi.W001`) if production still uses LocMem with multiple workers.
+   - Managed Redis with a password: `redis://:password@host:6379/0`
+3. Redeploy. The entrypoint exits 1 if `REDIS_URL` is unset, and `manage.py check --deploy` reports `authapi.E004`. `SCHEDULER_ENABLED=false` does not remove that requirement. `CELERY_BROKER_URL` does not replace `REDIS_URL`.
 
-Local dev and single-worker installs can leave `REDIS_URL` unset.
+Local development (`DEBUG=true`) can leave `REDIS_URL` unset. The scheduler stays off and logs a warning. Docker Compose in this repo starts Redis and sets `REDIS_URL` for you.
+
+`authapi.W001` still warns when a multi-worker process is on the in-memory cache. In production that situation is the `E004` error above.
 
 ## Security notes
 

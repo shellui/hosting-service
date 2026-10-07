@@ -21,6 +21,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 See for sample https://raw.githubusercontent.com/favoloso/conventional-changelog-emoji/master/CHANGELOG.md
 -->
 
+## [0.6.0] - 2026-10-07
+
+### ✨ Feature
+
+- The image runs `retry_webhooks` every minute and `purge_expired_data` hourly at minute 17, with a Redis lock so one run proceeds across replicas.
+- Staff read job health at `GET /api/v1/scheduled-jobs`. Scheduler series stay on `GET /hosting/v1/metrics/all`.
+- With `EMAIL_SERVICE_API_KEY` set, hosting events are posted to email-service, and every event is stored for `GET /api/v1/actions/event-log`.
+
+### 🚨 Changed
+
+- Production (`DEBUG` false) requires `REDIS_URL`. The container exits if it is missing.
+
+### 📚 Documentation
+
+- The handbook covers setup, apps, preview URLs, company access, scheduled jobs, email, and the API.
+
+### 🐛 Bug Fixes
+
+- A `company_id` query that matches the token is accepted on Shellui Actions admin routes. Django admin deletes remove stored artifacts, and a failed extract stays `failed`.
+
+### 🔒 Security
+
+- Private email-service URLs need `EMAIL_SERVICE_ALLOW_PRIVATE`. Webhook and email bodies omit tokens, sign-in links, and secret-shaped fields.
+- Access logs omit query strings and Referer. Sentry drops those, authorization headers, and stack locals.
+
+### ⬆️ Upgrade notes
+
+- Apply migrations through `0004_scheduled_job_runs`, set `REDIS_URL`, and drop any external cron for these two jobs (or set `SCHEDULER_ENABLED=false`).
+
 ## [0.5.0] - 2026-09-29
 
 ### ✨ Feature

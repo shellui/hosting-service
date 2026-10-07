@@ -135,14 +135,21 @@ def _set_company(gauges: dict[str, Gauge], company_id: int) -> None:
 
 
 def metrics_http_body(company_id: int | None = None) -> bytes:
-    """Serialize Prometheus text. When ``company_id`` is set, only that tenant is included."""
+    """Serialize Prometheus text. When ``company_id`` is set, only that tenant is included.
+
+    Scheduled-job series are staff-only and appended on the global scrape
+    (``company_id is None``, ``GET /hosting/v1/metrics/all``). A company scrape
+    uses a fresh registry and never includes them, or any other company.
+    """
     registry = CollectorRegistry()
     gauges = _bind_gauges(registry)
     if company_id is None:
         for cid in _company_ids():
             _set_company(gauges, cid)
-    else:
-        _set_company(gauges, company_id)
+        from apps.actions.scheduled_job_metrics import scheduled_jobs_metrics_body
+
+        return generate_latest(registry) + scheduled_jobs_metrics_body()
+    _set_company(gauges, company_id)
     return generate_latest(registry)
 
 

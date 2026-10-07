@@ -1,4 +1,8 @@
 services:
+  redis:
+    image: redis:8-alpine
+    restart: unless-stopped
+
   hosting-service:
     build:
       context: .
@@ -13,7 +17,8 @@ services:
       ALLOWED_HOSTS: "${ALLOWED_HOSTS:-}"
       CSRF_TRUSTED_ORIGINS: "${CSRF_TRUSTED_ORIGINS:-}"
       POSTGRES_DATABASE_URL: "${POSTGRES_DATABASE_URL:-}"
-      REDIS_URL: "${REDIS_URL:-}"
+      REDIS_URL: "${REDIS_URL:-redis://redis:6379/0}"
+      SCHEDULER_ENABLED: "${SCHEDULER_ENABLED:-true}"
       SQLITE_PATH: "/app/data/db.sqlite3"
       MEDIA_ROOT: "/app/data/media"
       HOSTING_BACKEND: "${HOSTING_BACKEND:-filesystem}"
@@ -25,6 +30,9 @@ services:
       IDENTITY_JWKS: "${IDENTITY_JWKS:-}"
       IDENTITY_ISSUER: "${IDENTITY_ISSUER:-}"
       IDENTITY_AUDIENCE: "${IDENTITY_AUDIENCE:-}"
+      EMAIL_SERVICE_URL: "${EMAIL_SERVICE_URL:-https://email.shellui.com}"
+      EMAIL_SERVICE_API_KEY: "${EMAIL_SERVICE_API_KEY:-}"
+      EMAIL_SERVICE_ALLOW_PRIVATE: "${EMAIL_SERVICE_ALLOW_PRIVATE:-false}"
       CORS_ALLOW_ALL_ORIGINS: "${CORS_ALLOW_ALL_ORIGINS:-true}"
       CORS_ALLOWED_ORIGINS: "${CORS_ALLOWED_ORIGINS:-}"
       GUNICORN_WORKERS: "${GUNICORN_WORKERS:-2}"
@@ -34,6 +42,8 @@ services:
       SENTRY_ENVIRONMENT: "${SENTRY_ENVIRONMENT:-}"
       SENTRY_RELEASE: "${SENTRY_RELEASE:-}"
       SENTRY_TRACES_SAMPLE_RATE: "${SENTRY_TRACES_SAMPLE_RATE:-0}"
+    depends_on:
+      - redis
     volumes:
       - hosting-service-data:/app/data
     restart: unless-stopped

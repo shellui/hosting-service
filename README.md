@@ -4,6 +4,14 @@
 
 It authenticates with JWTs issued by [identity-service](https://github.com/shellui/identity-service), stores deployment tarballs in **S3** (or local filesystem), extracts them for browsing, and manages company access waitlists, app slugs, and deployments.
 
+## Documentation
+
+The handbook is in [`docs/`](docs/index.md). It is published on [docs.shellui.com](https://docs.shellui.com) at `docs.shellui.com/hosting`.
+
+Start with the [overview](docs/index.md), then [Run hosting-service](docs/getting-started.md) and [Configuration](docs/configuration.md). Apps, preview URLs, company access, JWT claim trust, Shellui Actions webhooks, email notifications, the event log, security, maintenance jobs, and the API each have a page in that sidebar.
+
+Preview with live reload from a sibling checkout of [shellui/shellui](https://github.com/shellui/shellui). In `../shellui`, run `pnpm install`, then `DOCS_SERVICES=hosting pnpm docs:start`. The steps are in [Build the docs site](https://github.com/shellui/shellui/blob/main/docs/docs-site.md).
+
 ## Features
 
 - REST API under `/hosting/v1/*` for access, apps, deployments, stats, and metrics
@@ -16,6 +24,8 @@ It authenticates with JWTs issued by [identity-service](https://github.com/shell
 - Prometheus metrics (`/hosting/v1/metrics`, `/hosting/v1/metrics/all`) for staff or company-owner JWT / PAT
 - Permissive API CORS by default (`CORS_ALLOW_ALL_ORIGINS=true`, `CORS_ALLOW_CREDENTIALS=false`); auth is Bearer JWT — hosted preview origins do not need CORS env entries
 - **Shellui Actions** webhooks on hosting domain events (`hosting.*`), admin REST API under `/api/v1/actions/`, retries via `manage.py retry_webhooks` — see [`docs/actions.md`](docs/actions.md) and [**n8n setup**](docs/n8n.md)
+- **Email notifications** for the same events, forwarded to email-service when `EMAIL_SERVICE_API_KEY` is set. See [`docs/email.md`](docs/email.md).
+- **Event log** of every hosting event with the acting user, purged after `EVENT_LOG_RETENTION_DAYS` — see [`docs/event-log.md`](docs/event-log.md)
 - Production security hardening: rate limits, HSTS/secure cookies, Postgres SSL, pinned JWKS — see [`docs/security-hardening.md`](docs/security-hardening.md) and [`docs/claim-trust.md`](docs/claim-trust.md)
 
 ## Project structure
@@ -191,7 +201,7 @@ Deployment artifacts are stored at `{slug}/deployments/{id}/artifact.tar.gz` and
 uv run python manage.py test
 ```
 
-Pull requests and pushes to `main` / `develop` run [`.github/workflows/ci.yml`](.github/workflows/ci.yml): Django tests, lockfile check, dependency audit (`pip-audit`), secret scan (gitleaks), markdown link check (lychee), and a Docker image build.
+Pull requests and pushes to `main` / `develop` run [`.github/workflows/ci.yml`](.github/workflows/ci.yml): Django tests, lockfile check, dependency audit (`pip-audit`), secret scan (gitleaks), markdown link check (lychee), a docs build against [shellui/shellui](https://github.com/shellui/shellui), and a Docker image build.
 
 Pull requests **to `main`** also run the pre-release checklist ([`.github/workflows/pre-release.yml`](.github/workflows/pre-release.yml)) — same checks as:
 
@@ -250,18 +260,13 @@ Data persists in named volume `hosting-service-data` (`/app/data` in the contain
 
 Runtime env vars (see `.env.example`):
 
-- `REDIS_URL` (optional; when set, Django uses Redis for shared cache for hosting rate limits). Unset uses in-process LocMem (single Gunicorn worker or local dev only; with multiple workers each process has its own cache)
+- `REDIS_URL` (required when `DEBUG=false`; shared cache for rate limits and the job broker). Example: `redis://redis:6379/0`. With `DEBUG=true`, unset keeps the in-process cache and leaves the scheduler off
+- `SCHEDULER_ENABLED` (default `true`; `false` keeps the Celery worker out of this container)
 - `GUNICORN_WORKERS` (default `2`)
 - `GUNICORN_THREADS` (default `2`)
 - `GUNICORN_TIMEOUT` (default `120`)
 
-Schedule Shellui Actions webhook retries (every minute) in production, for example:
-
-```cron
-* * * * * cd /app && python manage.py retry_webhooks >> /var/log/retry_webhooks.log 2>&1
-```
-
-Use your orchestrator's cron or a sidecar that execs into the hosting-service container with the same command.
+The image runs `retry_webhooks` every minute and `purge_expired_data` every hour at minute 17. See [docs/maintenance-jobs.md](docs/maintenance-jobs.md).
 
 ## License
 
