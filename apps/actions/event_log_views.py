@@ -12,7 +12,7 @@ from rest_framework.views import APIView
 from apps.actions.admin_scope import require_staff_or_company_owner
 from apps.actions.models import EventLog
 from apps.actions.permissions import ActionsAdminPermission
-from apps.actions.registry import all_event_types, get_event_type, is_registered_event
+from apps.actions.registry import company_event_types, get_event_type, is_registered_event
 from apps.actions.retention import retention_status
 
 _MAX_PAGE_SIZE = 100
@@ -175,8 +175,8 @@ class ShellUIAdminEventLogTypesView(_EventLogBase):
         return Response(
             {
                 'results': [
-                    {'type': e.id, 'label': e.label, 'description': e.description, 'webhook': True}
-                    for e in all_event_types()
+                    {'type': e.id, 'label': e.label, 'description': e.description, 'webhook': e.webhook}
+                    for e in company_event_types()
                     if e.emit_by_default
                 ]
             }

@@ -115,7 +115,9 @@ Objects are stored at `{HOSTING_KEY_PREFIX}/{app_id}/deployments/{deployment_id}
 
 ## Cache and rate limits
 
-`REDIS_URL` is optional. When it is set, Django uses Redis for the rate-limit cache. When it is unset, each process uses an in-memory cache. With `GUNICORN_WORKERS` greater than 1, set Redis so the counters are shared. `manage.py check --deploy` reports `authapi.W001` when production still uses the in-memory cache with multiple workers.
+`REDIS_URL` is required when `DEBUG=false`. Django uses it for the rate-limit cache and for the scheduled-job broker. `manage.py check --deploy` reports `authapi.E004` when it is missing, and the container exits before migrations with the same message. `CELERY_BROKER_URL` does not replace it. `SCHEDULER_ENABLED=false` does not replace it either.
+
+With `DEBUG=true`, leave `REDIS_URL` unset for local development. The scheduler stays off and logs a warning. `authapi.W001` still warns when production would use the in-memory cache with `GUNICORN_WORKERS` greater than 1. That case is already an `E004` error once `DEBUG=false`.
 
 ```bash
 REDIS_URL=redis://redis:6379/0
@@ -150,13 +152,23 @@ API auth is the Bearer JWT, not a cookie. Permissive CORS is the default for tha
 
 ## Gunicorn
 
-The image entrypoint runs migrations, then Gunicorn. It does not start a worker process for cron. Schedule the commands in [Maintenance jobs](maintenance-jobs.md) yourself.
+The image entrypoint runs migrations, `check --deploy`, then Gunicorn and the scheduler. See [Scheduled jobs](maintenance-jobs.md).
 
 | Variable | Default | Purpose |
 | --- | --- | --- |
 | `GUNICORN_WORKERS` | `2` | Worker processes |
 | `GUNICORN_THREADS` | `2` | Threads per worker |
 | `GUNICORN_TIMEOUT` | `120` | Seconds before Gunicorn kills a silent worker. Sized for large uploads |
+
+## Scheduled jobs
+
+The same container runs `retry_webhooks` every minute and `purge_expired_data` every hour at minute 17. Full behavior, the staff API, and the Prometheus series are in [Scheduled jobs](maintenance-jobs.md).
+
+| Variable | Default | Purpose |
+| --- | --- | --- |
+| `SCHEDULER_ENABLED` | `true` | `false` keeps the Celery worker out of this container |
+| `CELERY_BROKER_URL` | `REDIS_URL` | Broker for the jobs. The cache still needs `REDIS_URL` |
+| `CELERY_WORKER_CONCURRENCY` | `2` | Threads in the worker |
 
 ## Shellui Actions
 
@@ -186,7 +198,7 @@ Set `EMAIL_SERVICE_API_KEY` to forward hosting events to email-service. An empty
 | --- | --- | --- |
 | `EVENT_LOG_RETENTION_DAYS` | `7` | Days to keep event-log rows and finished webhook and email deliveries |
 
-`manage.py purge_expired_data` deletes older rows. Nothing in the container runs that command. See [Event log](event-log.md) and [Maintenance jobs](maintenance-jobs.md).
+`manage.py purge_expired_data` deletes older rows. The container runs it every hour at minute 17. See [Event log](event-log.md) and [Scheduled jobs](maintenance-jobs.md).
 
 ## Apex landing
 

@@ -280,8 +280,11 @@ class PurgeExpiredDataTests(TestCase):
         self.assertEqual(purge_expired_data(dry_run=True)['events'], 1)
         out = StringIO()
         call_command('purge_expired_data', '--batch-size', '1', stdout=out)
-        self.assertIn('deleted events=1 webhook_deliveries=1 complete=true', out.getvalue())
-        self.assertEqual(list(EventLog.objects.values_list('pk', flat=True)), [kept.pk])
+        self.assertIn(
+            'deleted events=1 webhook_deliveries=1 email_events=0 scheduled_job_runs=0 complete=true',
+            out.getvalue(),
+        )
+        self.assertEqual(list(EventLog.objects.filter(company_id=10).values_list('pk', flat=True)), [kept.pk])
         self.assertEqual(list(ActionOutbox.objects.values_list('pk', flat=True)), [self.pending.pk])
 
     @override_settings(EVENT_LOG_RETENTION_DAYS=30)

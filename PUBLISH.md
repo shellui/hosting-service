@@ -201,24 +201,28 @@ Create the first Django superuser with `python manage.py createsuperuser` inside
 | `ROOT_REDIRECT_URL` | Optional 301 for apex `/` |
 | `SETUP_TOKEN` | One-time token for web superuser bootstrap when `DEBUG=false` (`/?setup_token=<token>`) |
 | `POSTGRES_DATABASE_URL` | Use Postgres instead of SQLite |
-| `REDIS_URL` | Shared Redis cache (recommended when `GUNICORN_WORKERS` > 1). Example: `redis://redis:6379/0`. Without it, LocMem is per-worker. |
+| `REDIS_URL` | Required when `DEBUG=false`. Shared cache and scheduled-job broker. Example: `redis://redis:6379/0`. Missing it fails `check --deploy` (`authapi.E004`) and the container exits 1. Optional when `DEBUG=true` |
+| `SCHEDULER_ENABLED` | Default `true`. `false` keeps the Celery worker out of this container. `REDIS_URL` is still required in production |
+| `CELERY_BROKER_URL` | Optional. Defaults to `REDIS_URL`. Does not replace `REDIS_URL` |
 | `HOSTING_RATE_LIMIT_*` | Tune deploy/upload/delete rate limits — see `docs/security-hardening.md` |
 | `SENTRY_DSN` / `SENTRY_ENVIRONMENT` | Error reporting |
 | `AWS_*` | django-storages when `HOSTING_BACKEND=s3` |
 
 Do not list every preview slug in CORS env — OAuth redirect sync on identity handles login bounce origins.
 
-### Redis (Coolify / multi-worker Gunicorn)
+### Redis (required in production)
 
-When `GUNICORN_WORKERS` is greater than 1 (Docker default), hosting rate limits rely on Django cache. In-process LocMem is **not** shared between workers.
+When `DEBUG=false`, hosting-service needs Redis for rate limits and for the in-container scheduler (`retry_webhooks`, `purge_expired_data`).
 
 1. Add a **Redis** service in Coolify (or run Redis on the VPS).
-2. On the hosting-service container, set **`REDIS_URL`** to the Redis connection URL, for example:
+2. On every hosting-service container (web and worker), set **`REDIS_URL`**, for example:
    - Same Coolify project, internal hostname: `redis://redis:6379/0`
-   - Managed Redis with password: `redis://:password@host:6379/0`
-3. Redeploy hosting-service. `manage.py check --deploy` warns (`authapi.W001`) if production still uses LocMem with multiple workers.
+   - Managed Redis with a password: `redis://:password@host:6379/0`
+3. Redeploy. The entrypoint exits 1 if `REDIS_URL` is unset, and `manage.py check --deploy` reports `authapi.E004`. `SCHEDULER_ENABLED=false` does not remove that requirement. `CELERY_BROKER_URL` does not replace `REDIS_URL`.
 
-Local dev and single-worker installs can leave `REDIS_URL` unset.
+Local development (`DEBUG=true`) can leave `REDIS_URL` unset. The scheduler stays off and logs a warning. Docker Compose in this repo starts Redis and sets `REDIS_URL` for you.
+
+`authapi.W001` still warns when a multi-worker process is on the in-memory cache. In production that situation is the `E004` error above.
 
 ## Security notes
 

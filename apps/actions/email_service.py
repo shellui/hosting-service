@@ -16,6 +16,7 @@ from django.conf import settings
 
 from apps.actions.models import ActionOutbox
 from apps.actions.webhook_retry import is_permanent_http_status, parse_retry_after_header
+from config.request_context import request_id_var
 
 logger = logging.getLogger(__name__)
 
@@ -217,6 +218,9 @@ def post_email_event(body: dict[str, Any]) -> int:
         'Content-Type': 'application/json',
         'User-Agent': 'shellui-hosting-email/1.0',
     }
+    request_id = request_id_var.get()
+    if request_id and request_id != '-':
+        headers['X-Request-ID'] = request_id
     timeout = float(getattr(settings, 'ACTIONS_WEBHOOK_TIMEOUT_SECONDS', 5.0))
     try:
         response = requests.post(

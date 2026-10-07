@@ -45,7 +45,7 @@ python manage.py approve_hosting_access 1
 python manage.py approve_hosting_access 1 --notes "Approved for the docs site"
 ```
 
-The command creates the row if needed. It prints a warning when the company is already approved. This is a manual step, not a cron job.
+The command creates the row if needed. It prints a warning when the company is already approved. This is a manual step, not a scheduled job.
 
 ## Local bypass
 

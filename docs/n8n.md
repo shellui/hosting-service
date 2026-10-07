@@ -166,7 +166,7 @@ function verifyShelluiWebhook({
 | 5xx, timeouts, connection errors | Retry |
 | 429 or 503 with `Retry-After` | Next attempt respects the header, max 1 hour |
 
-Backoff is `30s * 2^(n-1)`, capped at 1 hour, up to 8 attempts. Cron is `python manage.py retry_webhooks` every minute. See [Maintenance jobs](maintenance-jobs.md).
+Backoff is `30s * 2^(n-1)`, capped at 1 hour, up to 8 attempts. `python manage.py retry_webhooks` runs every minute. See [Scheduled jobs](maintenance-jobs.md).
 
 ## Self-hosted n8n on a private network
 

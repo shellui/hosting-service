@@ -16,7 +16,7 @@ It is a Django app, published as the `shellui/hosting-service` Docker image. It 
 
 ## Who it is for
 
-Use it when a Shellui app needs a published preview. Company owners deploy with the Shellui CLI. Staff decide which companies may host. Operators run the process, the database, and two cron jobs.
+Use it when a Shellui app needs a published preview. Company owners deploy with the Shellui CLI. Staff decide which companies may host. Operators run the process, the database, and Redis.
 
 Your product stays in the shell. hosting-service does not replace identity-service, storage-service, or email-service.
 
@@ -67,7 +67,7 @@ The event log keeps those events, including the acting user, for `EVENT_LOG_RETE
 
 Copy [`.env.example`](../.env.example) to `.env`, point `IDENTITY_SERVICE_URL` at identity-service, and run migrations. Docker Compose is the local path in [Run hosting-service](getting-started.md).
 
-The container runs database migrations, then Gunicorn. It does not run Celery, and it does not schedule jobs. You run `retry_webhooks` every minute and `purge_expired_data` every hour. Redis is optional. Set `REDIS_URL` when more than one Gunicorn worker must share rate-limit counters.
+The container runs database migrations, then Gunicorn and a Celery worker with beat. `retry_webhooks` runs every minute. `purge_expired_data` runs every hour at minute 17. Redis is required when `DEBUG=false` (`REDIS_URL`). With `DEBUG=true` and no Redis, the web app still starts and the scheduler stays off. See [Scheduled jobs](maintenance-jobs.md).
 
 ## Where to go next
 
@@ -85,7 +85,7 @@ Pick the row that matches what you are doing:
 | Forward an event to email-service | [Email notifications](email.md) |
 | Read past hosting events | [Event log](event-log.md) |
 | Lock down a production install | [Security hardening](security-hardening.md) |
-| Schedule retries and retention | [Maintenance jobs](maintenance-jobs.md) |
+| See how retries and retention run | [Scheduled jobs](maintenance-jobs.md) |
 | Browse the HTTP API | [API reference](api.md) |
 
 Source and the changelog are on [GitHub](https://github.com/shellui/hosting-service). These pages are built from `docs/` by [shellui/shellui](https://github.com/shellui/shellui) and published on [docs.shellui.com](https://docs.shellui.com) at `docs.shellui.com/hosting`.

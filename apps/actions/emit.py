@@ -30,6 +30,8 @@ def emit_event(
     Returns webhook rows only.
     """
     event = get_event_type(event_type)
+    if getattr(event, 'staff_only', False):
+        raise ValueError(f'Staff-only event is not emitted through webhook rules: {event_type}')
     if not event.emit_by_default and not force:
         return []
 

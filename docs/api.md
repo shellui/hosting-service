@@ -34,6 +34,7 @@ Paths below are relative to the apex host, for example `http://localhost:8002`. 
 | Stats | `GET /hosting/v1/stats` |
 | Metrics | `GET /hosting/v1/metrics`, `GET /hosting/v1/metrics/all` |
 | Shellui Actions | `/api/v1/actions/events`, `/rules`, `/deliveries` |
+| Scheduled jobs | `GET /api/v1/scheduled-jobs` (staff) |
 | Event log | `GET /api/v1/actions/event-log` |
 
 `{app_ref}` is an app UUID, a company-scoped name, or a public slug. `{id}` on a deployment is a UUID.
@@ -45,8 +46,9 @@ Company members with `company_id` in the token can list and deploy their company
 | Route | Who |
 | --- | --- |
 | `GET /hosting/v1/stats` | The caller's company. Staff may omit the company and receive every company |
-| `GET /hosting/v1/metrics` | Staff or a company owner. Company id comes from the token. A `company_id` query parameter is 400 |
-| `GET /hosting/v1/metrics/all` | Staff, or a personal access token with the `pat_agm` claim |
+| `GET /hosting/v1/metrics` | Staff or a company owner. Company id comes from the token. A `company_id` query parameter is 400. Scheduled-job series are not included |
+| `GET /hosting/v1/metrics/all` | Staff, or a personal access token with the `pat_agm` claim. Includes `shellui_hosting_scheduled_job_*` and `shellui_hosting_scheduler_*` |
+| `/api/v1/scheduled-jobs` | Django staff. Company owners receive 403 |
 | `/api/v1/actions/*` | Staff, or a company owner scoped to the token `company_id` |
 
 Metrics responses are Prometheus text, not JSON. The gauge names start with `shellui_hosting_`.

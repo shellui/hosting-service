@@ -31,7 +31,7 @@ Cache-backed limits apply per authenticated user, then per client IP:
 
 Tune them with `HOSTING_RATE_LIMIT_DEPLOY`, `HOSTING_RATE_LIMIT_UPLOAD`, `HOSTING_RATE_LIMIT_DESTRUCTIVE`, and `HOSTING_RATE_LIMIT_ACCESS_REQUEST`. `HOSTING_RATE_LIMIT_ENABLED=false` turns the limits off. Leave them on in production.
 
-The cache is Redis when `REDIS_URL` is set, and an in-process cache otherwise. Docker defaults to `GUNICORN_WORKERS=2`, so set `REDIS_URL` (for example `redis://redis:6379/0`) or each worker counts separately. `manage.py check --deploy` emits `authapi.W001` in that case.
+The cache is Redis when `REDIS_URL` is set. When `DEBUG=false`, `REDIS_URL` is required: `manage.py check --deploy` reports `authapi.E004` and the container exits if it is missing. Docker defaults to `GUNICORN_WORKERS=2`. Without Redis, each worker would count rate limits on its own, which is why production does not start that way. `authapi.W001` is the same LocMem warning for a multi-worker process that has not reached the hard check.
 
 ## Waitlist bypass
 

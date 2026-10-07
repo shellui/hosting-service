@@ -103,8 +103,8 @@ The image defaults to `DEBUG=false`. It will not start until `IDENTITY_ISSUER`, 
 Before the first request, finish these steps:
 
 1. Set `POSTGRES_DATABASE_URL` if you do not want SQLite on the `/app/data` volume.
-2. Set `REDIS_URL` when `GUNICORN_WORKERS` is greater than 1, so rate limits are shared.
-3. Schedule `retry_webhooks` and `purge_expired_data`. The container does not run them. See [Maintenance jobs](maintenance-jobs.md).
+2. Set `REDIS_URL`. When `DEBUG=false` the container exits if it is unset. Redis is the shared rate-limit cache and the job broker.
+3. Leave `SCHEDULER_ENABLED` at its default (`true`) so the container runs `retry_webhooks` and `purge_expired_data`. Set it to `false` only when another process runs those commands. See [Scheduled jobs](maintenance-jobs.md).
 4. Put each preview origin on the identity OAuth redirect allowlist, or set `IDENTITY_SERVICE_URL` so hosting-service registers it during deploy.
 5. Run [tools/prod-config-check.sh](../tools/prod-config-check.sh) against the platform URL, for example `https://shellui.app`, not against a customer slug.
 

@@ -77,7 +77,7 @@ The Shellui Actions deliveries API lists webhook rows only. Email rows stay on t
 
 ## Retries
 
-`python manage.py retry_webhooks` retries email rows with webhook rows. The schedule is the one-minute cron in [Maintenance jobs](maintenance-jobs.md). Backoff is `30s * 2^(n-1)`, capped at 1 hour, for 8 attempts. HTTP timeout is `ACTIONS_WEBHOOK_TIMEOUT_SECONDS` (default 5s).
+`python manage.py retry_webhooks` retries email rows with webhook rows. The in-container scheduler runs that command every minute. See [Scheduled jobs](maintenance-jobs.md). Backoff is `30s * 2^(n-1)`, capped at 1 hour, for 8 attempts. HTTP timeout is `ACTIONS_WEBHOOK_TIMEOUT_SECONDS` (default 5s).
 
 | Result | What hosting-service does |
 | --- | --- |
