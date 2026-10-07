@@ -37,11 +37,11 @@ Manual equivalents (if you are not using the script):
 
 ### 1. Version alignment
 
-Ensure these match the release version (e.g. `0.6.0`):
+Ensure these match the release version (e.g. `0.6.1`):
 
 - `version` in `pyproject.toml` (OpenAPI / API metadata via `config.settings.VERSION`)
 - `CHANGELOG.md` entry with date
-- Git tag `v0.6.0` (optional but recommended; not enforced by the script)
+- Git tag `v0.6.1` (optional but recommended; not enforced by the script)
 - CI green on the release commit (`.github/workflows/ci.yml` + pre-release workflow)
 
 ### 2. No secrets in the build context
@@ -76,11 +76,11 @@ docker login
 
 ### Tagging
 
-For semver release `0.6.0`, typical Docker Hub tags:
+For semver release `0.6.1`, typical Docker Hub tags:
 
 | Tag      | Purpose                                  |
 | -------- | ---------------------------------------- |
-| `0.6.0`  | Exact release (pin in production)        |
+| `0.6.1`  | Exact release (pin in production)        |
 | `0.6`    | Latest patch in the 0.6 line             |
 | `latest` | Newest published release (use with care) |
 
@@ -89,7 +89,7 @@ For semver release `0.6.0`, typical Docker Hub tags:
 From the repository root:
 
 ```bash
-VERSION=0.6.0
+VERSION=0.6.1
 IMAGE=shellui/hosting-service
 
 docker build -t "${IMAGE}:${VERSION}" .
@@ -107,7 +107,7 @@ docker push "${IMAGE}:latest"
 If you build on Apple Silicon, a plain `docker build` may produce `linux/arm64` only. Most cloud VMs expect `linux/amd64`. Publish both with buildx:
 
 ```bash
-VERSION=0.6.0
+VERSION=0.6.1
 IMAGE=shellui/hosting-service
 
 docker buildx create --use --name multi 2>/dev/null || docker buildx use multi
@@ -123,7 +123,7 @@ docker buildx build \
 ### Git tag (recommended)
 
 ```bash
-VERSION=0.6.0
+VERSION=0.6.1
 git tag -a "v${VERSION}" -m "Release ${VERSION}"
 git push origin "v${VERSION}"
 ```
@@ -145,7 +145,7 @@ docker run -d \
   -e HOSTING_APP_DOMAIN='shellui.app' \
   -e IDENTITY_JWKS='{"keys":[...]}' \
   -e REDIS_URL='redis://redis:6379/0' \
-  shellui/hosting-service:0.6.0
+  shellui/hosting-service:0.6.1
 ```
 
 The entrypoint runs migrations on start, then starts **Gunicorn** (`config.wsgi:application`) and the in-container scheduler as user `appuser`. `REDIS_URL` is required when `DEBUG` is false. Env vars `GUNICORN_WORKERS` (default `2`), `GUNICORN_THREADS` (default `2`), and `GUNICORN_TIMEOUT` (default `120`) are passed through.

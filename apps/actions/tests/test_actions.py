@@ -3,7 +3,9 @@ from datetime import timedelta
 from unittest.mock import patch
 
 from django.core.management import call_command
+from django.db import connection
 from django.test import TestCase, override_settings
+from django.test.utils import CaptureQueriesContext
 from django.utils import timezone
 
 from apps.actions.delivery import backoff_seconds, claim_next_pending_outbox, deliver_outbox_row
@@ -310,6 +312,50 @@ class RetryCommandTests(TestCase):
         claimed = claim_next_pending_outbox()
         self.assertIsNotNone(claimed)
         self.assertEqual(claimed.pk, row.pk)
+
+
+class NullableActionRuleLockTests(TestCase):
+    """Email rows have no action rule. Postgres rejects FOR UPDATE on that outer join."""
+
+    def _assert_locks_outbox_only(self, queries, *, skip_locked):
+        if connection.vendor != 'postgresql':
+            return
+        locked = [query['sql'] for query in queries if 'FOR UPDATE' in query['sql']]
+        joined = [sql for sql in locked if 'JOIN' in sql]
+        self.assertEqual(len(joined), 1, locked)
+        sql = joined[0]
+        outbox = connection.ops.quote_name(ActionOutbox._meta.db_table)
+        rule = connection.ops.quote_name(ActionRule._meta.db_table)
+        self.assertIn(f'FOR UPDATE OF {outbox}', sql)
+        self.assertNotIn(rule, sql.split('FOR UPDATE', 1)[1])
+        if skip_locked:
+            self.assertIn('SKIP LOCKED', sql)
+        else:
+            self.assertNotIn('SKIP LOCKED', sql)
+
+    def test_claim_and_deliver_email_row_without_action_rule(self):
+        row = ActionOutbox.objects.create(
+            company_id=3,
+            delivery_kind=ActionOutbox.KIND_EMAIL,
+            event_type='hosting.deployment.failed',
+            envelope={'id': 'email-1', 'type': 'hosting.deployment.failed', 'data': {}},
+            status=ActionOutbox.STATUS_PENDING,
+        )
+        with CaptureQueriesContext(connection) as claimed_queries:
+            claimed = claim_next_pending_outbox()
+        self.assertIsNotNone(claimed)
+        self.assertEqual(claimed.pk, row.pk)
+        self.assertIsNone(claimed.action_rule_id)
+        self.assertIsNotNone(claimed.locked_until)
+        self._assert_locks_outbox_only(claimed_queries.captured_queries, skip_locked=True)
+
+        with patch('apps.actions.delivery.post_email_event', return_value=202) as post_email:
+            with CaptureQueriesContext(connection) as delivered_queries:
+                delivered = deliver_outbox_row(row.pk)
+        post_email.assert_called_once()
+        self.assertEqual(delivered.status, ActionOutbox.STATUS_DELIVERED)
+        self.assertIsNone(delivered.locked_until)
+        self._assert_locks_outbox_only(delivered_queries.captured_queries, skip_locked=False)
 
 
 class WebhookSigningTests(TestCase):

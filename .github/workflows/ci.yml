@@ -60,6 +60,52 @@ jobs:
       - name: Run tests
         run: uv run python manage.py test --verbosity=1
 
+  test-postgres:
+    name: Actions tests (Postgres)
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: hosting
+          POSTGRES_PASSWORD: hosting
+          POSTGRES_DB: hosting
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U hosting -d hosting"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      SECRET_KEY: ci-only-not-for-production-0123456789abcdef
+      DEBUG: 'true'
+      HOSTING_BACKEND: filesystem
+      IDENTITY_JWKS_URL: http://localhost:8000/.well-known/jwks.json
+      HOSTING_APP_DOMAIN: shellui.local
+      POSTGRES_DATABASE_URL: postgres://hosting:hosting@localhost:5432/hosting
+      POSTGRES_SSL_REQUIRE: 'false'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
+        with:
+          version: '0.12.1'
+          python-version: '3.14'
+          enable-cache: true
+          cache-dependency-glob: 'uv.lock'
+
+      - name: Sync dependencies
+        run: uv sync --frozen --no-dev
+
+      - name: Verify lockfile
+        run: uv lock --check
+
+      - name: Run actions tests
+        run: uv run python manage.py test apps.actions.tests.test_actions.NullableActionRuleLockTests --verbosity=1
+
   security:
     name: Security & hygiene
     runs-on: ubuntu-latest

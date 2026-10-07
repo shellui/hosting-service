@@ -245,7 +245,8 @@ def deliver_outbox_row(
     correlation = {'trigger': trigger, 'scheduled_job_run_id': scheduled_job_run_id}
     with transaction.atomic():
         row = (
-            ActionOutbox.objects.select_for_update()
+            # action_rule is nullable. Lock only this row so Postgres accepts the outer join.
+            ActionOutbox.objects.select_for_update(of=('self',))
             .select_related('action_rule')
             .filter(pk=outbox_id)
             .first()
@@ -341,7 +342,7 @@ def claim_next_pending_outbox(*, now=None) -> ActionOutbox | None:
     with transaction.atomic():
         row = (
             _pending_outbox_filter(now)
-            .select_for_update(skip_locked=True)
+            .select_for_update(skip_locked=True, of=('self',))
             .select_related('action_rule')
             .order_by('next_attempt_at', 'created_at')
             .first()

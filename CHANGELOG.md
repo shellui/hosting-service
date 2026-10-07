@@ -21,6 +21,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 See for sample https://raw.githubusercontent.com/favoloso/conventional-changelog-emoji/master/CHANGELOG.md
 -->
 
+## [0.6.1] - 2026-10-07
+
+### 🐛 Bug Fixes
+
+- Scheduled `retry_webhooks` locks only the outbox row, so email deliveries with no action rule succeed on Postgres.
+
 ## [0.6.0] - 2026-10-07
 
 ### ✨ Feature
