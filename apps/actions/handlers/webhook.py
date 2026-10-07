@@ -5,6 +5,7 @@ import time
 from django.conf import settings
 
 from apps.actions.webhook_retry import is_permanent_http_status
+from config.request_context import request_id_var
 from apps.actions.webhook_signing import encode_webhook_envelope, sign_webhook_body
 from apps.actions.webhook_transport import WebhookHTTPError, post_webhook_url
 
@@ -62,6 +63,9 @@ def deliver_webhook_action(
     auth_header = (config.get('authorization_header') or '').strip()
     if auth_header:
         headers['Authorization'] = auth_header
+    request_id = request_id_var.get()
+    if request_id and request_id != '-':
+        headers['X-Request-ID'] = request_id
 
     timeout = float(getattr(settings, 'ACTIONS_WEBHOOK_TIMEOUT_SECONDS', 5.0))
     started = time.monotonic()

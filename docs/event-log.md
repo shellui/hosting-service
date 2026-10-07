@@ -6,7 +6,7 @@ description: The EventLog table for every hosting event, how long rows are kept,
 
 hosting-service records every [catalog event](actions.md#event-catalog) in one table, `EventLog`, whether or not a webhook rule exists for it. Django admin shows the rows under **Hosting > Log events**.
 
-The same events can also be delivered as [webhooks](actions.md). Retention for both is one cron job, described in [Maintenance jobs](maintenance-jobs.md).
+The same events can also be delivered as [webhooks](actions.md). Retention for both is the hourly purge in [Scheduled jobs](maintenance-jobs.md).
 
 ## Row format
 
@@ -37,13 +37,7 @@ python manage.py purge_expired_data --dry-run
 python manage.py purge_expired_data --max-seconds 300
 ```
 
-`--dry-run` counts rows and deletes nothing. `--max-seconds 300` stops after 300s. The next run continues.
-
-```cron
-17 * * * * cd /app && python manage.py purge_expired_data --max-seconds 300 >> /var/log/purge_expired_data.log 2>&1
-```
-
-The container does not run this command. If events older than the retention plus one day are still stored, the job is not running. The admin dashboard and **Hosting > Log events** then show an error that asks you to configure it.
+`--dry-run` counts rows and deletes nothing. `--max-seconds 300` stops after 300s. The next run continues. The container runs this every hour at minute 17. If events older than the retention plus one day are still stored, the job is not running. The admin dashboard and **Hosting > Log events** then show an error that asks you to check it. See [Scheduled jobs](maintenance-jobs.md).
 
 ## Admin API
 
@@ -98,4 +92,4 @@ Rows have the same shape as identity-service `GET /api/v1/events`:
 ## Related
 
 - [Webhooks](actions.md)
-- [Maintenance jobs](maintenance-jobs.md)
+- [Scheduled jobs](maintenance-jobs.md)

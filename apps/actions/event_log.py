@@ -30,13 +30,14 @@ def _actor_user_id(actor: dict[str, Any] | None) -> int | None:
 
 def record_event(
     event_type: str,
-    company_id: int,
+    company_id: int | None,
     payload: dict[str, Any],
     *,
     actor: dict[str, Any] | None = None,
 ) -> EventLog:
+    """Insert one log row. ``company_id`` is null for staff-only platform events."""
     return EventLog.objects.create(
-        company_id=int(company_id),
+        company_id=None if company_id is None else int(company_id),
         user_id=_actor_user_id(actor),
         event_type=event_type,
         data=compact_event_data(payload, actor),

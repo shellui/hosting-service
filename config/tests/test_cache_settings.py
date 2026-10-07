@@ -1,7 +1,8 @@
 from django.conf import settings
+from django.core.checks import run_checks
 from django.test import SimpleTestCase, override_settings
 
-from apps.authapi.checks import shared_cache_recommended_for_multi_worker
+from apps.authapi.checks import redis_required_in_production, shared_cache_recommended_for_multi_worker
 from config.settings import _caches_config
 
 
@@ -64,3 +65,36 @@ class SharedCacheDeployCheckTests(SimpleTestCase):
             else:
                 os.environ['GUNICORN_WORKERS'] = prev
         self.assertEqual(warnings, [])
+
+
+class RedisRequiredInProductionTests(SimpleTestCase):
+    @override_settings(DEBUG=False, REDIS_URL='')
+    def test_blank_url_is_an_error(self):
+        errors = redis_required_in_production(None)
+        self.assertEqual(len(errors), 1)
+        self.assertEqual(errors[0].id, 'authapi.E004')
+        self.assertIn('REDIS_URL is required when DEBUG is false', errors[0].msg)
+
+    @override_settings(DEBUG=False, REDIS_URL='   ', SCHEDULER_ENABLED=False)
+    def test_required_when_scheduler_is_disabled(self):
+        errors = redis_required_in_production(None)
+        self.assertEqual([e.id for e in errors], ['authapi.E004'])
+
+    @override_settings(DEBUG=False, REDIS_URL='', CELERY_BROKER_URL='redis://broker:6379/1')
+    def test_celery_broker_url_does_not_replace_redis_url(self):
+        errors = redis_required_in_production(None)
+        self.assertEqual([e.id for e in errors], ['authapi.E004'])
+
+    @override_settings(DEBUG=False, REDIS_URL='redis://redis:6379/0')
+    def test_silent_when_redis_url_is_set(self):
+        self.assertEqual(redis_required_in_production(None), [])
+
+    @override_settings(DEBUG=True, REDIS_URL='')
+    def test_silent_when_debug(self):
+        self.assertEqual(redis_required_in_production(None), [])
+
+    @override_settings(DEBUG=False, REDIS_URL='')
+    def test_deploy_check_only(self):
+        self.assertFalse(any(e.id == 'authapi.E004' for e in run_checks()))
+        deployed = run_checks(include_deployment_checks=True)
+        self.assertTrue(any(e.id == 'authapi.E004' for e in deployed))

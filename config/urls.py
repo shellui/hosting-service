@@ -15,6 +15,11 @@ from drf_spectacular.views import (
     SpectacularSwaggerView,
 )
 
+from apps.actions.scheduled_job_views import (
+    ScheduledJobRunDetailView,
+    ScheduledJobRunsView,
+    ScheduledJobsView,
+)
 from apps.hosting.serve import AppServeView
 
 from . import views
@@ -27,6 +32,18 @@ if getattr(settings, 'DJANGO_ADMIN_ENABLED', True):
     urlpatterns.append(path('admin/', admin.site.urls))
 urlpatterns.extend([
     path('api/v1/actions/', include('apps.actions.urls')),
+    # Detail before ``<job>/runs`` so ``runs/<id>`` is not parsed as a job name.
+    path('api/v1/scheduled-jobs', ScheduledJobsView.as_view(), name='scheduled-jobs'),
+    path(
+        'api/v1/scheduled-jobs/runs/<int:pk>',
+        ScheduledJobRunDetailView.as_view(),
+        name='scheduled-job-run',
+    ),
+    path(
+        'api/v1/scheduled-jobs/<str:job>/runs',
+        ScheduledJobRunsView.as_view(),
+        name='scheduled-job-runs',
+    ),
     path('hosting/v1/', include('apps.hosting.urls')),
     path('api/schema/', SpectacularAPIView.as_view(), name='schema'),
     path(

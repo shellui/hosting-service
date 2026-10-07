@@ -260,24 +260,13 @@ Data persists in named volume `hosting-service-data` (`/app/data` in the contain
 
 Runtime env vars (see `.env.example`):
 
-- `REDIS_URL` (optional; when set, Django uses Redis for shared cache for hosting rate limits). Unset uses in-process LocMem (single Gunicorn worker or local dev only; with multiple workers each process has its own cache)
+- `REDIS_URL` (required when `DEBUG=false`; shared cache for rate limits and the job broker). Example: `redis://redis:6379/0`. With `DEBUG=true`, unset keeps the in-process cache and leaves the scheduler off
+- `SCHEDULER_ENABLED` (default `true`; `false` keeps the Celery worker out of this container)
 - `GUNICORN_WORKERS` (default `2`)
 - `GUNICORN_THREADS` (default `2`)
 - `GUNICORN_TIMEOUT` (default `120`)
 
-Schedule Shellui Actions webhook retries (every minute) in production, for example:
-
-```cron
-* * * * * cd /app && python manage.py retry_webhooks >> /var/log/retry_webhooks.log 2>&1
-```
-
-Use your orchestrator's cron or a sidecar that execs into the hosting-service container with the same command.
-
-Every hosting event is also stored in an event log, kept for `EVENT_LOG_RETENTION_DAYS` (default 7). Schedule the purge every hour (see [docs/event-log.md](docs/event-log.md)):
-
-```cron
-17 * * * * cd /app && python manage.py purge_expired_data --max-seconds 300 >> /var/log/purge_expired_data.log 2>&1
-```
+The image runs `retry_webhooks` every minute and `purge_expired_data` every hour at minute 17. See [docs/maintenance-jobs.md](docs/maintenance-jobs.md).
 
 ## License
 

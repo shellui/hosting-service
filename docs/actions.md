@@ -17,9 +17,9 @@ Domain code calls `emit_event` inside the database transaction that changed the 
 3. After commit, a background thread POSTs the envelope. The API response does not wait for your server.
 4. Each try is stored as a delivery attempt. Further tries come from `manage.py retry_webhooks`.
 
-Delivery does not need Celery or Redis. The default HTTP timeout is 5s (`ACTIONS_WEBHOOK_TIMEOUT_SECONDS`). Delivery is at-least-once. Retries reuse the envelope `id`, which is also the `webhook-id` header. Dedupe on that value.
+The first POST runs in a background thread after commit. Later attempts are the scheduled job in [Scheduled jobs](maintenance-jobs.md). The default HTTP timeout is 5s (`ACTIONS_WEBHOOK_TIMEOUT_SECONDS`). Delivery is at-least-once. Retries reuse the envelope `id`, which is also the `webhook-id` header. Dedupe on that value.
 
-The n8n setup, including a signature check, is in [n8n](n8n.md). Scheduling the retry command is in [Maintenance jobs](maintenance-jobs.md).
+The n8n setup, including a signature check, is in [n8n](n8n.md). The retry schedule is in [Scheduled jobs](maintenance-jobs.md).
 
 ## Event catalog
 
@@ -83,12 +83,6 @@ Backoff is `30s * 2^(n-1)`, capped at 1 hour, with at most 8 attempts (`ACTIONS_
 python manage.py retry_webhooks --batch-size 50 --max-seconds 50 --concurrency 4
 ```
 
-Example cron, every minute:
-
-```cron
-* * * * * cd /app && python manage.py retry_webhooks >> /var/log/retry_webhooks.log 2>&1
-```
-
-Run that command from cron, a sidecar, or your platform scheduler. The hosting-service container does not run it for you. Delivered and dead deliveries are deleted after `EVENT_LOG_RETENTION_DAYS` by `purge_expired_data`. See [Maintenance jobs](maintenance-jobs.md).
+The container runs that command every minute. Delivered and dead deliveries are deleted after `EVENT_LOG_RETENTION_DAYS` by `purge_expired_data`. See [Scheduled jobs](maintenance-jobs.md).
 
 Webhook URLs that resolve to a private or loopback address are blocked unless the rule has **allow private URLs** (staff) or `ACTIONS_WEBHOOK_ALLOW_PRIVATE` is true. When that variable is unset, it follows `DEBUG`.

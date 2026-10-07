@@ -138,3 +138,34 @@ class HostingMetricsAPITests(TestCase):
         )
         self.assertEqual(response.status_code, 200)
         self.assertIn('shellui_hosting_apps_total', response.content.decode())
+
+    def test_company_metrics_exclude_scheduled_jobs_and_the_default_registry(self):
+        from prometheus_client import REGISTRY, Gauge
+
+        probe = Gauge('shellui_hosting_leak_probe', 'Must stay off company and global scrapes.')
+        probe.set(1)
+        self.addCleanup(REGISTRY.unregister, probe)
+        _seed_company(company_id=10, name='alpha', artifact_size=50)
+        _seed_company(company_id=11, name='beta', artifact_size=200)
+
+        response = self.client.get('/hosting/v1/metrics', **self._auth(is_company_owner=True))
+        text = response.content.decode()
+        self.assertEqual(response.status_code, 200)
+        self.assertNotIn('shellui_hosting_scheduled_job', text)
+        self.assertNotIn('shellui_hosting_scheduler', text)
+        self.assertNotIn('company_id="11"', text)
+        self.assertNotIn('shellui_hosting_leak_probe', text)
+
+    def test_global_metrics_include_scheduler_gauges(self):
+        from prometheus_client import REGISTRY, Gauge
+
+        probe = Gauge('shellui_hosting_global_leak_probe', 'Must stay off the global scrape.')
+        probe.set(1)
+        self.addCleanup(REGISTRY.unregister, probe)
+        response = self.client.get('/hosting/v1/metrics/all', **self._auth(is_staff=True))
+        text = response.content.decode()
+        self.assertEqual(response.status_code, 200)
+        self.assertIn('shellui_hosting_scheduler_enabled', text)
+        self.assertIn('shellui_hosting_scheduled_job_overdue', text)
+        self.assertNotIn('shellui_hosting_global_leak_probe', text)
+        self.assertNotIn('shellui_hosting_leak_probe', text)
