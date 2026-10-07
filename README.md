@@ -8,7 +8,7 @@ It authenticates with JWTs issued by [identity-service](https://github.com/shell
 
 The handbook is in [`docs/`](docs/index.md). It is published on [docs.shellui.com](https://docs.shellui.com) at `docs.shellui.com/hosting`.
 
-Start with the [overview](docs/index.md), then [Run hosting-service](docs/getting-started.md) and [Configuration](docs/configuration.md). Apps, preview URLs, company access, JWT claim trust, Shellui Actions webhooks, the event log, security, maintenance jobs, and the API each have a page in that sidebar.
+Start with the [overview](docs/index.md), then [Run hosting-service](docs/getting-started.md) and [Configuration](docs/configuration.md). Apps, preview URLs, company access, JWT claim trust, Shellui Actions webhooks, email notifications, the event log, security, maintenance jobs, and the API each have a page in that sidebar.
 
 Preview with live reload from a sibling checkout of [shellui/shellui](https://github.com/shellui/shellui). In `../shellui`, run `pnpm install`, then `DOCS_SERVICES=hosting pnpm docs:start`. The steps are in [Build the docs site](https://github.com/shellui/shellui/blob/main/docs/docs-site.md).
 
@@ -24,6 +24,7 @@ Preview with live reload from a sibling checkout of [shellui/shellui](https://gi
 - Prometheus metrics (`/hosting/v1/metrics`, `/hosting/v1/metrics/all`) for staff or company-owner JWT / PAT
 - Permissive API CORS by default (`CORS_ALLOW_ALL_ORIGINS=true`, `CORS_ALLOW_CREDENTIALS=false`); auth is Bearer JWT — hosted preview origins do not need CORS env entries
 - **Shellui Actions** webhooks on hosting domain events (`hosting.*`), admin REST API under `/api/v1/actions/`, retries via `manage.py retry_webhooks` — see [`docs/actions.md`](docs/actions.md) and [**n8n setup**](docs/n8n.md)
+- **Email notifications** for the same events, forwarded to email-service when `EMAIL_SERVICE_API_KEY` is set. See [`docs/email.md`](docs/email.md).
 - **Event log** of every hosting event with the acting user, purged after `EVENT_LOG_RETENTION_DAYS` — see [`docs/event-log.md`](docs/event-log.md)
 - Production security hardening: rate limits, HSTS/secure cookies, Postgres SSL, pinned JWKS — see [`docs/security-hardening.md`](docs/security-hardening.md) and [`docs/claim-trust.md`](docs/claim-trust.md)
 

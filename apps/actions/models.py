@@ -37,7 +37,7 @@ class ActionRule(models.Model):
     class Meta:
         ordering = ['company_id', 'event_type', 'name']
         indexes = [
-            models.Index(fields=['company_id', 'event_type', 'enabled']),
+            models.Index(fields=['company_id', 'event_type', 'enabled'], name='actions_act_company_8a1c2d_idx'),
         ]
 
     def __str__(self) -> str:
@@ -56,12 +56,27 @@ class ActionOutbox(models.Model):
         (STATUS_DEAD, 'Dead'),
     ]
 
+    KIND_WEBHOOK = 'webhook'
+    KIND_EMAIL = 'email'
+    KIND_CHOICES = [
+        (KIND_WEBHOOK, 'Webhook'),
+        (KIND_EMAIL, 'Email'),
+    ]
+
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     company_id = models.PositiveIntegerField(db_index=True)
     action_rule = models.ForeignKey(
         ActionRule,
         on_delete=models.CASCADE,
         related_name='outbox_rows',
+        null=True,
+        blank=True,
+    )
+    delivery_kind = models.CharField(
+        max_length=16,
+        choices=KIND_CHOICES,
+        default=KIND_WEBHOOK,
+        db_index=True,
     )
     event_type = models.CharField(max_length=128)
     envelope = models.JSONField()
@@ -84,11 +99,12 @@ class ActionOutbox(models.Model):
         verbose_name_plural = 'Action deliveries'
         ordering = ['-created_at']
         indexes = [
-            models.Index(fields=['status', 'next_attempt_at']),
+            models.Index(fields=['status', 'next_attempt_at'], name='actions_act_status_4f2b1a_idx'),
         ]
 
     def __str__(self) -> str:
-        return f'{self.event_type} → rule {self.action_rule_id} ({self.status})'
+        target = self.action_rule_id if self.action_rule_id else self.delivery_kind
+        return f'{self.event_type} → {target} ({self.status})'
 
 
 class DeliveryAttempt(models.Model):

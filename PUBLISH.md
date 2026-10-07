@@ -196,6 +196,8 @@ Create the first Django superuser with `python manage.py createsuperuser` inside
 | `DJANGO_ADMIN_ENABLED` | Set `false` to disable `/admin/` when unused |
 | `POSTGRES_SSL_REQUIRE` | Default `true` when `DEBUG=false`; set `false` for internal Postgres without TLS |
 | `IDENTITY_SERVICE_URL` | Enables OAuth redirect sync for preview origins on identity-service |
+| `EMAIL_SERVICE_URL` | email-service origin. Default `https://email.shellui.com` |
+| `EMAIL_SERVICE_API_KEY` | Service key for event forwarding. Unset disables it |
 | `ROOT_REDIRECT_URL` | Optional 301 for apex `/` |
 | `SETUP_TOKEN` | One-time token for web superuser bootstrap when `DEBUG=false` (`/?setup_token=<token>`) |
 | `POSTGRES_DATABASE_URL` | Use Postgres instead of SQLite |

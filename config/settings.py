@@ -206,6 +206,12 @@ ACTIONS_WEBHOOK_ALLOW_PRIVATE = _env_bool('ACTIONS_WEBHOOK_ALLOW_PRIVATE', DEBUG
 # Days kept in the event log and webhook delivery history; `manage.py purge_expired_data` deletes older rows.
 EVENT_LOG_RETENTION_DAYS = _env_int('EVENT_LOG_RETENTION_DAYS', 7)
 
+# email-service event ingest. An empty API key disables forwarding (nothing is sent).
+EMAIL_SERVICE_URL = (
+    os.getenv('EMAIL_SERVICE_URL', 'https://email.shellui.com').strip().rstrip('/') or 'https://email.shellui.com'
+)
+EMAIL_SERVICE_API_KEY = os.getenv('EMAIL_SERVICE_API_KEY', '').strip()
+
 REST_FRAMEWORK = {
     'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
     'DEFAULT_AUTHENTICATION_CLASSES': [

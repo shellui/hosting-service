@@ -6,7 +6,7 @@ description: Shellui Actions webhook rules for hosting events, the admin API, si
 
 Company owners and staff can POST a signed JSON body to an HTTPS endpoint when a hosting event happens. Each Shellui Actions rule maps one catalog event, such as `hosting.deployment.succeeded`, to one webhook URL.
 
-hosting-service delivers those webhooks itself. There is no central actions service and no message bus.
+hosting-service delivers those webhooks itself. There is no central actions service and no message bus. When `EMAIL_SERVICE_API_KEY` is set, the same event is also forwarded to email-service. That forward is not a webhook rule. See [Email notifications](email.md).
 
 ## How a delivery runs
 

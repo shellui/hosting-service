@@ -12,7 +12,7 @@ Run the commands with the same environment as the web process: same database, sa
 
 ## Retry webhook deliveries
 
-`retry_webhooks` sends outbox rows that are due. The first attempt already ran after the database commit. This command covers later attempts. Backoff and which HTTP statuses are retried are in [Webhooks](actions.md).
+`retry_webhooks` sends outbox rows that are due. The first attempt already ran after the database commit. This command covers later attempts, for webhook rules and for the email-service forward. Backoff and which HTTP statuses are retried are in [Webhooks](actions.md) and [Email notifications](email.md).
 
 Run it every minute:
 
@@ -35,7 +35,7 @@ Keep `--max-seconds` under the cron interval so two runs do not pile up. A row s
 
 ## Purge the event log and old deliveries
 
-`purge_expired_data` deletes event-log rows older than `EVENT_LOG_RETENTION_DAYS` (default 7). It also deletes webhook deliveries that are already delivered or dead and older than that window. Pending deliveries are kept.
+`purge_expired_data` deletes event-log rows older than `EVENT_LOG_RETENTION_DAYS` (default 7). It also deletes webhook and email deliveries that are already delivered or dead and older than that window. Pending deliveries are kept.
 
 Run it every hour:
 

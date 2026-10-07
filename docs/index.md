@@ -34,7 +34,7 @@ identity-service signs people in and issues the Bearer JWT you send on API calls
 
 storage-service is a separate file API. Deployment archives stay in the hosting filesystem or in the hosting bucket. hosting-service does not call storage-service.
 
-hosting-service does not send email. Company owners attach HTTPS endpoints with Shellui Actions webhooks, and every hosting event is stored in the event log. Mail stays with email-service and identity-service.
+hosting-service does not compose mail. When `EMAIL_SERVICE_API_KEY` is set, each hosting event is forwarded to email-service, and a company rule there decides whether to send. Company owners can also attach an HTTPS endpoint with a Shellui Actions webhook. Every event is stored in the event log.
 
 ## Deploy and browse flow
 
@@ -59,7 +59,9 @@ Routine API calls use `company_id` from the JWT, so you only see that company's 
 
 Creating or deleting an app, and creating, finishing, or failing a deployment, writes an event. Matching Shellui Actions webhook rules receive a signed POST. Delivery is at-least-once. `manage.py retry_webhooks` retries failures. There is no separate actions service.
 
-The event log keeps those events, including the acting user, for `EVENT_LOG_RETENTION_DAYS` (default 7). hosting-service does not email anyone when they happen.
+The same command retries the email-service forward. That body never includes a sign-in link or a token. Webhook envelopes stay the original event data. See [Email notifications](email.md).
+
+The event log keeps those events, including the acting user, for `EVENT_LOG_RETENTION_DAYS` (default 7).
 
 ## Configure and run
 
@@ -80,6 +82,7 @@ Pick the row that matches what you are doing:
 | Approve a company | [Company access](company-access.md) |
 | See which JWT claims are trusted | [JWT and claim trust](claim-trust.md) |
 | Call an HTTPS endpoint on deploy | [Webhooks](actions.md) and [n8n](n8n.md) |
+| Forward an event to email-service | [Email notifications](email.md) |
 | Read past hosting events | [Event log](event-log.md) |
 | Lock down a production install | [Security hardening](security-hardening.md) |
 | Schedule retries and retention | [Maintenance jobs](maintenance-jobs.md) |

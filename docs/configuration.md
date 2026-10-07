@@ -171,11 +171,20 @@ Webhooks do not need Redis. These variables tune delivery. The catalog and the a
 | `ACTIONS_WEBHOOK_SYNC_DELIVERY` | `false` | Deliver inside the request. Leave `false` outside tests |
 | `ACTIONS_WEBHOOK_ALLOW_PRIVATE` | same as `DEBUG` | Allow webhook URLs that resolve to private or loopback addresses |
 
+## Email notifications
+
+Set `EMAIL_SERVICE_API_KEY` to forward hosting events to email-service. An empty key sends nothing. The email body never includes a sign-in link or a token. Webhook delivery is unchanged. See [Email notifications](email.md).
+
+| Variable | Default | Purpose |
+| --- | --- | --- |
+| `EMAIL_SERVICE_URL` | `https://email.shellui.com` | Origin only. hosting-service appends `/api/v1/events` |
+| `EMAIL_SERVICE_API_KEY` | empty | Service key (`esk_`). Empty disables forwarding |
+
 ## Event log
 
 | Variable | Default | Purpose |
 | --- | --- | --- |
-| `EVENT_LOG_RETENTION_DAYS` | `7` | Days to keep event-log rows and finished webhook deliveries |
+| `EVENT_LOG_RETENTION_DAYS` | `7` | Days to keep event-log rows and finished webhook and email deliveries |
 
 `manage.py purge_expired_data` deletes older rows. Nothing in the container runs that command. See [Event log](event-log.md) and [Maintenance jobs](maintenance-jobs.md).
 

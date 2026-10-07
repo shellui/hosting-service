@@ -41,6 +41,9 @@ const sidebars = {
       doc('n8n', 'n8n'),
       doc('event-log', 'Event log'),
     ]),
+    category('Email', [
+      doc('email', 'Email notifications'),
+    ]),
     category('Operations', [
       doc('security-hardening', 'Security hardening'),
       doc('maintenance-jobs', 'Maintenance jobs'),
