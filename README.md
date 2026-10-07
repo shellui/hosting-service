@@ -4,6 +4,14 @@
 
 It authenticates with JWTs issued by [identity-service](https://github.com/shellui/identity-service), stores deployment tarballs in **S3** (or local filesystem), extracts them for browsing, and manages company access waitlists, app slugs, and deployments.
 
+## Documentation
+
+The handbook is in [`docs/`](docs/index.md). It is published on [docs.shellui.com](https://docs.shellui.com) at `docs.shellui.com/hosting`.
+
+Start with the [overview](docs/index.md), then [Run hosting-service](docs/getting-started.md) and [Configuration](docs/configuration.md). Apps, preview URLs, company access, JWT claim trust, Shellui Actions webhooks, email notifications, the event log, security, maintenance jobs, and the API each have a page in that sidebar.
+
+Preview with live reload from a sibling checkout of [shellui/shellui](https://github.com/shellui/shellui). In `../shellui`, run `pnpm install`, then `DOCS_SERVICES=hosting pnpm docs:start`. The steps are in [Build the docs site](https://github.com/shellui/shellui/blob/main/docs/docs-site.md).
+
 ## Features
 
 - REST API under `/hosting/v1/*` for access, apps, deployments, stats, and metrics
@@ -193,7 +201,7 @@ Deployment artifacts are stored at `{slug}/deployments/{id}/artifact.tar.gz` and
 uv run python manage.py test
 ```
 
-Pull requests and pushes to `main` / `develop` run [`.github/workflows/ci.yml`](.github/workflows/ci.yml): Django tests, lockfile check, dependency audit (`pip-audit`), secret scan (gitleaks), markdown link check (lychee), and a Docker image build.
+Pull requests and pushes to `main` / `develop` run [`.github/workflows/ci.yml`](.github/workflows/ci.yml): Django tests, lockfile check, dependency audit (`pip-audit`), secret scan (gitleaks), markdown link check (lychee), a docs build against [shellui/shellui](https://github.com/shellui/shellui), and a Docker image build.
 
 Pull requests **to `main`** also run the pre-release checklist ([`.github/workflows/pre-release.yml`](.github/workflows/pre-release.yml)) — same checks as:
 

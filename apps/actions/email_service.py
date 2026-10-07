@@ -8,6 +8,7 @@ An empty API key means no forwarding.
 from __future__ import annotations
 
 import logging
+import re
 from typing import Any
 
 import requests
@@ -20,6 +21,26 @@ logger = logging.getLogger(__name__)
 
 SERVICE_NAME = 'hosting'
 EVENTS_PATH = '/api/v1/events'
+
+# Identity strips these before a webhook or an email post. Hosting webhooks keep
+# the original payload (same as storage-service). Only the email body drops them.
+_SENSITIVE_KEYS = frozenset({
+    'magic_link',
+    'magic_link_url',
+    'token',
+    'raw_token',
+    'access_token',
+    'refresh_token',
+    'id_token',
+    'sign_in_url',
+    'sign_in_link',
+    'signin_url',
+    'signin_link',
+})
+_SIGN_IN_URL = re.compile(
+    r'magic[-_]link|/sign-?in(?:[/?#]|$)|[?&#]token=',
+    re.IGNORECASE,
+)
 
 
 class EmailDeliveryError(Exception):
@@ -86,6 +107,54 @@ def recipient_hints(actor: dict[str, Any] | None) -> list[dict[str, Any]]:
     return [hint]
 
 
+def _sensitive_key(key: str) -> bool:
+    name = str(key).strip().lower().replace('-', '_')
+    return name in _SENSITIVE_KEYS or name.endswith('_token') or name.endswith('_tokens')
+
+
+def _sensitive_string(value: str) -> bool:
+    """True when a string is a sign-in URL or carries a token query parameter."""
+    if '://' not in value:
+        return False
+    return _SIGN_IN_URL.search(value) is not None
+
+
+def email_event_payload(payload: dict[str, Any] | None) -> dict[str, Any]:
+    """Event data for email-service. Sign-in links and tokens are omitted."""
+    return _without_secrets(payload or {})
+
+
+def _without_secrets(value: Any) -> Any:
+    if isinstance(value, dict):
+        cleaned: dict[str, Any] = {}
+        for key, item in value.items():
+            if _sensitive_key(str(key)):
+                continue
+            kept = _without_secrets(item)
+            if kept is _DROP:
+                continue
+            cleaned[str(key)] = kept
+        return cleaned
+    if isinstance(value, list):
+        items = []
+        for item in value:
+            kept = _without_secrets(item)
+            if kept is _DROP:
+                continue
+            items.append(kept)
+        return items
+    if isinstance(value, str) and _sensitive_string(value):
+        return _DROP
+    return value
+
+
+class _Drop:
+    """Sentinel for a string that must not appear in the email body."""
+
+
+_DROP = _Drop()
+
+
 def build_event_body(
     *,
     event_type: str,
@@ -100,7 +169,7 @@ def build_event_body(
         'event_type': event_type,
         'company_id': int(company_id),
         'idempotency_key': idempotency_key,
-        'payload': dict(payload or {}),
+        'payload': email_event_payload(payload),
         'recipients': recipient_hints(actor),
     }
 

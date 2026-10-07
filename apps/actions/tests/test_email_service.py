@@ -82,6 +82,54 @@ class EmailForwardingTests(TestCase):
         self.assertEqual(body['idempotency_key'], row.envelope['idempotency_key'])
         self.assertNotIn(API_KEY, str(body))
 
+    @patch('apps.actions.handlers.webhook.post_webhook_url')
+    @patch('apps.actions.email_service.requests.post', return_value=_Response(202, '{"messages":[]}'))
+    def test_email_omits_sign_in_links_and_tokens(self, mock_post, mock_webhook):
+        from apps.actions.webhook_transport import WebhookPostResult
+
+        mock_webhook.return_value = WebhookPostResult(status=200, excerpt='')
+        sign_in = 'https://id.shellui.com/api/v1/magic-link/verify?token=example'
+        payload = {
+            **_failed_payload(),
+            'magic_link_url': sign_in,
+            'token': 'raw-secret',
+            'raw_token': 'raw-secret',
+            'access_token': 'jwt-example',
+            'note': sign_in,
+            'meta': {'refresh_token': 'refresh-example', 'display_name': 'My App'},
+        }
+        ActionRule.objects.create(
+            company_id=self.company_id,
+            name='Hook',
+            event_type='hosting.deployment.failed',
+            action_kind=ActionRule.ACTION_WEBHOOK,
+            config={'url': 'https://example.com/hook', 'secret': 'plain-secret'},
+        )
+        with self.captureOnCommitCallbacks(execute=True):
+            rows = emit_event(
+                'hosting.deployment.failed',
+                self.company_id,
+                payload,
+                actor={**self.actor, 'token': 'actor-token', 'magic_link_url': sign_in},
+            )
+        self.assertEqual(len(rows), 1)
+        webhook = ActionOutbox.objects.get(delivery_kind=ActionOutbox.KIND_WEBHOOK)
+        self.assertEqual(webhook.envelope['data']['magic_link_url'], sign_in)
+        self.assertEqual(webhook.envelope['data']['token'], 'raw-secret')
+        self.assertEqual(webhook.envelope['data']['meta']['refresh_token'], 'refresh-example')
+        mock_webhook.assert_called_once()
+
+        body = mock_post.call_args.kwargs['json']
+        rendered = str(body)
+        self.assertEqual(body['payload']['display_name'], 'My App')
+        self.assertEqual(body['payload']['error'], 'artifact_extract_failed')
+        self.assertEqual(body['payload']['meta'], {'display_name': 'My App'})
+        for secret in (sign_in, 'raw-secret', 'jwt-example', 'refresh-example', 'actor-token', 'token='):
+            self.assertNotIn(secret, rendered)
+        posted = mock_webhook.call_args.kwargs['body']
+        self.assertIn(b'magic_link_url', posted)
+        self.assertIn(b'raw-secret', posted)
+
     @patch('apps.actions.email_service.requests.post', return_value=_Response(202))
     def test_does_not_post_before_commit(self, mock_post):
         with self.captureOnCommitCallbacks(execute=False):

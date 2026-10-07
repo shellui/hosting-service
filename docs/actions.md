@@ -1,54 +1,39 @@
-# Shellui Actions (hosting webhooks)
-
-Company owners (and staff) can react when hosting events happen using **webhook Shellui Action rules** in the **Shellui admin API**. Each rule maps a **catalog event type** (for example `hosting.deployment.succeeded`) to an HTTPS **webhook** endpoint.
-
-Hosting-service delivers webhooks directly on its domain events. There is no central actions service and no message bus.
-
+---
+description: Shellui Actions webhook rules for hosting events, the admin API, signing, and retries.
 ---
 
-## How it works
+# Hosting webhooks
 
-```text
-Domain code calls emit_event(type, company_id, payload)
-        │
-        ▼
-Match enabled webhook ActionRule rows for that company + event type
-        │
-        ▼
-Insert ActionOutbox row(s) in the same DB transaction
-        │
-        ▼
-transaction.on_commit → best-effort delivery (timeout-bounded HTTP, off the request thread)
-        │
-        ▼
-DeliveryAttempt audit log; retries via manage.py retry_webhooks
-```
+Company owners and staff can POST a signed JSON body to an HTTPS endpoint when a hosting event happens. Each Shellui Actions rule maps one catalog event, such as `hosting.deployment.succeeded`, to one webhook URL.
 
-- **No Celery / Redis required** for Shellui Actions.
-- API paths do not block on slow external HTTP: delivery runs only after commit (default 5s timeout).
-- Delivery is **at-least-once**; dedupe on the envelope `id` (same value as the `webhook-id` header).
-- **n8n:** step-by-step setup, signature verification, and retry table in [n8n.md](n8n.md).
-- **Email:** the same emit also forwards the event to email-service when `EMAIL_SERVICE_API_KEY` is set. That forward is not a webhook rule. See [email.md](email.md).
+hosting-service delivers those webhooks itself. There is no central actions service and no message bus. When `EMAIL_SERVICE_API_KEY` is set, the same event is also forwarded to email-service. That forward is not a webhook rule. See [Email notifications](email.md).
 
----
+## How a delivery runs
 
-## Event catalog (`hosting.*`)
+Domain code calls `emit_event` inside the database transaction that changed the app or deployment:
+
+1. The event is written to the [event log](event-log.md), whether or not a rule matches.
+2. Each enabled webhook rule for that company and event type gets an outbox row in the same transaction.
+3. After commit, a background thread POSTs the envelope. The API response does not wait for your server.
+4. Each try is stored as a delivery attempt. Further tries come from `manage.py retry_webhooks`.
+
+Delivery does not need Celery or Redis. The default HTTP timeout is 5s (`ACTIONS_WEBHOOK_TIMEOUT_SECONDS`). Delivery is at-least-once. Retries reuse the envelope `id`, which is also the `webhook-id` header. Dedupe on that value.
+
+The n8n setup, including a signature check, is in [n8n](n8n.md). Scheduling the retry command is in [Maintenance jobs](maintenance-jobs.md).
+
+## Event catalog
 
 | Event type | When it fires |
-| ---------- | ------------- |
-| `hosting.app.created` | A hosted app record is created |
+| --- | --- |
+| `hosting.app.created` | A hosted app row is created |
 | `hosting.app.deleted` | A hosted app and its deployments are removed |
-| `hosting.deployment.created` | A deployment row is created (draft, ready for upload) |
-| `hosting.deployment.succeeded` | Finalize completed; deployment is active |
-| `hosting.deployment.failed` | Artifact extract failed during finalize |
+| `hosting.deployment.created` | A deployment row is created and waiting for an upload |
+| `hosting.deployment.succeeded` | Finalize finished and the deployment is active |
+| `hosting.deployment.failed` | Extract failed during finalize |
 
-### Envelope shape
+The body is UTF-8 JSON with non-ASCII characters left as characters (`ensure_ascii=false`). Verify the signature over the raw body bytes, not over a re-serialized object.
 
-CloudEvents-inspired JSON (same headers and signing as identity-service Shellui Actions). The POST body uses UTF-8 JSON with `ensure_ascii=false`; verify signatures on the **raw body bytes**.
-
-Extra headers: `X-Shellui-Event`, `X-Shellui-Delivery-Attempt`.
-
-Signing secrets may be plain text or Standard Webhooks `whsec_<base64>` (Shellui decodes the suffix for HMAC).
+Extra headers: `X-Shellui-Event`, `X-Shellui-Delivery-Attempt`. Signing secrets are plain text or Standard Webhooks `whsec_` plus base64. Shellui decodes the `whsec_` suffix and uses those bytes as the HMAC key.
 
 ```json
 {
@@ -64,54 +49,46 @@ Signing secrets may be plain text or Standard Webhooks `whsec_<base64>` (Shellui
 }
 ```
 
----
+The `id` values above are samples. A real delivery uses a new id, and the same id again on every retry of that delivery.
 
-## Admin REST API
+## Admin API
 
-Same paths as identity-service (Bearer JWT from identity-service):
+Paths match identity-service. Authorize with a Bearer JWT. Staff may pass any `company_id` query parameter. Company owners are limited to the `company_id` claim. They may omit the parameter or repeat their own id. Another company returns 403.
 
-- `GET /api/v1/actions/events` — catalog with `sample_envelope`
-- `GET/POST /api/v1/actions/rules` — list/create webhook rules (create returns `secret` once if generated)
-- `GET/PATCH/DELETE /api/v1/actions/rules/<id>`
-- `POST /api/v1/actions/rules/<id>/rotate-secret` — new signing secret (returned once)
-- `POST /api/v1/actions/rules/<id>/send-test`
-- `GET /api/v1/actions/deliveries` — paginated delivery log
-- `GET /api/v1/actions/deliveries/<uuid>` — detail with attempts
-- `POST /api/v1/actions/deliveries/<uuid>/requeue`
+- `GET /api/v1/actions/events`: catalog, including a `sample_envelope` for each type
+- `GET` and `POST /api/v1/actions/rules`: list or create webhook rules. Create returns `secret` once when one was generated
+- `GET`, `PATCH`, and `DELETE /api/v1/actions/rules/{id}`
+- `POST /api/v1/actions/rules/{id}/rotate-secret`: new signing secret, returned once
+- `POST /api/v1/actions/rules/{id}/send-test`
+- `GET /api/v1/actions/deliveries`: paginated delivery log
+- `GET /api/v1/actions/deliveries/{uuid}`: one delivery and its attempts
+- `POST /api/v1/actions/deliveries/{uuid}/requeue`
 
-Staff may pass any `?company_id=` on these routes. Company owners are scoped to the `company_id` claim in the JWT: they may omit the parameter or pass the same value; another company returns 403.
+Later reads of a rule expose `has_secret` and `secret_hint` (the last four characters), not the secret.
 
----
+## Retries
 
-## Retries (cron)
-
-Backoff: `30s * 2^(n-1)` capped at 1 hour, max 8 attempts. Default HTTP timeout per attempt: **5 seconds** (`ACTIONS_WEBHOOK_TIMEOUT_SECONDS`).
+Backoff is `30s * 2^(n-1)`, capped at 1 hour, with at most 8 attempts (`ACTIONS_OUTBOX_MAX_ATTEMPTS`).
 
 | Result | Retry? |
-| ------ | ------ |
-| 2xx | No (delivered) |
-| 404, 408, 409, 425, 429 | Yes (404 covers inactive n8n workflows) |
-| 400, 401, 403, 405, 410, 413, 422 | No (dead) |
+| --- | --- |
+| 2xx | No. The delivery is delivered |
+| 404, 408, 409, 425, 429 | Yes. 404 covers an inactive n8n workflow |
+| 400, 401, 403, 405, 410, 413, 422 | No. The delivery is dead |
 | Other 4xx | Yes |
 | 5xx, timeouts, connection errors | Yes |
-| 429 / 503 with `Retry-After` | Yes; delay is `max(backoff, Retry-After)` capped at 1 hour |
+| 429 or 503 with `Retry-After` | Yes. The delay is the larger of the backoff and `Retry-After`, still capped at 1 hour |
 
 ```bash
 python manage.py retry_webhooks --batch-size 50 --max-seconds 50 --concurrency 4
 ```
 
-Example cron (every minute):
+Example cron, every minute:
 
 ```cron
 * * * * * cd /app && python manage.py retry_webhooks >> /var/log/retry_webhooks.log 2>&1
 ```
 
-Run the same command in Docker sidecars or platform schedulers that can exec into the hosting-service container.
+Run that command from cron, a sidecar, or your platform scheduler. The hosting-service container does not run it for you. Delivered and dead deliveries are deleted after `EVENT_LOG_RETENTION_DAYS` by `purge_expired_data`. See [Maintenance jobs](maintenance-jobs.md).
 
-Delivered and dead deliveries are deleted after `EVENT_LOG_RETENTION_DAYS` by the hourly `purge_expired_data` job (see [event-log.md](event-log.md#retention)).
-
----
-
-## Event log
-
-Every catalog event is also stored in the event log, with or without a matching rule. See [event-log.md](event-log.md).
+Webhook URLs that resolve to a private or loopback address are blocked unless the rule has **allow private URLs** (staff) or `ACTIONS_WEBHOOK_ALLOW_PRIVATE` is true. When that variable is unset, it follows `DEBUG`.
