@@ -13,7 +13,7 @@ from apps.hosting.identity_redirects import (
     delete_hosting_oauth_redirect_origin,
     upsert_hosting_oauth_redirect,
 )
-from apps.hosting.services import create_preview_app
+from apps.hosting.services import create_deployment, create_preview_app
 
 
 class _FakeApp:
@@ -41,27 +41,7 @@ class IdentityRedirectSyncTests(SimpleTestCase):
         put.assert_not_called()
 
     @override_settings(
-        IDENTITY_SERVICE_URL='',
-        IDENTITY_JWKS_SOURCE='env',
-        IDENTITY_JWKS_URL='https://id.shellui.com/.well-known/jwks.json',
-        IDENTITY_SYNC_TIMEOUT=5,
-        HOSTING_APP_DOMAIN='shellui.app',
-        HOSTING_APP_SCHEME='https',
-    )
-    @patch('apps.hosting.identity_redirects.requests.put')
-    def test_upsert_uses_jwks_url_when_service_url_missing(self, put):
-        put.return_value = MagicMock(status_code=201, text='')
-        upsert_hosting_oauth_redirect(_FakeApp(slug='m9ua4qir6nja'), access_token='user-jwt')
-        put.assert_called_once()
-        args, kwargs = put.call_args
-        self.assertEqual(args[0], 'https://id.shellui.com/api/v1/hosting-oauth-redirects')
-        self.assertEqual(kwargs['json']['base_url'], 'https://m9ua4qir6nja.shellui.app')
-        self.assertEqual(kwargs['headers']['Authorization'], 'Bearer user-jwt')
-
-    @override_settings(
-        IDENTITY_SERVICE_URL='',
-        IDENTITY_JWKS_SOURCE='env',
-        IDENTITY_JWKS_URL='https://id.shellui.com/.well-known/jwks.json',
+        IDENTITY_SERVICE_URL='https://id.shellui.com',
         IDENTITY_SYNC_TIMEOUT=5,
         HOSTING_APP_DOMAIN='shellui.app',
         HOSTING_APP_SCHEME='https',
@@ -77,8 +57,15 @@ class IdentityRedirectSyncTests(SimpleTestCase):
 
         put.reset_mock()
         put.side_effect = None
-        put.return_value = MagicMock(status_code=403, text='Forbidden')
-        self.assertFalse(upsert_hosting_oauth_redirect(_FakeApp(), access_token='user-jwt'))
+        put.return_value = MagicMock(
+            status_code=403,
+            text='{"error": "Forbidden"}',
+            json=lambda: {'error': 'Forbidden'},
+        )
+        failed = upsert_hosting_oauth_redirect(_FakeApp(), access_token='user-jwt')
+        self.assertFalse(failed)
+        self.assertIn('Forbidden', failed.warning)
+        self.assertIn('company owner or staff', failed.warning)
         put.assert_called_once()
 
     @override_settings(IDENTITY_SERVICE_URL='http://identity.test')
@@ -143,7 +130,7 @@ def _access_token(*, company_id: int, user_id: int = 10) -> str:
     ALLOW_JWT_HS256_FALLBACK=True,
     IDENTITY_JWKS_SOURCE='env',
     IDENTITY_JWKS_URL='https://id.shellui.com/.well-known/jwks.json',
-    IDENTITY_SERVICE_URL='',
+    IDENTITY_SERVICE_URL='https://id.shellui.com',
     HOSTING_DEBUG_OPEN=True,
     HOSTING_APP_DOMAIN='shellui.app',
     HOSTING_APP_SCHEME='https',
@@ -158,28 +145,83 @@ class PreviewDeployRegistersOAuthRedirectTests(TestCase):
         self.addCleanup(patcher.stop)
 
     @patch('apps.hosting.identity_redirects.requests.put')
-    def test_preview_deploy_registers_origin_from_jwks_url(self, put):
-        put.return_value = MagicMock(status_code=201, text='')
+    def test_preview_deploy_registers_origin_and_reports_it(self, put):
+        put.return_value = MagicMock(status_code=201, text='', json=lambda: {})
         token = _access_token(company_id=2)
-        with self.captureOnCommitCallbacks(execute=True):
-            response = self.client.post(
-                '/hosting/v1/preview',
-                {
-                    'display_name': 'Demo',
-                    'app_version': '1.0.0',
-                    'shellui_version': '0.6.1',
-                },
-                format='json',
-                HTTP_AUTHORIZATION=f'Bearer {token}',
-            )
+        response = self.client.post(
+            '/hosting/v1/preview',
+            {
+                'display_name': 'Demo',
+                'app_version': '1.0.0',
+                'shellui_version': '0.6.1',
+            },
+            format='json',
+            HTTP_AUTHORIZATION=f'Bearer {token}',
+        )
         self.assertEqual(response.status_code, 201, response.content)
-        slug = response.json()['slug']
-        put.assert_called()
+        body = response.json()
+        slug = body['slug']
+        put.assert_called_once()
         args, kwargs = put.call_args
         self.assertEqual(args[0], 'https://id.shellui.com/api/v1/hosting-oauth-redirects')
         self.assertEqual(kwargs['json']['base_url'], f'https://{slug}.shellui.app')
         self.assertNotIn('company_id', kwargs['json'])
         self.assertEqual(kwargs['headers']['Authorization'], f'Bearer {token}')
+        self.assertIs(body['oauth_redirect_registered'], True)
+        self.assertEqual(body['oauth_redirect_origin'], f'https://{slug}.shellui.app')
+        self.assertNotIn('oauth_redirect_warning', body)
+
+    @patch('apps.hosting.identity_redirects.requests.put')
+    def test_preview_deploy_reports_identity_rejection(self, put):
+        put.return_value = MagicMock(
+            status_code=403,
+            text='{"error": "Forbidden"}',
+            json=lambda: {'error': 'Forbidden'},
+        )
+        token = _access_token(company_id=2)
+        response = self.client.post(
+            '/hosting/v1/preview',
+            {
+                'display_name': 'Demo',
+                'app_version': '1.0.0',
+                'shellui_version': '0.6.1',
+            },
+            format='json',
+            HTTP_AUTHORIZATION=f'Bearer {token}',
+        )
+        self.assertEqual(response.status_code, 201, response.content)
+        body = response.json()
+        self.assertIs(body['oauth_redirect_registered'], False)
+        self.assertIn('Forbidden', body['oauth_redirect_warning'])
+        self.assertTrue(body['oauth_redirect_origin'].endswith('.shellui.app'))
+
+    @patch('apps.hosting.services._activate_deployment', side_effect=lambda **kwargs: kwargs['deployment'])
+    @patch('apps.hosting.identity_redirects.requests.put')
+    def test_finalize_reports_identity_rejection(self, put, _activate):
+        put.return_value = MagicMock(
+            status_code=403,
+            text='{"error": "Forbidden"}',
+            json=lambda: {'error': 'Forbidden'},
+        )
+        app = create_preview_app(company_id=2, user_id=10, display_name='Demo')
+        deployment = create_deployment(
+            app=app,
+            app_version='1.0.0',
+            shellui_version='0.6.1',
+            deployed_by_id=10,
+        )
+        token = _access_token(company_id=2)
+        response = self.client.post(
+            f'/hosting/v1/apps/{app.slug}/deployments/{deployment.id}/finalize',
+            HTTP_AUTHORIZATION=f'Bearer {token}',
+        )
+        self.assertEqual(response.status_code, 200, response.content)
+        body = response.json()
+        self.assertIs(body['oauth_redirect_registered'], False)
+        self.assertEqual(body['oauth_redirect_origin'], f'https://{app.slug}.shellui.app')
+        self.assertIn('Forbidden', body['oauth_redirect_warning'])
+        put.assert_called_once()
+        self.assertEqual(put.call_args.kwargs['headers']['Authorization'], f'Bearer {token}')
 
 
 @override_settings(

@@ -45,11 +45,12 @@ class Command(BaseCommand):
             return
         failed = 0
         for app in apps:
-            if upsert_hosting_oauth_redirect(app, access_token=token):
+            result = upsert_hosting_oauth_redirect(app, access_token=token)
+            if result:
                 self.stdout.write(f'Registered {app.slug}')
             else:
                 failed += 1
-                self.stderr.write(f'Failed to register {app.slug}')
+                self.stderr.write(f'Failed to register {app.slug}: {result.warning}')
         if failed:
             raise CommandError(f'{failed} origin(s) were not registered.')
         self.stdout.write(self.style.SUCCESS(f'Registered {len(apps)} origin(s) for company {company_id}.'))

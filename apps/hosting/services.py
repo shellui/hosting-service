@@ -247,7 +247,6 @@ def create_preview_app(
     company_id: int,
     user_id: int,
     display_name: str = '',
-    access_token: str | None = None,
     actor_email: str = '',
 ) -> App:
     assert_hosting_access(company_id)
@@ -267,8 +266,6 @@ def create_preview_app(
         created_by_id=user_id,
         display_name=label,
     )
-    token = (access_token or '').strip() or None
-    transaction.on_commit(lambda: upsert_hosting_oauth_redirect(app, access_token=token))
     emit_event_if_rules(
         'hosting.app.created',
         company_id,
@@ -278,7 +275,6 @@ def create_preview_app(
     return app
 
 
-@transaction.atomic
 def prepare_preview_deploy(
     *,
     company_id: int,
@@ -290,16 +286,38 @@ def prepare_preview_deploy(
     access_token: str | None = None,
     actor_email: str = '',
 ) -> tuple[App, Deployment]:
+    app, deployment = _prepare_preview_deploy(
+        company_id=company_id,
+        user_id=user_id,
+        slug=slug,
+        display_name=display_name,
+        app_version=app_version,
+        shellui_version=shellui_version,
+        actor_email=actor_email,
+    )
     token = (access_token or '').strip() or None
+    app.oauth_redirect_sync = upsert_hosting_oauth_redirect(app, access_token=token)
+    return app, deployment
+
+
+@transaction.atomic
+def _prepare_preview_deploy(
+    *,
+    company_id: int,
+    user_id: int,
+    slug: str | None,
+    display_name: str,
+    app_version: str,
+    shellui_version: str,
+    actor_email: str = '',
+) -> tuple[App, Deployment]:
     if slug and slug.strip():
         app = resolve_preview_app(slug=slug.strip(), company_id=company_id, user_id=user_id)
-        transaction.on_commit(lambda: upsert_hosting_oauth_redirect(app, access_token=token))
     else:
         app = create_preview_app(
             company_id=company_id,
             user_id=user_id,
             display_name=display_name,
-            access_token=token,
             actor_email=actor_email,
         )
     deployment = create_deployment(
@@ -486,7 +504,7 @@ def finalize_deployment(
         _mark_deployment_failed(deployment, actor=actor)
         raise HostingError(str(exc), code='artifact_extract_failed') from exc
     token = (access_token or '').strip() or None
-    upsert_hosting_oauth_redirect(deployment.app, access_token=token)
+    deployment.oauth_redirect_sync = upsert_hosting_oauth_redirect(deployment.app, access_token=token)
     return deployment
 
 
