@@ -87,6 +87,13 @@ def _error(exc: HostingError) -> Response:
     )
 
 
+def _oauth_redirect_api(record) -> dict:
+    sync = getattr(record, 'oauth_redirect_sync', None)
+    if sync is None or not hasattr(sync, 'as_api'):
+        return {}
+    return sync.as_api()
+
+
 def _error_message(message: str, *, status_code: int = 400, code: str = 'Error') -> Response:
     return Response(
         {'statusCode': str(status_code), 'error': code, 'message': message},
@@ -227,6 +234,7 @@ class PreviewPrepareView(APIView):
                 'slug': app.slug,
                 'expires_at': app_payload.get('expires_at'),
                 'urls': urls,
+                **_oauth_redirect_api(app),
             },
             status=status.HTTP_201_CREATED,
         )
@@ -460,18 +468,23 @@ class DeploymentFinalizeView(APIView):
             company_id = require_company_id(request.user)
             app = resolve_app_ref(app_ref, company_id=company_id)
             deployment = Deployment.objects.get(id=deployment_id, app=app)
+            access_token = request.auth if isinstance(request.auth, str) else None
             deployment = finalize_deployment(
                 deployment=deployment,
                 user_id=request.user.user_id,
                 actor_email=request.user.email,
+                access_token=access_token,
             )
+            redirect_sync = _oauth_redirect_api(deployment)
             deployment.refresh_from_db()
             deployment.app.refresh_from_db()
         except Deployment.DoesNotExist:
             return _error_message('Deployment not found.', status_code=404, code='deployment_not_found')
         except HostingError as exc:
             return _error(exc)
-        return Response(serialize_deployment(deployment))
+        payload = serialize_deployment(deployment)
+        payload.update(redirect_sync)
+        return Response(payload)
 
 
 class DeploymentRollbackView(APIView):

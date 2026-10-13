@@ -15,25 +15,25 @@ Preview with live reload from a sibling checkout of [shellui/shellui](https://gi
 ## Features
 
 - REST API under `/hosting/v1/*` for access, apps, deployments, stats, and metrics
-- **Browsable hosted apps** on any domain — slug is the first subdomain label (e.g. `https://{slug}.shellui.app/` or `http://{slug}.shellui.local:8002/`)
+- **Browsable hosted apps** on any domain - slug is the first subdomain label (e.g. `https://{slug}.shellui.app/` or `http://{slug}.shellui.local:8002/`)
 - Company hosting access waitlist (`CompanyHostingAccess`)
 - Globally unique auto-generated site slugs for public URLs; company-scoped app names for API/CLI
 - JWT verification via identity-service JWKS (`IDENTITY_SERVICE_URL` → `/.well-known/jwks.json`, or a local document / explicit `IDENTITY_JWKS_URL`)
 - Pluggable artifact backend: **S3** or **filesystem**
 - OpenAPI docs (Swagger + ReDoc); opening Swagger from Django Admin auto-applies the Shellui session access token
 - Prometheus metrics (`/hosting/v1/metrics`, `/hosting/v1/metrics/all`) for staff or company-owner JWT / PAT
-- Permissive API CORS by default (`CORS_ALLOW_ALL_ORIGINS=true`, `CORS_ALLOW_CREDENTIALS=false`); auth is Bearer JWT — hosted preview origins do not need CORS env entries
-- **Shellui Actions** webhooks on hosting domain events (`hosting.*`), admin REST API under `/api/v1/actions/`, retries via `manage.py retry_webhooks` — see [`docs/actions.md`](docs/actions.md) and [**n8n setup**](docs/n8n.md)
+- Permissive API CORS by default (`CORS_ALLOW_ALL_ORIGINS=true`, `CORS_ALLOW_CREDENTIALS=false`); auth is Bearer JWT - hosted preview origins do not need CORS env entries
+- **Shellui Actions** webhooks on hosting domain events (`hosting.*`), admin REST API under `/api/v1/actions/`, retries via `manage.py retry_webhooks` - see [`docs/actions.md`](docs/actions.md) and [**n8n setup**](docs/n8n.md)
 - **Email notifications** for the same events, forwarded to email-service when `EMAIL_SERVICE_API_KEY` is set. See [`docs/email.md`](docs/email.md).
-- **Event log** of every hosting event with the acting user, purged after `EVENT_LOG_RETENTION_DAYS` — see [`docs/event-log.md`](docs/event-log.md)
-- Production security hardening: rate limits, HSTS/secure cookies, Postgres SSL, pinned JWKS — see [`docs/security-hardening.md`](docs/security-hardening.md) and [`docs/claim-trust.md`](docs/claim-trust.md)
+- **Event log** of every hosting event with the acting user, purged after `EVENT_LOG_RETENTION_DAYS` - see [`docs/event-log.md`](docs/event-log.md)
+- Production security hardening: rate limits, HSTS/secure cookies, Postgres SSL, pinned JWKS - see [`docs/security-hardening.md`](docs/security-hardening.md) and [`docs/claim-trust.md`](docs/claim-trust.md)
 
 ## Project structure
 
-- `config/` — Django settings and URL routing
-- `apps/authapi/` — JWKS JWT authentication
-- `apps/hosting/` — apps, deployments, access, static serving
-- `apps/actions/` — Shellui Actions webhook outbox, delivery, admin API
+- `config/` - Django settings and URL routing
+- `apps/authapi/` - JWKS JWT authentication
+- `apps/hosting/` - apps, deployments, access, static serving
+- `apps/actions/` - Shellui Actions webhook outbox, delivery, admin API
 
 ## Main endpoints
 
@@ -73,10 +73,10 @@ uv run python manage.py migrate
 When you work on the apex landing (`templates/home.html`, `assets/css/`), run **two terminals**:
 
 ```bash
-# Terminal 1 — Tailwind watch (required when editing templates/CSS)
+# Terminal 1 - Tailwind watch (required when editing templates/CSS)
 npm run watch:css
 
-# Terminal 2 — Django (auto-reloads Python + templates when DEBUG=true)
+# Terminal 2 - Django (auto-reloads Python + templates when DEBUG=true)
 uv run python manage.py runserver 8002
 ```
 
@@ -88,7 +88,7 @@ Open `http://localhost:8002/` for Swagger / ReDoc. From Django Admin, Swagger pr
 
 Waitlist approval is **staff-only** (`POST /hosting/v1/access` with `status=approved` or `denied`). Company owners can request access but cannot self-approve.
 
-To skip the waitlist gate in local dev, set `HOSTING_DEBUG_OPEN=true` explicitly (fail-closed by default — unset or `false` enforces the waitlist even when `DEBUG=true`). Approve a company with:
+To skip the waitlist gate in local dev, set `HOSTING_DEBUG_OPEN=true` explicitly (fail-closed by default - unset or `false` enforces the waitlist even when `DEBUG=true`). Approve a company with:
 
 ```bash
 uv run python manage.py approve_hosting_access 1
@@ -103,9 +103,9 @@ Hosted apps are served on subdomains, not path prefixes. Add entries to `/etc/ho
 127.0.0.1  hosting.shellui.local
 ```
 
-Use `HOSTING_APP_DOMAIN=shellui.local` and `HOSTING_APP_SCHEME=http` in `.env` (defaults in `.env.example`). This domain is used for **API browse links** only — the server accepts app requests on **any** hostname whose first label is the site slug.
+Use `HOSTING_APP_DOMAIN=shellui.local` and `HOSTING_APP_SCHEME=http` in `.env` (defaults in `.env.example`). This domain is used for **API browse links** only - the server accepts app requests on **any** hostname whose first label is the site slug.
 
-In `DEBUG`, `HOSTING_ALLOW_ANY_HOST` defaults to **on** (`ALLOWED_HOSTS` includes `*`), so you only need `/etc/hosts` entries — no per-domain Django config.
+In `DEBUG`, `HOSTING_ALLOW_ANY_HOST` defaults to **on** (`ALLOWED_HOSTS` includes `*`), so you only need `/etc/hosts` entries - no per-domain Django config.
 
 The deployment API stays at `http://localhost:8002/hosting/v1/`. Browsable apps are at `http://{site_slug}.shellui.local:8002/` (or any domain you point at the server).
 
@@ -113,7 +113,7 @@ The deployment API stays at `http://localhost:8002/hosting/v1/`. Browsable apps 
 
 Serving stays **local-friendly**: filesystem or S3, no Redis/CDN required.
 
-- `HOSTING_SERVE_CACHE_TTL_SECONDS` (default `45`) — in-process cache of slug→App lookups; set `0` to disable. Cleared automatically when a deploy is finalized.
+- `HOSTING_SERVE_CACHE_TTL_SECONDS` (default `45`) - in-process cache of slug→App lookups; set `0` to disable. Cleared automatically when a deploy is finalized.
 - Content-hashed assets (`main-D9ih21to.js`) get `Cache-Control: public, max-age=31536000, immutable`. HTML stays `no-cache`. Other static assets get a day-scale `max-age`.
 - Static asset requests skip an extra storage HEAD on `index.html`.
 
@@ -155,7 +155,7 @@ To redeploy later, add the slug to config:
 |----------|---------|
 | `HOSTING_APP_DOMAIN` | Canonical domain for API browse links (default `shellui.local` when `DEBUG=true`, e.g. `shellui.app` in production) |
 | `HOSTING_APP_SCHEME` | `http` (local) or `https` (production). Defaults to `http` when `DEBUG=true`, else `https` |
-| `HOSTING_ALLOW_ANY_HOST` | When `true` (default in `DEBUG`), accept any `Host` header — useful with `/etc/hosts` |
+| `HOSTING_ALLOW_ANY_HOST` | When `true` (default in `DEBUG`), accept any `Host` header - useful with `/etc/hosts` |
 | `HOSTING_PREVIEW_TTL_DAYS` | Preview site lifetime in days (default `7`) |
 | `HOSTING_DEBUG_OPEN` | Skip company waitlist when explicitly `true` (default off; never auto-on with `DEBUG`) |
 | `HOSTING_SERVE_CACHE_TTL_SECONDS` | In-process slug→App cache TTL for hosted-app serving (default `45`; `0` disables). Cleared on deploy finalize |
@@ -183,15 +183,19 @@ See `.env.example` for all settings. Key quotas:
 - `HOSTING_MAX_APPS_PER_COMPANY` (default `5`)
 - `HOSTING_MAX_DEPLOYMENTS_PER_APP` (default `20`)
 - `HOSTING_MAX_UPLOAD_BYTES` (default `100M`)
-- `HOSTING_MAX_EXTRACT_FILES` (default `5000`) — max regular files extracted from an artifact
-- `HOSTING_MAX_EXTRACT_BYTES` (default `500M`) — max total uncompressed bytes extracted
-- `HOSTING_MAX_EXTRACT_FILE_BYTES` (default same as upload cap) — max size per extracted file
+- `HOSTING_MAX_EXTRACT_FILES` (default `5000`) - max regular files extracted from an artifact
+- `HOSTING_MAX_EXTRACT_BYTES` (default `500M`) - max total uncompressed bytes extracted
+- `HOSTING_MAX_EXTRACT_FILE_BYTES` (default same as upload cap) - max size per extracted file
 
 Identity OAuth redirect sync (so `shellui deploy` sites can log in without manual allowlist edits):
 
-- `IDENTITY_SERVICE_URL` — identity base URL (e.g. `http://localhost:8000`)
+- `IDENTITY_SERVICE_URL`: identity base URL (for example `http://localhost:8000`)
 
-When set, creating/redeploying a preview forwards the caller's JWT to register `{scheme}://{slug}.{HOSTING_APP_DOMAIN}` on the company **OAuth redirect** allowlist; deleting the app removes it. That allowlist controls token delivery after login — not API CORS. Hosting API CORS is permissive by default (`CORS_ALLOW_ALL_ORIGINS=true`, credentials off); set `false` + `CORS_ALLOWED_ORIGINS` only for lock-down installs. See [`docs/security-hardening.md`](docs/security-hardening.md).
+Preview create, redeploy, and finalize forward the caller's JWT and register `{scheme}://{slug}.{HOSTING_APP_DOMAIN}` on the company OAuth redirect allowlist. Deleting the app removes that origin. If `IDENTITY_SERVICE_URL` is empty and the JWKS document is pinned, sync uses the origin of `IDENTITY_JWKS_URL` when that URL ends in `/.well-known/jwks.json`.
+
+Preview and finalize return `oauth_redirect_registered`, `oauth_redirect_origin`, and `oauth_redirect_warning`. `python manage.py sync_oauth_redirects --access-token your_access_token_here` backfills apps already deployed for that token's company. The allowlist controls where the browser returns after login. It is not API CORS.
+
+Hosting API CORS is permissive by default (`CORS_ALLOW_ALL_ORIGINS=true`, credentials off). Set `CORS_ALLOW_ALL_ORIGINS=false` and `CORS_ALLOWED_ORIGINS` only when you lock the API down. See [`docs/preview-and-serving.md`](docs/preview-and-serving.md) and [`docs/security-hardening.md`](docs/security-hardening.md).
 
 Deployment artifacts are stored at `{slug}/deployments/{id}/artifact.tar.gz` and extracted to `{prefix}extracted/` for static serving.
 
@@ -203,7 +207,7 @@ uv run python manage.py test
 
 Pull requests and pushes to `main` / `develop` run [`.github/workflows/ci.yml`](.github/workflows/ci.yml): Django tests, lockfile check, dependency audit (`pip-audit`), secret scan (gitleaks), markdown link check (lychee), a docs build against [shellui/shellui](https://github.com/shellui/shellui), and a Docker image build.
 
-Pull requests **to `main`** also run the pre-release checklist ([`.github/workflows/pre-release.yml`](.github/workflows/pre-release.yml)) — same checks as:
+Pull requests **to `main`** also run the pre-release checklist ([`.github/workflows/pre-release.yml`](.github/workflows/pre-release.yml)) - same checks as:
 
 ```bash
 ./tools/pre-release-check.sh
@@ -215,7 +219,7 @@ See [PUBLISH.md](PUBLISH.md) for the pre-release checklist (automated via `./too
 
 ### Post-deploy prod check
 
-After a production deploy, run [`tools/prod-config-check.sh`](tools/prod-config-check.sh) against the live **platform** URL — the apex or API host where `/hosting/v1/` lives (e.g. `https://shellui.app`), **not** a customer preview subdomain like `https://{slug}.shellui.app` alone.
+After a production deploy, run [`tools/prod-config-check.sh`](tools/prod-config-check.sh) against the live **platform** URL - the apex or API host where `/hosting/v1/` lives (e.g. `https://shellui.app`), **not** a customer preview subdomain like `https://{slug}.shellui.app` alone.
 
 ```bash
 # From a checkout of hosting-service (develop/main)
@@ -234,7 +238,7 @@ The script prints `PASS:` / `FAIL:` / `WARN:` / `INFO:` lines and exits **0** wh
 
 **Coolify / internal Postgres:** if the container fails at boot with Postgres SSL errors against an internal Docker database, use `POSTGRES_SSL_REQUIRE=false` (same pattern as [identity-service](https://github.com/shellui/identity-service)); hosting defaults to non-SSL for `POSTGRES_DATABASE_URL` parsing.
 
-Full check list, optional env vars (`HOSTING_APP_DOMAIN`, `CORS_PROBE_ORIGIN`), and deploy context: [PUBLISH.md — Post-deploy production config check](PUBLISH.md#post-deploy-production-config-check).
+Full check list, optional env vars (`HOSTING_APP_DOMAIN`, `CORS_PROBE_ORIGIN`), and deploy context: [PUBLISH.md - Post-deploy production config check](PUBLISH.md#post-deploy-production-config-check).
 
 ## Docker
 

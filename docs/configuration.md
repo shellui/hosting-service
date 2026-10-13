@@ -47,7 +47,7 @@ When `HOSTING_ALLOW_ANY_HOST` is on (the default while `DEBUG=true`), `ALLOWED_H
 
 | Variable | Default | Purpose |
 | --- | --- | --- |
-| `IDENTITY_SERVICE_URL` | empty | identity-service base URL. Also the target for OAuth redirect sync |
+| `IDENTITY_SERVICE_URL` | empty | identity-service base URL. OAuth redirect sync uses this. If it is empty and JWKS is pinned (`IDENTITY_JWKS` or `IDENTITY_JWKS_FILE`), sync uses the origin of `IDENTITY_JWKS_URL` when that URL ends in `/.well-known/jwks.json`. `http://localhost:8000` and `http://127.0.0.1:8000` are ignored |
 | `IDENTITY_JWKS_URL` | `{IDENTITY_SERVICE_URL}/.well-known/jwks.json` | JWKS URL when no document is pinned. Local and dev only in production checks |
 | `IDENTITY_JWKS_FILE` | empty | Path to a JWKS file. Relative paths are from the repository root |
 | `IDENTITY_JWKS` | empty | JWKS JSON in the environment, used when no file is set |

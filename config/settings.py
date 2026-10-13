@@ -279,6 +279,8 @@ SPECTACULAR_SETTINGS = {
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    # Inside SecurityMiddleware so hosted-app COOP is set before its setdefault.
+    'apps.hosting.middleware.HostedAppNavigationPolicyMiddleware',
     'config.request_context.RequestIdMiddleware',
     # App subdomains → hosted site for all paths (before admin/API URLConf).
     'apps.hosting.middleware.HostedAppServeMiddleware',

@@ -39,6 +39,8 @@ Paths below are relative to the apex host, for example `http://localhost:8002`. 
 
 `{app_ref}` is an app UUID, a company-scoped name, or a public slug. `{id}` on a deployment is a UUID.
 
+`POST /hosting/v1/preview` and finalize add `oauth_redirect_registered`, `oauth_redirect_origin`, and `oauth_redirect_warning` when registration fails. Field rules are in [Preview sites and public URLs](preview-and-serving.md).
+
 ## Who can call them
 
 Company members with `company_id` in the token can list and deploy their company's apps, after the waitlist says `approved`. See [Company access](company-access.md) and [Apps and deployments](apps-and-deployments.md).

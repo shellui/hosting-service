@@ -43,7 +43,7 @@ Cache headers:
 | Content-hashed file, such as `main-D9ih21to.js` | `public, max-age=31536000, immutable` |
 | Other static files | `public, max-age=86400` |
 
-Responses omit `X-Frame-Options`, so a Shellui shell can embed the site in an iframe.
+Responses omit `X-Frame-Options`, so a Shellui shell can embed the site in an iframe. The response includes `Cross-Origin-Opener-Policy: unsafe-none` unless that header is already set. Firefox can then open the site from a link on another origin. The service does not set `Cross-Origin-Embedder-Policy` or `Cross-Origin-Resource-Policy`.
 
 Slug lookups are cached in the worker process for `HOSTING_SERVE_CACHE_TTL_SECONDS` (default 45). Set `0` to disable the cache. Finalize and rollback clear that slug immediately. The cache is not Redis, and it is not shared across Gunicorn workers.
 
@@ -59,9 +59,23 @@ A preview slug can be redeployed only by its company, and only by the account in
 
 ## Login on the hosted origin
 
-If `IDENTITY_SERVICE_URL` is set, hosting-service forwards the caller's JWT to identity-service:
+hosting-service forwards the caller's JWT to identity-service when it can resolve an identity base URL. Set `IDENTITY_SERVICE_URL`. If that is empty and the JWKS document is pinned (`IDENTITY_JWKS` or `IDENTITY_JWKS_FILE`), sync uses the origin of `IDENTITY_JWKS_URL` when that URL ends in `/.well-known/jwks.json`. `http://localhost:8000` and `http://127.0.0.1:8000` are ignored.
 
-- `PUT {IDENTITY_SERVICE_URL}/api/v1/hosting-oauth-redirects` on create and on redeploy
+- `PUT {base}/api/v1/hosting-oauth-redirects` on create, on redeploy, and when a deployment is finalized
 - A delete of that origin when the app is deleted
 
-The body is the origin (`https://vpzzsxvzsmp7.shellui.app`, no path) and a label. The call is best-effort. A failure is logged and does not roll back the deploy. Nothing is sent when the identity URL or the caller token is missing. The allowlist controls where identity-service may send the browser after login. It is not the hosting API CORS list. CORS is covered in [Security hardening](security-hardening.md).
+The body is the origin (`https://vpzzsxvzsmp7.shellui.app`, no path) and a label. The call is best-effort. A failure is logged and does not roll back the deploy. Nothing is sent when the identity base URL or the caller token is missing. Server errors are retried. The allowlist controls where identity-service may send the browser after login. It is not the hosting API CORS list. CORS is covered in [Security hardening](security-hardening.md).
+
+`POST /hosting/v1/preview` and finalize return these fields when sync runs:
+
+- **`oauth_redirect_registered`**: `true` when identity accepted the origin
+- **`oauth_redirect_origin`**: the origin that was sent
+- **`oauth_redirect_warning`**: present only when registration did not succeed
+
+`POST /hosting/v1/apps` registers the origin and does not include these fields.
+
+Backfill apps that are already deployed. The token `company_id` selects the company. `--company-id` must match that claim. The command exits non-zero if any origin fails:
+
+```bash
+python manage.py sync_oauth_redirects --access-token your_access_token_here
+```

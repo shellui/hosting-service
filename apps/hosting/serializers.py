@@ -65,6 +65,9 @@ class DeploymentSerializer(serializers.Serializer):
     created_at = serializers.DateTimeField()
     updated_at = serializers.DateTimeField()
     finalized_at = serializers.DateTimeField(allow_null=True)
+    oauth_redirect_registered = serializers.BooleanField(required=False)
+    oauth_redirect_origin = serializers.CharField(required=False, allow_blank=True)
+    oauth_redirect_warning = serializers.CharField(required=False, allow_blank=True)
 
 
 class DeploymentCreateSerializer(serializers.Serializer):
@@ -86,3 +89,6 @@ class PreviewPrepareResponseSerializer(serializers.Serializer):
     slug = serializers.SlugField()
     expires_at = serializers.DateTimeField(allow_null=True, required=False)
     urls = serializers.DictField(required=False)
+    oauth_redirect_registered = serializers.BooleanField(required=False)
+    oauth_redirect_origin = serializers.CharField(required=False, allow_blank=True)
+    oauth_redirect_warning = serializers.CharField(required=False, allow_blank=True)
