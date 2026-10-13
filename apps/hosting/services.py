@@ -472,6 +472,7 @@ def finalize_deployment(
     deployment: Deployment,
     user_id: int | None = None,
     actor_email: str = '',
+    access_token: str | None = None,
 ) -> Deployment:
     """Extract and activate ``deployment``; on a bad artifact, mark it failed and raise.
 
@@ -479,11 +480,14 @@ def finalize_deployment(
     """
     actor = _action_actor(user_id, actor_email) if user_id is not None else _action_actor(deployment.deployed_by_id)
     try:
-        return _activate_deployment(deployment=deployment, actor=actor)
+        deployment = _activate_deployment(deployment=deployment, actor=actor)
     except ExtractError as exc:
         # Recorded after the activation transaction rolled back, so the failure is kept.
         _mark_deployment_failed(deployment, actor=actor)
         raise HostingError(str(exc), code='artifact_extract_failed') from exc
+    token = (access_token or '').strip() or None
+    upsert_hosting_oauth_redirect(deployment.app, access_token=token)
+    return deployment
 
 
 @transaction.atomic

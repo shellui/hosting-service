@@ -460,10 +460,12 @@ class DeploymentFinalizeView(APIView):
             company_id = require_company_id(request.user)
             app = resolve_app_ref(app_ref, company_id=company_id)
             deployment = Deployment.objects.get(id=deployment_id, app=app)
+            access_token = request.auth if isinstance(request.auth, str) else None
             deployment = finalize_deployment(
                 deployment=deployment,
                 user_id=request.user.user_id,
                 actor_email=request.user.email,
+                access_token=access_token,
             )
             deployment.refresh_from_db()
             deployment.app.refresh_from_db()
