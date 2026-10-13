@@ -189,9 +189,13 @@ See `.env.example` for all settings. Key quotas:
 
 Identity OAuth redirect sync (so `shellui deploy` sites can log in without manual allowlist edits):
 
-- `IDENTITY_SERVICE_URL` — identity base URL (e.g. `http://localhost:8000`)
+- `IDENTITY_SERVICE_URL`: identity base URL (for example `http://localhost:8000`)
 
-When set, creating/redeploying a preview forwards the caller's JWT to register `{scheme}://{slug}.{HOSTING_APP_DOMAIN}` on the company **OAuth redirect** allowlist; deleting the app removes it. That allowlist controls token delivery after login — not API CORS. Hosting API CORS is permissive by default (`CORS_ALLOW_ALL_ORIGINS=true`, credentials off); set `false` + `CORS_ALLOWED_ORIGINS` only for lock-down installs. See [`docs/security-hardening.md`](docs/security-hardening.md).
+Preview create, redeploy, and finalize forward the caller's JWT and register `{scheme}://{slug}.{HOSTING_APP_DOMAIN}` on the company OAuth redirect allowlist. Deleting the app removes that origin. If `IDENTITY_SERVICE_URL` is empty and the JWKS document is pinned, sync uses the origin of `IDENTITY_JWKS_URL` when that URL ends in `/.well-known/jwks.json`.
+
+Preview and finalize return `oauth_redirect_registered`, `oauth_redirect_origin`, and `oauth_redirect_warning`. `python manage.py sync_oauth_redirects --access-token your_access_token_here` backfills apps already deployed for that token's company. The allowlist controls where the browser returns after login. It is not API CORS.
+
+Hosting API CORS is permissive by default (`CORS_ALLOW_ALL_ORIGINS=true`, credentials off). Set `CORS_ALLOW_ALL_ORIGINS=false` and `CORS_ALLOWED_ORIGINS` only when you lock the API down. See [`docs/preview-and-serving.md`](docs/preview-and-serving.md) and [`docs/security-hardening.md`](docs/security-hardening.md).
 
 Deployment artifacts are stored at `{slug}/deployments/{id}/artifact.tar.gz` and extracted to `{prefix}extracted/` for static serving.
 

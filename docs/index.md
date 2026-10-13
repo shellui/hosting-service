@@ -30,7 +30,7 @@ Visitors receive the files of the active deployment. HTML responses use `Cache-C
 
 ## How it fits with identity, storage, and email
 
-identity-service signs people in and issues the Bearer JWT you send on API calls. hosting-service has no user table. When `IDENTITY_SERVICE_URL` is set, creating, redeploying, or deleting an app registers that origin on the company OAuth redirect allowlist, so the hosted app can finish login.
+identity-service signs people in and issues the Bearer JWT you send on API calls. hosting-service has no user table. Creating, redeploying, finalizing, or deleting an app registers that origin on the company OAuth redirect allowlist, so the hosted app can finish login. Sync uses `IDENTITY_SERVICE_URL`, or the origin of a pinned `IDENTITY_JWKS_URL`.
 
 storage-service is a separate file API. Deployment archives stay in the hosting filesystem or in the hosting bucket. hosting-service does not call storage-service.
 

@@ -12,6 +12,14 @@ from .public_urls import build_app_url
 
 logger = logging.getLogger(__name__)
 
+_JWKS_SUFFIX = '/.well-known/jwks.json'
+# Default from settings when no identity host is configured. Not a sync target.
+_PLACEHOLDER_ORIGINS = frozenset(
+    {
+        'http://localhost:8000',
+        'http://127.0.0.1:8000',
+    }
+)
 _SYNC_ATTEMPTS = 3
 
 
@@ -46,8 +54,26 @@ def app_origin_for_sync(app) -> str:
 
 
 def _identity_base_url() -> str | None:
+    """Identity origin for redirect sync.
+
+    ``IDENTITY_SERVICE_URL`` wins. Otherwise use an explicit
+    ``IDENTITY_JWKS_URL`` of the form ``{origin}/.well-known/jwks.json``
+    when the JWKS document is pinned. Production often sets only that URL.
+    """
     base = (getattr(settings, 'IDENTITY_SERVICE_URL', None) or '').strip().rstrip('/')
-    return base or None
+    if base:
+        return base
+    # A fetch URL is not enough: tests and local runs set IDENTITY_JWKS_URL
+    # without running redirect sync.
+    if getattr(settings, 'IDENTITY_JWKS_SOURCE', None) not in {'env', 'file'}:
+        return None
+    jwks = (getattr(settings, 'IDENTITY_JWKS_URL', None) or '').strip().rstrip('/')
+    if not jwks.endswith(_JWKS_SUFFIX):
+        return None
+    origin = jwks[: -len(_JWKS_SUFFIX)].rstrip('/')
+    if not origin or origin in _PLACEHOLDER_ORIGINS:
+        return None
+    return origin
 
 
 def _identity_error_detail(response) -> str:

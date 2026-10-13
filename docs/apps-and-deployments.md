@@ -47,6 +47,8 @@ Upload with `PUT /hosting/v1/apps/{app_ref}/deployments/{id}/upload`. The body i
 
 `POST /hosting/v1/apps/{app_ref}/deployments/{id}/finalize` extracts the archive and, on success, marks this deployment `active`. The previous active deployment becomes `superseded`. The app's `current_deployment` points at the new row. Preview apps get a new `expires_at` of now plus `HOSTING_PREVIEW_TTL_DAYS` (default 7). The in-process serve cache for that slug is cleared.
 
+Finalize also registers the site origin for login and returns `oauth_redirect_registered`, `oauth_redirect_origin`, and `oauth_redirect_warning` when registration fails. `POST /hosting/v1/preview` returns the same fields. See [Preview sites and public URLs](preview-and-serving.md).
+
 Extract keeps regular files only, drops path traversal, and enforces three limits: 5000 files, `500M` uncompressed in total, and `100M` for one file. Those are `HOSTING_MAX_EXTRACT_FILES`, `HOSTING_MAX_EXTRACT_BYTES`, and `HOSTING_MAX_EXTRACT_FILE_BYTES`. A bad archive stays `failed`, emits `hosting.deployment.failed`, and does not replace the current site.
 
 Files land at `{HOSTING_KEY_PREFIX}/{app_uuid}/deployments/{deployment_uuid}/artifact.tar.gz`, with the extracted tree under `extracted/`.
