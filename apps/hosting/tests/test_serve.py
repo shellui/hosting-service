@@ -144,6 +144,59 @@ class ServeIntegrationTests(TestCase):
         self.assertNotEqual(response.get('X-Frame-Options'), 'DENY')
         self.assertNotEqual(response.get('X-Frame-Options'), 'SAMEORIGIN')
 
+    def test_hosted_app_coop_allows_cross_site_navigation(self):
+        response = self.client.get('/', HTTP_HOST=self.app_host)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response['Cross-Origin-Opener-Policy'], 'unsafe-none')
+        self.assertIsNone(response.get('Cross-Origin-Embedder-Policy'))
+        self.assertIsNone(response.get('Cross-Origin-Resource-Policy'))
+        self.assertEqual(response['X-Content-Type-Options'], 'nosniff')
+        self.assertNotEqual(response.get('X-Frame-Options'), 'DENY')
+        self.assertNotEqual(response.get('X-Frame-Options'), 'SAMEORIGIN')
+
+        asset = self.client.get('/assets/app.js', HTTP_HOST=self.app_host)
+        self.assertEqual(asset['Cross-Origin-Opener-Policy'], 'unsafe-none')
+        self.assertIsNone(asset.get('Cross-Origin-Embedder-Policy'))
+
+        missing = self.client.get('/assets/missing.js', HTTP_HOST=self.app_host)
+        self.assertEqual(missing.status_code, 404)
+        self.assertEqual(missing['Cross-Origin-Opener-Policy'], 'unsafe-none')
+
+    @override_settings(
+        SECURE_HSTS_SECONDS=31536000,
+        SECURE_HSTS_INCLUDE_SUBDOMAINS=True,
+        SECURE_SSL_REDIRECT=False,
+    )
+    def test_hosted_app_keeps_hsts_and_explicit_coop(self):
+        from django.http import HttpResponse
+        from django.test import RequestFactory
+
+        from apps.hosting.middleware import HostedAppNavigationPolicyMiddleware
+
+        response = self.client.get('/', HTTP_HOST=self.app_host, secure=True)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response['Cross-Origin-Opener-Policy'], 'unsafe-none')
+        self.assertIn('max-age=31536000', response['Strict-Transport-Security'])
+        self.assertIn('includeSubDomains', response['Strict-Transport-Security'])
+        self.assertEqual(response['X-Content-Type-Options'], 'nosniff')
+
+        def inner(_request):
+            custom = HttpResponse('ok')
+            custom['Cross-Origin-Opener-Policy'] = 'same-origin-allow-popups'
+            custom['Content-Security-Policy'] = "frame-ancestors 'self'"
+            custom['Cross-Origin-Embedder-Policy'] = 'credentialless'
+            return custom
+
+        request = RequestFactory().get('/', HTTP_HOST=self.app_host)
+        kept = HostedAppNavigationPolicyMiddleware(inner)(request)
+        self.assertEqual(kept['Cross-Origin-Opener-Policy'], 'same-origin-allow-popups')
+        self.assertEqual(kept['Content-Security-Policy'], "frame-ancestors 'self'")
+        self.assertEqual(kept['Cross-Origin-Embedder-Policy'], 'credentialless')
+
+    def test_platform_host_keeps_coop_same_origin(self):
+        response = self.client.get('/', HTTP_HOST='testserver')
+        self.assertEqual(response['Cross-Origin-Opener-Policy'], 'same-origin')
+
     def test_hashed_asset_cache_control_immutable(self):
         tarball = _make_site_tarball(
             extra_files={

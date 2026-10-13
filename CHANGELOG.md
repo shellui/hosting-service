@@ -21,6 +21,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 See for sample https://raw.githubusercontent.com/favoloso/conventional-changelog-emoji/master/CHANGELOG.md
 -->
 
+- Hosted apps send Cross-Origin-Opener-Policy unsafe-none so a link from another site opens in Firefox.
+
 ## [Unreleased]
 
 ### 🐛 Bug Fixes
