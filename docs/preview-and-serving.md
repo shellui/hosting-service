@@ -59,9 +59,9 @@ A preview slug can be redeployed only by its company, and only by the account in
 
 ## Login on the hosted origin
 
-If `IDENTITY_SERVICE_URL` is set, hosting-service forwards the caller's JWT to identity-service:
+hosting-service forwards the caller's JWT to identity-service when it can resolve an identity base URL. Set `IDENTITY_SERVICE_URL`. If that is empty and the JWKS document is pinned (`IDENTITY_JWKS` or `IDENTITY_JWKS_FILE`), it uses the origin of `IDENTITY_JWKS_URL` when that URL ends in `/.well-known/jwks.json`. The localhost placeholder is ignored.
 
-- `PUT {IDENTITY_SERVICE_URL}/api/v1/hosting-oauth-redirects` on create and on redeploy
+- `PUT {base}/api/v1/hosting-oauth-redirects` on create, on redeploy, and when a deployment is finalized
 - A delete of that origin when the app is deleted
 
-The body is the origin (`https://vpzzsxvzsmp7.shellui.app`, no path) and a label. The call is best-effort. A failure is logged and does not roll back the deploy. Nothing is sent when the identity URL or the caller token is missing. The allowlist controls where identity-service may send the browser after login. It is not the hosting API CORS list. CORS is covered in [Security hardening](security-hardening.md).
+The body is the origin (`https://vpzzsxvzsmp7.shellui.app`, no path) and a label. The call is best-effort. A failure is logged and does not roll back the deploy. Nothing is sent when the identity base URL or the caller token is missing. Server errors are retried. `python manage.py sync_oauth_redirects --access-token <token>` registers origins already deployed for that token's company. The allowlist controls where identity-service may send the browser after login. It is not the hosting API CORS list. CORS is covered in [Security hardening](security-hardening.md).
