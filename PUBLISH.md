@@ -2,7 +2,7 @@
 
 How to build, publish, and run the `shellui/hosting-service` Docker image on [Docker Hub](https://hub.docker.com/u/shellui) (repository created on first push).
 
-Publishing is **manual** — there is no CI workflow for Docker Hub yet.
+Publishing is **manual** - there is no CI workflow for Docker Hub yet.
 
 ## Image overview
 
@@ -37,11 +37,11 @@ Manual equivalents (if you are not using the script):
 
 ### 1. Version alignment
 
-Ensure these match the release version (e.g. `0.6.1`):
+Ensure these match the release version (e.g. `0.7.0`):
 
 - `version` in `pyproject.toml` (OpenAPI / API metadata via `config.settings.VERSION`)
 - `CHANGELOG.md` entry with date
-- Git tag `v0.6.1` (optional but recommended; not enforced by the script)
+- Git tag `v0.7.0` (optional but recommended; not enforced by the script)
 - CI green on the release commit (`.github/workflows/ci.yml` + pre-release workflow)
 
 ### 2. No secrets in the build context
@@ -76,38 +76,38 @@ docker login
 
 ### Tagging
 
-For semver release `0.6.1`, typical Docker Hub tags:
+For semver release `0.7.0`, typical Docker Hub tags:
 
 | Tag      | Purpose                                  |
 | -------- | ---------------------------------------- |
-| `0.6.1`  | Exact release (pin in production)        |
-| `0.6`    | Latest patch in the 0.6 line             |
+| `0.7.0`  | Exact release (pin in production)        |
+| `0.7`    | Latest patch in the 0.7 line             |
 | `latest` | Newest published release (use with care) |
 
-### Option A — single platform (fastest, not recommended, see option B)
+### Option A - single platform (fastest, not recommended, see option B)
 
 From the repository root:
 
 ```bash
-VERSION=0.6.1
+VERSION=0.7.0
 IMAGE=shellui/hosting-service
 
 docker build -t "${IMAGE}:${VERSION}" .
 docker push "${IMAGE}:${VERSION}"
 
 # Optional extra tags
-docker tag "${IMAGE}:${VERSION}" "${IMAGE}:0.6"
+docker tag "${IMAGE}:${VERSION}" "${IMAGE}:0.7"
 docker tag "${IMAGE}:${VERSION}" "${IMAGE}:latest"
-docker push "${IMAGE}:0.6"
+docker push "${IMAGE}:0.7"
 docker push "${IMAGE}:latest"
 ```
 
-### Option B — multi-arch (recommended for production)
+### Option B - multi-arch (recommended for production)
 
 If you build on Apple Silicon, a plain `docker build` may produce `linux/arm64` only. Most cloud VMs expect `linux/amd64`. Publish both with buildx:
 
 ```bash
-VERSION=0.6.1
+VERSION=0.7.0
 IMAGE=shellui/hosting-service
 
 docker buildx create --use --name multi 2>/dev/null || docker buildx use multi
@@ -115,7 +115,7 @@ docker buildx create --use --name multi 2>/dev/null || docker buildx use multi
 docker buildx build \
   --platform linux/amd64,linux/arm64 \
   -t "${IMAGE}:${VERSION}" \
-  -t "${IMAGE}:0.6" \
+  -t "${IMAGE}:0.7" \
   -t "${IMAGE}:latest" \
   --push .
 ```
@@ -123,7 +123,7 @@ docker buildx build \
 ### Git tag (recommended)
 
 ```bash
-VERSION=0.6.1
+VERSION=0.7.0
 git tag -a "v${VERSION}" -m "Release ${VERSION}"
 git push origin "v${VERSION}"
 ```
@@ -145,16 +145,16 @@ docker run -d \
   -e HOSTING_APP_DOMAIN='shellui.app' \
   -e IDENTITY_JWKS='{"keys":[...]}' \
   -e REDIS_URL='redis://redis:6379/0' \
-  shellui/hosting-service:0.6.1
+  shellui/hosting-service:0.7.0
 ```
 
 The entrypoint runs migrations on start, then starts **Gunicorn** (`config.wsgi:application`) and the in-container scheduler as user `appuser`. `REDIS_URL` is required when `DEBUG` is false. Env vars `GUNICORN_WORKERS` (default `2`), `GUNICORN_THREADS` (default `2`), and `GUNICORN_TIMEOUT` (default `120`) are passed through.
 
 ### Post-deploy production config check
 
-Quick copy-paste commands and exit-code notes: [README — Post-deploy prod check](README.md#post-deploy-prod-check).
+Quick copy-paste commands and exit-code notes: [README - Post-deploy prod check](README.md#post-deploy-prod-check).
 
-After deploying a release, run the smoke script against the live HTTPS **platform** URL (API host — not every customer app subdomain):
+After deploying a release, run the smoke script against the live HTTPS **platform** URL (API host - not every customer app subdomain):
 
 ```bash
 ./tools/prod-config-check.sh https://hosting.example.com
@@ -170,7 +170,7 @@ Optional environment:
 | `HOSTING_APP_DOMAIN` | `shellui.app` (used with `--slug`)           |
 | `CORS_PROBE_ORIGIN`  | `https://example-preview-slug.shellui.app`   |
 
-Full JWT deploy/CLI flows cannot be verified without identity-service tokens — the script prints guidance for `IDENTITY_JWKS` / `IDENTITY_SERVICE_URL` and waitlist approval.
+Full JWT deploy/CLI flows cannot be verified without identity-service tokens - the script prints guidance for `IDENTITY_JWKS` / `IDENTITY_SERVICE_URL` and waitlist approval.
 
 **Coolify / internal Postgres:** if boot fails with SSL errors against an internal Docker Postgres, set `POSTGRES_SSL_REQUIRE=false` (same as identity-service). Hosting parses `POSTGRES_DATABASE_URL` with `ssl_require=false` by default; this env var matches identity when you need an explicit toggle in orchestration.
 
@@ -186,7 +186,7 @@ Full JWT deploy/CLI flows cannot be verified without identity-service tokens —
 | `HOSTING_BACKEND` | `filesystem` or S3 settings |
 | `HOSTING_DEBUG_OPEN` | Must be **unset** or `false` in production (startup fails if enabled with `DEBUG=false`) |
 
-Create the first Django superuser with `python manage.py createsuperuser` inside the container (or before first traffic). Do not rely on the public `/` bootstrap form in production — it is disabled when `DEBUG=false` unless you set a one-time `SETUP_TOKEN`.
+Create the first Django superuser with `python manage.py createsuperuser` inside the container (or before first traffic). Do not rely on the public `/` bootstrap form in production - it is disabled when `DEBUG=false` unless you set a one-time `SETUP_TOKEN`.
 
 ### Optional runtime env vars
 
@@ -205,11 +205,11 @@ Create the first Django superuser with `python manage.py createsuperuser` inside
 | `REDIS_URL` | Required when `DEBUG=false`. Shared cache and scheduled-job broker. Example: `redis://redis:6379/0`. Missing it fails `check --deploy` (`authapi.E004`) and the container exits 1. Optional when `DEBUG=true` |
 | `SCHEDULER_ENABLED` | Default `true`. `false` keeps the Celery worker out of this container. `REDIS_URL` is still required in production |
 | `CELERY_BROKER_URL` | Optional. Defaults to `REDIS_URL`. Does not replace `REDIS_URL` |
-| `HOSTING_RATE_LIMIT_*` | Tune deploy/upload/delete rate limits — see `docs/security-hardening.md` |
+| `HOSTING_RATE_LIMIT_*` | Tune deploy/upload/delete rate limits - see `docs/security-hardening.md` |
 | `SENTRY_DSN` / `SENTRY_ENVIRONMENT` | Error reporting |
 | `AWS_*` | django-storages when `HOSTING_BACKEND=s3` |
 
-Do not list every preview slug in CORS env — OAuth redirect sync on identity handles login bounce origins.
+Do not list every preview slug in CORS env - OAuth redirect sync on identity handles login bounce origins.
 
 ### Redis (required in production)
 

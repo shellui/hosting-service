@@ -41,6 +41,36 @@ class IdentityRedirectSyncTests(SimpleTestCase):
         put.assert_not_called()
 
     @override_settings(
+        IDENTITY_SERVICE_URL='',
+        IDENTITY_JWKS_SOURCE='env',
+        IDENTITY_JWKS_URL='http://127.0.0.1:8000/.well-known/jwks.json',
+    )
+    @patch('apps.hosting.identity_redirects.requests.put')
+    def test_upsert_ignores_localhost_jwks_placeholder(self, put):
+        result = upsert_hosting_oauth_redirect(_FakeApp(), access_token='user-jwt')
+        put.assert_not_called()
+        self.assertFalse(result)
+
+    @override_settings(
+        IDENTITY_SERVICE_URL='',
+        IDENTITY_JWKS_SOURCE='env',
+        IDENTITY_JWKS_URL='https://id.shellui.com/.well-known/jwks.json',
+        IDENTITY_SYNC_TIMEOUT=5,
+        HOSTING_APP_DOMAIN='shellui.app',
+        HOSTING_APP_SCHEME='https',
+    )
+    @patch('apps.hosting.identity_redirects.requests.put')
+    def test_upsert_uses_jwks_url_when_service_url_missing(self, put):
+        put.return_value = MagicMock(status_code=201, text='')
+        result = upsert_hosting_oauth_redirect(_FakeApp(slug='m9ua4qir6nja'), access_token='user-jwt')
+        self.assertTrue(result)
+        put.assert_called_once()
+        args, kwargs = put.call_args
+        self.assertEqual(args[0], 'https://id.shellui.com/api/v1/hosting-oauth-redirects')
+        self.assertEqual(kwargs['json']['base_url'], 'https://m9ua4qir6nja.shellui.app')
+        self.assertEqual(kwargs['headers']['Authorization'], 'Bearer user-jwt')
+
+    @override_settings(
         IDENTITY_SERVICE_URL='https://id.shellui.com',
         IDENTITY_SYNC_TIMEOUT=5,
         HOSTING_APP_DOMAIN='shellui.app',

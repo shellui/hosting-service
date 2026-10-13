@@ -21,13 +21,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 See for sample https://raw.githubusercontent.com/favoloso/conventional-changelog-emoji/master/CHANGELOG.md
 -->
 
-- Hosted apps send Cross-Origin-Opener-Policy unsafe-none so a link from another site opens in Firefox.
-
-## [Unreleased]
+## [0.7.0] - 2026-10-13
 
 ### 🐛 Bug Fixes
 
-- **OAuth redirect sync:** A deploy registers the site origin when `IDENTITY_SERVICE_URL` is unset, JWKS is pinned, and `IDENTITY_JWKS_URL` is `{origin}/.well-known/jwks.json`. Finalize sends the same registration again. `manage.py sync_oauth_redirects --access-token` backfills apps already deployed for that token's company.
+- **Hosted app navigation:** Hosted apps send `Cross-Origin-Opener-Policy: unsafe-none` so a link from another site opens in Firefox.
+- **OAuth redirect sync:** A deploy registers the site origin when `IDENTITY_SERVICE_URL` is unset, JWKS is pinned, and `IDENTITY_JWKS_URL` is `{origin}/.well-known/jwks.json`. Finalize registers the origin again. Preview and finalize return `oauth_redirect_registered`, `oauth_redirect_origin`, and `oauth_redirect_warning`. `manage.py sync_oauth_redirects --access-token` backfills apps already deployed for that token's company.
 
 ## [0.6.1] - 2026-10-07
 
