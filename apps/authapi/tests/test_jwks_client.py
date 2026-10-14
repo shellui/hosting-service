@@ -136,3 +136,86 @@ class JWKSClientRetryTests(SimpleTestCase):
         self.assertIn('missing-kid', joined)
         self.assertIn('kid-1', joined)
         self.assertIn('kid-2', joined)
+
+
+def _rsa_material(*, kid: str):
+    private = rsa.generate_private_key(public_exponent=65537, key_size=2048)
+    jwk = json.loads(RSAAlgorithm.to_jwk(private.public_key()))
+    jwk.update({'kid': kid, 'use': 'sig', 'alg': 'RS256'})
+    return private, {'keys': [jwk]}
+
+
+def _rs256_token(private, *, kid: str | None, sub: str = '7') -> str:
+    headers = {'kid': kid} if kid is not None else None
+    return jwt.encode(
+        {'sub': sub, 'exp': 2**31 - 1},
+        private,
+        algorithm='RS256',
+        headers=headers,
+    )
+
+
+class JWKSClientKidTests(SimpleTestCase):
+    def test_unknown_kid_does_not_use_sole_key(self):
+        private, document = _rsa_material(kid='kid-real')
+        token = _rs256_token(private, kid='removed-kid')
+        client = JWKSClient(static_document=document)
+        with self.assertLogs('apps.authapi.jwks_client', level='WARNING') as logs:
+            with self.assertRaises(jwt.InvalidTokenError) as ctx:
+                client.get_signing_key(token)
+        self.assertIn('removed-kid', str(ctx.exception))
+        self.assertIn('kid-real', '\n'.join(logs.output))
+        self.assertNotIn('sole available key', '\n'.join(logs.output))
+
+    def test_missing_kid_does_not_use_sole_key(self):
+        private, document = _rsa_material(kid='kid-real')
+        token = _rs256_token(private, kid=None)
+        client = JWKSClient(static_document=document)
+        with self.assertRaises(jwt.InvalidTokenError):
+            client.get_signing_key(token)
+
+    def test_current_kid_verifies(self):
+        private, document = _rsa_material(kid='kid-real')
+        token = _rs256_token(private, kid='kid-real', sub='42')
+        client = JWKSClient(static_document=document)
+        key = client.get_signing_key(token)
+        decoded = jwt.decode(
+            token,
+            key.key,
+            algorithms=['RS256'],
+            options={'verify_aud': False},
+        )
+        self.assertEqual(decoded['sub'], '42')
+
+    def test_rotation_fetches_new_kid_and_verifies(self):
+        _old_private, old_doc = _rsa_material(kid='kid-old')
+        new_private, new_doc = _rsa_material(kid='kid-new')
+        both = {'keys': old_doc['keys'] + new_doc['keys']}
+        token = _rs256_token(new_private, kid='kid-new', sub='rotated')
+        client = JWKSClient('https://id.example/.well-known/jwks.json', ttl=900, retries=0)
+        with patch.object(client._session, 'get', return_value=_ok_response(old_doc)):
+            client._refresh()
+        self.assertEqual(client.key_ids(), ['kid-old'])
+        with patch.object(client._session, 'get', return_value=_ok_response(both)) as mock_get:
+            key = client.get_signing_key(token)
+        self.assertEqual(mock_get.call_count, 1)
+        decoded = jwt.decode(
+            token,
+            key.key,
+            algorithms=['RS256'],
+            options={'verify_aud': False},
+        )
+        self.assertEqual(decoded['sub'], 'rotated')
+
+    def test_unknown_kid_force_refreshes_once_then_fails(self):
+        _private, document = _rsa_material(kid='kid-real')
+        other, _other_doc = _rsa_material(kid='elsewhere')
+        token = _rs256_token(other, kid='not-yet')
+        client = JWKSClient('https://id.example/.well-known/jwks.json', ttl=900, retries=0)
+        with (
+            patch.object(client._session, 'get', return_value=_ok_response(document)) as mock_get,
+            self.assertRaises(jwt.InvalidTokenError),
+        ):
+            client.get_signing_key(token)
+        self.assertEqual(mock_get.call_count, 2)
+        self.assertEqual(client.key_ids(), ['kid-real'])

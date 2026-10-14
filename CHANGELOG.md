@@ -21,6 +21,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 See for sample https://raw.githubusercontent.com/favoloso/conventional-changelog-emoji/master/CHANGELOG.md
 -->
 
+## [Unreleased]
+
+### 🔒 Security
+
+- JWKS verification rejects a token whose `kid` is not in the key set.
+- Secure session and CSRF cookies use the `__Host-` prefix, the CSRF cookie is HttpOnly, hosted app responses drop parent-domain cookies, and startup warns when `HOSTING_APP_DOMAIN` shares a parent domain with a service URL.
+- `manage.py check --deploy` errors when `DEBUG=false` and `SECRET_KEY` is empty, a known placeholder, or shorter than 50 characters.
+
 ## [0.7.0] - 2026-10-13
 
 ### 🐛 Bug Fixes

@@ -65,7 +65,7 @@ Hosting validates JWTs from identity. Run identity on port **8000** (see `identi
 ```bash
 cd hosting-service
 uv sync
-cp .env.example .env   # SECRET_KEY and JWKS are pre-filled for local dev
+cp .env.example .env   # then set SECRET_KEY (generate command is in .env.example)
 npm ci && npm run build:css   # first run only (or skip if watch:css is already running)
 uv run python manage.py migrate
 ```

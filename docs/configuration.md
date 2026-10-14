@@ -16,6 +16,8 @@ An empty boolean uses the default. `1`, `true`, `yes`, and `on` are true. Any ot
 python -c "from django.core.management.utils import get_random_secret_key; print(get_random_secret_key())"
 ```
 
+`.env.example` leaves `SECRET_KEY` empty. `manage.py check --deploy` reports `authapi.E005` when `DEBUG=false` and the key is empty, starts with `django-insecure-`, matches another known placeholder, or is shorter than 50 characters. The container entrypoint runs that check before it serves traffic.
+
 ## Required when DEBUG is false
 
 The Docker image sets `DEBUG=false`. Startup fails until these are set:
@@ -75,6 +77,8 @@ See [JWT and claim trust](claim-trust.md).
 | `HOSTING_DEBUG_OPEN` | `false` | Skip the company waitlist. Refused when `DEBUG=false`. [`.env.example`](../.env.example) sets `true` for local clones |
 
 The public URL is `{scheme}://{slug}.{HOSTING_APP_DOMAIN}/`. Serving itself uses the first hostname label, not only this domain. See [Preview sites and public URLs](preview-and-serving.md).
+
+Use a different registrable domain from identity-service and Django admin. `shellui.app` for hosted apps and `shellui.com` for identity and admin keeps a cookie set on an app host from reaching those services. `manage.py check` warns (`hosting.W001`) when the parent domain matches a configured service URL.
 
 ## Quotas
 
@@ -145,7 +149,7 @@ Limits key on the authenticated user, then on the client IP. See [Security harde
 | `SECURE_HSTS_SECONDS` | `31536000` when `DEBUG=false`, else `0` | HSTS max-age |
 | `SECURE_HSTS_INCLUDE_SUBDOMAINS` | on when `DEBUG=false` | Include subdomains in HSTS |
 | `SECURE_HSTS_PRELOAD` | `false` | HSTS preload flag |
-| `SESSION_COOKIE_SECURE`, `CSRF_COOKIE_SECURE` | on when `DEBUG=false` | Secure attribute on Django cookies |
+| `SESSION_COOKIE_SECURE`, `CSRF_COOKIE_SECURE` | on when `DEBUG=false` | Secure flag. Secure cookies are named `__Host-sessionid` and `__Host-csrftoken`. Domain stays unset. `CSRF_COOKIE_HTTPONLY` is on |
 | `TRUSTED_PROXY_IPS` | empty | Proxy IPs or CIDRs allowed to set `X-Forwarded-For` |
 
 API auth is the Bearer JWT, not a cookie. Permissive CORS is the default for that reason. Token delivery after login is the identity OAuth redirect allowlist, not CORS.
