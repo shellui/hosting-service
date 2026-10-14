@@ -45,6 +45,10 @@ Cache headers:
 
 Responses omit `X-Frame-Options`, so a Shellui shell can embed the site in an iframe. The response includes `Cross-Origin-Opener-Policy: unsafe-none` unless that header is already set. Firefox can then open the site from a link on another origin. The service does not set `Cross-Origin-Embedder-Policy` or `Cross-Origin-Resource-Policy`.
 
+The response does not set a cookie with a Domain attribute. If a hosted file or later middleware adds one, the service removes that cookie before the response leaves. A host-only cookie is limited to the app hostname.
+
+Choose `HOSTING_APP_DOMAIN` so it does not share a registrable domain with identity-service or Django admin. `shellui.app` for hosted apps and `shellui.com` for identity and admin keeps a cookie set on an app host from reaching those services. See [Security hardening](security-hardening.md).
+
 Slug lookups are cached in the worker process for `HOSTING_SERVE_CACHE_TTL_SECONDS` (default 45). Set `0` to disable the cache. Finalize and rollback clear that slug immediately. The cache is not Redis, and it is not shared across Gunicorn workers.
 
 ## Expiry

@@ -56,6 +56,10 @@ When `DEBUG=false`:
 
 Override any of these in the environment. See [`.env.example`](../.env.example).
 
+When a cookie is marked Secure, its name uses the `__Host-` prefix: `__Host-sessionid` and `__Host-csrftoken`. Browsers reject a `__Host-` cookie that sets a Domain attribute, so a sibling site cannot plant those names. On plain HTTP the names stay `sessionid` and `csrftoken`, because the prefix requires Secure. `CSRF_COOKIE_HTTPONLY` is on in every mode. The service does not set a cookie Domain.
+
+Hosted app responses drop any `Set-Cookie` header that includes a Domain attribute. A host-only cookie stays on that app hostname. Put `HOSTING_APP_DOMAIN` on a different registrable domain from identity-service and Django admin. Serve apps on `shellui.app` and keep identity and admin on `shellui.com`. On startup, `manage.py check` warns (`hosting.W001`) when `HOSTING_APP_DOMAIN` shares a parent domain with a configured service URL.
+
 ## Postgres SSL
 
 When `POSTGRES_DATABASE_URL` is set and `DEBUG=false`, connections use TLS (`ssl_require=true`). Set `POSTGRES_SSL_REQUIRE=false` only for a database without TLS on a private network, such as a Coolify internal database.

@@ -16,6 +16,7 @@ import dj_database_url
 from dotenv import load_dotenv
 from django.core.exceptions import ImproperlyConfigured
 
+from config.cookies import cookie_name
 from config.s3utils import (
     infer_addressing_style,
     infer_s3_region,
@@ -278,6 +279,8 @@ SPECTACULAR_SETTINGS = {
 }
 
 MIDDLEWARE = [
+    # Outermost so a hosted app cannot emit a Domain cookie after inner middleware.
+    'apps.hosting.middleware.HostedAppCookieScopeMiddleware',
     'django.middleware.security.SecurityMiddleware',
     # Inside SecurityMiddleware so hosted-app COOP is set before its setdefault.
     'apps.hosting.middleware.HostedAppNavigationPolicyMiddleware',
@@ -617,6 +620,16 @@ SECURE_HSTS_INCLUDE_SUBDOMAINS = _env_bool('SECURE_HSTS_INCLUDE_SUBDOMAINS', not
 SECURE_HSTS_PRELOAD = _env_bool('SECURE_HSTS_PRELOAD', False)
 SESSION_COOKIE_SECURE = _env_bool('SESSION_COOKIE_SECURE', not DEBUG)
 CSRF_COOKIE_SECURE = _env_bool('CSRF_COOKIE_SECURE', not DEBUG)
+# __Host- requires Secure, Path=/, and no Domain. Plain HTTP keeps the old names
+# so Django admin on http://localhost still sets a cookie the browser will store.
+SESSION_COOKIE_NAME = cookie_name('sessionid', secure=SESSION_COOKIE_SECURE)
+CSRF_COOKIE_NAME = cookie_name('csrftoken', secure=CSRF_COOKIE_SECURE)
+SESSION_COOKIE_PATH = '/'
+CSRF_COOKIE_PATH = '/'
+SESSION_COOKIE_DOMAIN = None
+CSRF_COOKIE_DOMAIN = None
+SESSION_COOKIE_HTTPONLY = True
+CSRF_COOKIE_HTTPONLY = True
 
 # Django admin UI (cross-tenant). Disable when unused — see docs/security-hardening.md.
 DJANGO_ADMIN_ENABLED = _env_bool('DJANGO_ADMIN_ENABLED', True)

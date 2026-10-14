@@ -16,10 +16,17 @@ Docker Compose builds the image, maps port 8002 to Gunicorn on port 8000, and st
 git clone https://github.com/shellui/hosting-service.git
 cd hosting-service
 cp .env.example .env
-docker compose up --build
 ```
 
-`.env.example` already sets `SECRET_KEY`, `IDENTITY_SERVICE_URL=http://localhost:8000`, and `HOSTING_DEBUG_OPEN=true` for local runs. Change `SECRET_KEY` before any shared environment.
+`.env.example` sets `IDENTITY_SERVICE_URL=http://localhost:8000` and `HOSTING_DEBUG_OPEN=true` for local runs. `SECRET_KEY` is empty. Paste a generated value into `.env` before you start Compose. This command does not need Django:
+
+```bash
+python3 -c "import secrets; print(secrets.token_urlsafe(64))"
+```
+
+```bash
+docker compose up --build
+```
 
 The API is at [http://localhost:8002/hosting/v1/health](http://localhost:8002/hosting/v1/health). Stop the stack with `docker compose down`. The named volume keeps the database and uploaded files.
 
@@ -36,7 +43,7 @@ uv run python manage.py migrate
 uv run python manage.py runserver 8002
 ```
 
-`npm run build:css` writes the apex landing stylesheet. When you edit `templates/` or `assets/css/`, run `npm run watch:css` in a second terminal. Django reloads templates while `DEBUG=true`. New Tailwind class names appear after that CSS rebuild.
+`SECRET_KEY` is empty after you copy `.env.example`. Generate it with the command in that file before `migrate`. `npm run build:css` writes the apex landing stylesheet. When you edit `templates/` or `assets/css/`, run `npm run watch:css` in a second terminal. Django reloads templates while `DEBUG=true`. New Tailwind class names appear after that CSS rebuild.
 
 ## Create the first admin user
 
@@ -98,7 +105,7 @@ Omit `hosting.slug` to create a new preview. To publish again to the same site, 
 
 ## Run it in production
 
-The image defaults to `DEBUG=false`. It will not start until `IDENTITY_ISSUER`, `IDENTITY_AUDIENCE`, a pinned JWKS document, and `HOSTING_APP_DOMAIN` are set. Use a pinned tag of `shellui/hosting-service`.
+The image defaults to `DEBUG=false`. It will not start until `IDENTITY_ISSUER`, `IDENTITY_AUDIENCE`, a pinned JWKS document, and `HOSTING_APP_DOMAIN` are set. `SECRET_KEY` must be a generated value: `manage.py check --deploy` errors when it is empty, a known placeholder, or shorter than 50 characters. Use a pinned tag of `shellui/hosting-service`.
 
 Before the first request, finish these steps:
 

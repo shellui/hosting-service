@@ -156,20 +156,12 @@ class JWKSClient:
         self._refresh()
         if kid and kid in self._keys:
             return self._keys[kid]
+        # A new kid during rotation is fetched once. An unknown or missing kid
+        # fails closed: the sole cached key is not a fallback.
         if kid:
             self._refresh(force=True)
             if kid in self._keys:
                 return self._keys[kid]
-        if len(self._keys) == 1:
-            only_kid, only_key = next(iter(self._keys.items()))
-            if kid and kid != only_kid:
-                logger.warning(
-                    'JWT kid=%r not in JWKS; using sole available key kid=%s alg=%s',
-                    kid,
-                    only_kid,
-                    alg,
-                )
-            return only_key
         if not self._keys:
             logger.warning(
                 'JWKS has no keys (url=%s static=%s) for token alg=%s kid=%r',
