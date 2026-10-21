@@ -234,7 +234,9 @@ class AppServeView(View):
     def get(self, request, path=''):
         slug = slug_from_host(request.get_host())
         if not slug:
-            return site_unavailable_response(request, reason='not_found')
+            # The service's own host (apex, localhost): an unknown path gets the
+            # Shellui 404 page (config/errors.py), not the hosted-site page.
+            raise Http404('Not found')
         app = _load_app(slug)
         if app is None:
             return site_unavailable_response(request, reason='not_found')
