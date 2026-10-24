@@ -8,13 +8,15 @@ hosting-service reads configuration from environment variables. Copy [`.env.exam
 
 An empty boolean uses the default. `1`, `true`, `yes`, and `on` are true. Any other value, including `false`, is false. Byte sizes accept a bare integer or a `K`, `M`, `G`, or `T` suffix. Each suffix is a multiple of 1024, so `100M` is 104857600 bytes.
 
+## Generate the env
+
+`python manage.py generate_env --host hosting.example.com` prints every production setting with a fresh `SECRET_KEY`. It runs with no env, database or Redis. Replace each `change-me` value. Add `--optional` to also list the optional settings with their defaults. The output holds secrets, so store it in a secret manager and never commit it.
+
+`.env.example` is generated from `config/env_registry.py` with `python manage.py generate_env --example > .env.example`. A test fails when the registry, the code, this page or `.env.example` drift apart.
+
 ## Required to start
 
-`SECRET_KEY` is required in every mode. Django uses it to sign sessions and CSRF tokens. Generate one with:
-
-```bash
-python -c "from django.core.management.utils import get_random_secret_key; print(get_random_secret_key())"
-```
+`SECRET_KEY` is required in every mode. Django uses it to sign sessions and CSRF tokens. With `DEBUG=false` it must be at least 50 characters and not a placeholder, otherwise startup fails. The error names the variable and never prints its value.
 
 ## Required when DEBUG is false
 
@@ -25,7 +27,7 @@ The Docker image sets `DEBUG=false`. Startup fails until these are set:
 | `IDENTITY_ISSUER` | JWT `iss` must match this value |
 | `IDENTITY_AUDIENCE` | JWT `aud` must match this value |
 | `IDENTITY_JWKS_FILE` or `IDENTITY_JWKS` | Pinned JSON Web Key Set (JWKS). A URL fetch is refused |
-| `HOSTING_APP_DOMAIN` | Domain used in API browse links, for example `shellui.app` |
+| `HOSTING_APP_DOMAIN` | Apps domain, for example `shellui.app`, or `eu.shellui.app` for a region. Used in browse links, OAuth redirect sync, and `ALLOWED_HOSTS` |
 
 `HOSTING_DEBUG_OPEN=true` is also refused while `DEBUG=false`. `JWT_HS256_FALLBACK_SECRET` is refused unless you also set `ALLOW_JWT_HS256_FALLBACK=true`.
 
@@ -74,7 +76,7 @@ See [JWT and claim trust](claim-trust.md).
 | `HOSTING_SERVE_CACHE_TTL_SECONDS` | `45` | In-process cache of slug-to-app lookups. `0` disables it. Cleared on finalize and rollback |
 | `HOSTING_DEBUG_OPEN` | `false` | Skip the company waitlist. Refused when `DEBUG=false`. [`.env.example`](../.env.example) sets `true` for local clones |
 
-The public URL is `{scheme}://{slug}.{HOSTING_APP_DOMAIN}/`. Serving itself uses the first hostname label, not only this domain. See [Preview sites and public URLs](preview-and-serving.md).
+The public URL is `{scheme}://{slug}.{HOSTING_APP_DOMAIN}/`. Serving itself uses the first hostname label, not only this domain. `HOSTING_APP_DOMAIN` and `www.{HOSTING_APP_DOMAIN}` show the landing page. See [Preview sites and public URLs](preview-and-serving.md).
 
 ## Quotas
 
@@ -169,6 +171,7 @@ The same container runs `retry_webhooks` every minute and `purge_expired_data` e
 | `SCHEDULER_ENABLED` | `true` | `false` keeps the Celery worker out of this container |
 | `CELERY_BROKER_URL` | `REDIS_URL` | Broker for the jobs. The cache still needs `REDIS_URL` |
 | `CELERY_WORKER_CONCURRENCY` | `2` | Threads in the worker |
+| `CELERY_BEAT_SCHEDULE_FILE` | `/tmp/celerybeat-schedule` | Beat schedule file. Losing it on restart only resets the schedule |
 
 ## Shellui Actions
 
@@ -189,7 +192,7 @@ Set `EMAIL_SERVICE_API_KEY` to forward hosting events to email-service. An empty
 
 | Variable | Default | Purpose |
 | --- | --- | --- |
-| `EMAIL_SERVICE_URL` | `https://email.shellui.com` | Origin only. hosting-service appends `/api/v1/events` |
+| `EMAIL_SERVICE_URL` | `https://email.shellui.com` | Origin only. hosting-service appends `/api/v1/events`. Set it in every region, for example `https://email.eu.shellui.com` |
 | `EMAIL_SERVICE_API_KEY` | empty | Service key (`esk_`). Empty disables forwarding |
 | `EMAIL_SERVICE_ALLOW_PRIVATE` | `false` | Allow a URL that resolves to a private or loopback address |
 
@@ -222,6 +225,10 @@ Leave `ROOT_REDIRECT_URL` empty when this process should show the hosting landin
 | `SENTRY_ENVIRONMENT` | `development` or `production` from `DEBUG` | Sentry environment tag |
 | `SENTRY_RELEASE` | the package version | Sentry release tag |
 | `SENTRY_TRACES_SAMPLE_RATE` | `0` | Share of requests traced. `0` reports errors only |
+
+## Health check
+
+`GET /health/live` returns `200 ok` before host checks, the HTTPS redirect, sessions and the database. The Docker image runs `tools/healthcheck.py` against `http://127.0.0.1:8000/health/live` as its `HEALTHCHECK`, so Coolify and Docker need no extra config. It does not check Postgres or Redis. In worker mode it always passes. `GET /hosting/v1/health` stays the detailed status endpoint.
 
 ## Related
 

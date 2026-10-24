@@ -63,6 +63,8 @@ Covered by `./tools/pre-release-check.sh`.
 
 ## Publish to Docker Hub
 
+Publishing a GitHub release runs `.github/workflows/publish.yml`. It builds `linux/amd64` and `linux/arm64` and pushes `shellui/hosting-service` tagged with the version, `major.minor` and `latest` (no `latest` for a prerelease). It needs the `DOCKERHUB_USERNAME` and `DOCKERHUB_TOKEN` repository secrets. The token needs read and write access to the repository and read access to public repositories. Run it again for an existing tag with **Run workflow**. The manual steps below stay as a fallback.
+
 ### Prerequisites
 
 1. Docker Hub account with push access to the `shellui` organization (or your namespace).
@@ -175,6 +177,8 @@ Full JWT deploy/CLI flows cannot be verified without identity-service tokens - t
 **Coolify / internal Postgres:** if boot fails with SSL errors against an internal Docker Postgres, set `POSTGRES_SSL_REQUIRE=false` (same as identity-service). Hosting parses `POSTGRES_DATABASE_URL` with `ssl_require=false` by default; this env var matches identity when you need an explicit toggle in orchestration.
 
 ### Required runtime env vars (production)
+
+`python manage.py generate_env --host hosting.example.com` prints this list with a fresh `SECRET_KEY`. See [docs/configuration.md](docs/configuration.md#generate-the-env).
 
 | Variable | Notes |
 |----------|--------|

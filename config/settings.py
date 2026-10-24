@@ -158,7 +158,7 @@ _secret_key = os.getenv('SECRET_KEY', '').strip()
 if not _secret_key:
     raise ImproperlyConfigured(
         '\n'
-        'SECRET_KEY is not set — hosting-service cannot start.\n'
+        'SECRET_KEY is not set. hosting-service cannot start.\n'
         '\n'
         'How to fix:\n'
         '  1. Copy the example env file:\n'
@@ -283,6 +283,8 @@ SPECTACULAR_SETTINGS = {
 }
 
 MIDDLEWARE = [
+    # First: /health/live answers before host checks, https redirect and app serving.
+    'config.health.LivenessMiddleware',
     'django.middleware.security.SecurityMiddleware',
     # Inside SecurityMiddleware so hosted-app COOP is set before its setdefault.
     'apps.hosting.middleware.HostedAppNavigationPolicyMiddleware',
@@ -745,6 +747,12 @@ SENTRY_TRACES_SAMPLE_RATE = _env_float('SENTRY_TRACES_SAMPLE_RATE', 0.0)
 
 if not DEBUG:
     _production_config_errors: list[str] = []
+    if len(SECRET_KEY) < 50 or SECRET_KEY.startswith('django-insecure-') or 'change-me' in SECRET_KEY:
+        # Never print the value. generate_env prints a strong key.
+        _production_config_errors.append(
+            'SECRET_KEY is shorter than 50 characters or a known placeholder when DEBUG=false. '
+            'Run: python manage.py generate_env'
+        )
     if not IDENTITY_ISSUER:
         _production_config_errors.append('IDENTITY_ISSUER is required when DEBUG=false.')
     if not IDENTITY_AUDIENCE:
