@@ -21,7 +21,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 See for sample https://raw.githubusercontent.com/favoloso/conventional-changelog-emoji/master/CHANGELOG.md
 -->
 
-## [0.8.0] - 2026-10-21
+## [0.8.0] - 2026-10-24
 
 ### ✨ Feature
 
@@ -32,11 +32,20 @@ See for sample https://raw.githubusercontent.com/favoloso/conventional-changelog
 ### 🔒 Security
 
 - `SECRET_KEY` shorter than 50 characters or a placeholder is refused when `DEBUG=false`.
-- `certifi` 2026.10.19 fixes PYSEC-2026-4320.
 
 ### 🏗 Chore
 
 - `.env.example` is generated from `config/env_registry.py` and lists only the required settings.
+
+## [0.7.1] - 2026-10-24
+
+### 🐛 Bug Fixes
+
+- **Region apex:** `HOSTING_APP_DOMAIN` with three labels, such as `eu.shellui.app`, shows the landing page instead of the 404 for an app called `eu`.
+
+### 🔒 Security
+
+- Bump `djangorestframework` to 3.18.2 and `certifi` to 2026.10.19 for published advisories.
 
 ## [0.7.0] - 2026-10-13
 
