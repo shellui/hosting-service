@@ -10,7 +10,9 @@ Send the token as `Authorization: Bearer your_access_token_here`.
 
 ## What gets verified
 
-Tokens must include `exp`. The signature is checked as RS256 against a JSON Web Key Set (JWKS). Pin that document in production with `IDENTITY_JWKS_FILE` or `IDENTITY_JWKS`. Local development can fetch `IDENTITY_JWKS_URL`, which defaults to `{IDENTITY_SERVICE_URL}/.well-known/jwks.json`.
+Tokens must include `exp`. The signature is checked as RS256 against a JSON Web Key Set (JWKS). The token `kid` header must name a key in that set. An unknown or missing `kid` is rejected, including when the set contains one key.
+
+Pin that document in production with `IDENTITY_JWKS_FILE` or `IDENTITY_JWKS`. Local development can fetch `IDENTITY_JWKS_URL`, which defaults to `{IDENTITY_SERVICE_URL}/.well-known/jwks.json`.
 
 When `DEBUG=false`, the process refuses to start unless all of these are set:
 

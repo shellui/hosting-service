@@ -2,7 +2,9 @@
 
 import io
 import tarfile
+from unittest.mock import patch
 
+from django.http import HttpResponse
 from django.test import Client, TestCase, override_settings
 from django.utils import timezone
 
@@ -167,6 +169,24 @@ class ServeIntegrationTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertNotEqual(response.get('X-Frame-Options'), 'DENY')
         self.assertNotEqual(response.get('X-Frame-Options'), 'SAMEORIGIN')
+
+    def test_hosted_response_drops_parent_domain_cookies(self):
+        def view(request, path=''):
+            response = HttpResponse('ok')
+            response.set_cookie('planted', 'evil', domain='shellui.test', path='/')
+            response.set_cookie('local', 'ok', path='/')
+            response['Set-Cookie'] = 'raw=1; Domain=shellui.test; Path=/'
+            return response
+
+        with patch('apps.hosting.serve.AppServeView.as_view', return_value=view):
+            response = self.client.get('/', HTTP_HOST=self.app_host)
+        self.assertEqual(response.status_code, 200)
+        self.assertNotIn('planted', response.cookies)
+        self.assertEqual(response.cookies['local'].value, 'ok')
+        self.assertEqual(response.cookies['local']['domain'], '')
+        raw = response.headers.get('Set-Cookie')
+        self.assertTrue(raw is None or 'domain' not in raw.lower())
+        self.assertEqual(response['Cross-Origin-Opener-Policy'], 'unsafe-none')
 
     def test_hosted_app_coop_allows_cross_site_navigation(self):
         response = self.client.get('/', HTTP_HOST=self.app_host)

@@ -132,7 +132,7 @@ git push origin "v${VERSION}"
 
 ## Deploy
 
-Pull and run the published image:
+Pull and run the published image. Generate `SECRET_KEY` first with the command in [Configuration](docs/configuration.md).
 
 ```bash
 docker volume create hosting-service-data
@@ -141,7 +141,7 @@ docker run -d \
   --name hosting-service \
   -p 8002:8000 \
   -v hosting-service-data:/app/data \
-  -e SECRET_KEY='replace-with-generated-key' \
+  -e SECRET_KEY='your_secret_key_here' \
   -e ALLOWED_HOSTS='hosting.example.com,*.shellui.app' \
   -e CSRF_TRUSTED_ORIGINS='https://hosting.example.com' \
   -e HOSTING_APP_DOMAIN='shellui.app' \
@@ -182,10 +182,10 @@ Full JWT deploy/CLI flows cannot be verified without identity-service tokens - t
 
 | Variable | Notes |
 |----------|--------|
-| `SECRET_KEY` | Django sessions/CSRF |
+| `SECRET_KEY` | Django sessions/CSRF. Generate one; `manage.py check --deploy` errors (`authapi.E005`) when `DEBUG=false` and the key is empty, a known placeholder, or shorter than 50 characters |
 | `IDENTITY_JWKS` or `IDENTITY_JWKS_FILE` | **Pinned** JWKS in production (`IDENTITY_JWKS_URL` fetch is dev-only) |
 | `IDENTITY_ISSUER` / `IDENTITY_AUDIENCE` | Required when `DEBUG=false` |
-| `HOSTING_APP_DOMAIN` | e.g. `shellui.app` (required when `DEBUG=false`) |
+| `HOSTING_APP_DOMAIN` | e.g. `shellui.app` (required when `DEBUG=false`). Use a different registrable domain from identity and admin (`shellui.com`) |
 | `ALLOWED_HOSTS` | Comma-separated hostnames |
 | `HOSTING_BACKEND` | `filesystem` or S3 settings |
 | `HOSTING_DEBUG_OPEN` | Must be **unset** or `false` in production (startup fails if enabled with `DEBUG=false`) |

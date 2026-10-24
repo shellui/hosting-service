@@ -2,8 +2,64 @@
 
 from django.conf import settings
 from django.core.checks import Error, Warning, register
+from django.core.exceptions import ImproperlyConfigured
 
 from config.settings import _env_int
+
+# Django's own security.W009 uses the same length and insecure prefix, as a
+# deploy warning. Production must fail the check instead.
+SECRET_KEY_MIN_LENGTH = 50
+SECRET_KEY_PLACEHOLDER_PREFIXES = ('django-insecure-',)
+SECRET_KEY_PLACEHOLDERS = frozenset(
+    {
+        'django-insecure-12345678901234567890123456789012',
+        'change-me-generate-a-strong-secret-key',
+    }
+)
+
+
+def secret_key_problem(secret_key: str | None) -> str | None:
+    """Return an error sentence when a production key must be refused."""
+    key = (secret_key or '').strip()
+    if not key:
+        return 'SECRET_KEY is empty.'
+    if key in SECRET_KEY_PLACEHOLDERS or key.startswith(SECRET_KEY_PLACEHOLDER_PREFIXES):
+        return (
+            'SECRET_KEY is a known placeholder. Generate a new key before '
+            'DEBUG=false.'
+        )
+    if len(key) < SECRET_KEY_MIN_LENGTH:
+        return f'SECRET_KEY is shorter than {SECRET_KEY_MIN_LENGTH} characters.'
+    return None
+
+
+@register(deploy=True, tags='security')
+def secret_key_refused_outside_debug(app_configs, **kwargs):
+    """
+    Error when DEBUG is false and SECRET_KEY is empty, a placeholder, or short.
+
+    A deploy check, so `check --deploy` (run by the Docker entrypoint) fails.
+    `manage.py test` sets DEBUG false and must still run with the CI key.
+    """
+    if settings.DEBUG:
+        return []
+    try:
+        secret_key = settings.SECRET_KEY
+    except ImproperlyConfigured:
+        secret_key = ''
+    problem = secret_key_problem(secret_key)
+    if not problem:
+        return []
+    return [
+        Error(
+            problem,
+            hint=(
+                'Generate a key with: python -c "from django.core.management.utils '
+                'import get_random_secret_key; print(get_random_secret_key())"'
+            ),
+            id='authapi.E005',
+        )
+    ]
 
 
 @register(deploy=True, tags='security')

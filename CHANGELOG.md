@@ -36,6 +36,10 @@ See for sample https://raw.githubusercontent.com/favoloso/conventional-changelog
 ### 🔒 Security
 
 - `SECRET_KEY` shorter than 50 characters or a placeholder is refused when `DEBUG=false`.
+- JWKS verification rejects a token whose `kid` is not in the key set.
+- Secure session and CSRF cookies use the `__Host-` prefix, and hosted app responses drop parent-domain cookies.
+- Startup warns when `HOSTING_APP_DOMAIN` shares a parent domain with a service URL.
+- `manage.py check --deploy` reports a weak `SECRET_KEY` as `authapi.E005`.
 
 ### 🏗 Chore
 
