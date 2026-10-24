@@ -218,8 +218,9 @@ Set `EMAIL_SERVICE_API_KEY` to forward hosting events to email-service. An empty
 | `SHELLUI_PLAYGROUND_URL` | `https://playground.shellui.com` | Link on the landing page |
 | `SHELLUI_GITHUB_URL` | `https://github.com/shellui` | Link on the landing page |
 | `SHELLUI_AI_URL` | `https://shellui.ai` | Link on the landing page |
+| `HOSTING_REGION` | empty | Region label on the landing page, for example `EU`. Empty hides the region line |
 
-Leave `ROOT_REDIRECT_URL` empty when this process should show the hosting landing page. `GET /llms.txt` on the apex returns a short text description of the site.
+Leave `ROOT_REDIRECT_URL` empty when this process should show the hosting landing page. The landing page and `llms.txt` build their hosted URLs from `HOSTING_APP_DOMAIN` and `HOSTING_APP_SCHEME`, so each region shows its own domain. `GET /llms.txt` on the apex returns a short text description of the site.
 
 ## Error reporting
 
