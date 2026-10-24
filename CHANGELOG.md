@@ -29,6 +29,10 @@ See for sample https://raw.githubusercontent.com/favoloso/conventional-changelog
 - **Docker Hub:** A published GitHub release pushes a multi-arch image to `shellui/hosting-service`.
 - **generate_env:** `manage.py generate_env` prints the production env with a fresh `SECRET_KEY`.
 
+### 🛠 Improvements
+
+- **Errors:** Error pages use the Shellui design, and API errors always return JSON.
+
 ### 🔒 Security
 
 - `SECRET_KEY` shorter than 50 characters or a placeholder is refused when `DEBUG=false`.

@@ -138,6 +138,30 @@ class ServeIntegrationTests(TestCase):
         response = self.client.get('/assets/missing.js', HTTP_HOST=self.app_host)
         self.assertEqual(response.status_code, 404)
 
+    def test_hosted_site_404_is_unchanged(self):
+        """A hosted site's missing file keeps Django's default 404, never the Shellui page."""
+        response = self.client.get(
+            '/assets/missing.js',
+            HTTP_HOST=self.app_host,
+            HTTP_ACCEPT='text/html,application/xhtml+xml,*/*;q=0.8',
+        )
+        self.assertEqual(response.status_code, 404)
+        body = self._body(response)
+        self.assertIn(b'<h1>Not Found</h1>', body)
+        self.assertNotIn(b"This page doesn", body)
+        self.assertNotIn(b'Shellui Hosting', body)
+
+    def test_hosted_site_unavailable_page_is_unchanged(self):
+        response = self.client.get('/no-such-page', HTTP_HOST='missing.shellui.test')
+        self.assertEqual(response.status_code, 404)
+        self.assertTemplateUsed(response, 'hosting/site_unavailable.html')
+        self.assertTemplateNotUsed(response, 'errors/error.html')
+
+    def test_platform_host_unknown_path_gets_shellui_404(self):
+        response = self.client.get('/no-such-page', HTTP_HOST='localhost')
+        self.assertEqual(response.status_code, 404)
+        self.assertIn(b"This page doesn", self._body(response))
+
     def test_hosted_app_can_be_embedded_in_iframe(self):
         response = self.client.get('/', HTTP_HOST=self.app_host)
         self.assertEqual(response.status_code, 200)
