@@ -25,6 +25,7 @@ The first label of the `Host` header is the slug when all of these are true:
 - The hostname has at least three labels (`slug.shellui.app`, not `shellui.app`)
 - It is not an IP address
 - It is not `localhost` or the Django test hostname
+- It is not `HOSTING_APP_DOMAIN` or `www.{HOSTING_APP_DOMAIN}`, so a region domain such as `eu.shellui.app` shows the landing page
 - The first label is not `www`, `hosting`, `api`, or `admin`
 
 `shellui.app` and `localhost:8002` stay on the platform: landing page, `/hosting/v1/`, `/admin/`, `/api/docs/`, and `/llms.txt`. On an app host, every path is the hosted site, including `/admin`. That keeps a single-page app refresh on a client route from opening Django admin.
@@ -44,6 +45,10 @@ Cache headers:
 | Other static files | `public, max-age=86400` |
 
 Responses omit `X-Frame-Options`, so a Shellui shell can embed the site in an iframe. The response includes `Cross-Origin-Opener-Policy: unsafe-none` unless that header is already set. Firefox can then open the site from a link on another origin. The service does not set `Cross-Origin-Embedder-Policy` or `Cross-Origin-Resource-Policy`.
+
+The response does not set a cookie with a Domain attribute. If a hosted file or later middleware adds one, the service removes that cookie before the response leaves. A host-only cookie is limited to the app hostname.
+
+Choose `HOSTING_APP_DOMAIN` so it does not share a registrable domain with identity-service or Django admin. `shellui.app` for hosted apps and `shellui.com` for identity and admin keeps a cookie set on an app host from reaching those services. See [Security hardening](security-hardening.md).
 
 Slug lookups are cached in the worker process for `HOSTING_SERVE_CACHE_TTL_SECONDS` (default 45). Set `0` to disable the cache. Finalize and rollback clear that slug immediately. The cache is not Redis, and it is not shared across Gunicorn workers.
 

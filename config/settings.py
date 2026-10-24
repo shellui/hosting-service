@@ -16,6 +16,7 @@ import dj_database_url
 from dotenv import load_dotenv
 from django.core.exceptions import ImproperlyConfigured
 
+from config.cookies import cookie_name
 from config.s3utils import (
     infer_addressing_style,
     infer_s3_region,
@@ -158,7 +159,7 @@ _secret_key = os.getenv('SECRET_KEY', '').strip()
 if not _secret_key:
     raise ImproperlyConfigured(
         '\n'
-        'SECRET_KEY is not set — hosting-service cannot start.\n'
+        'SECRET_KEY is not set. hosting-service cannot start.\n'
         '\n'
         'How to fix:\n'
         '  1. Copy the example env file:\n'
@@ -252,6 +253,11 @@ REST_FRAMEWORK = {
         'apps.authapi.permissions.IsAuthenticatedPrincipal',
     ],
     'EXCEPTION_HANDLER': 'config.exceptions.exception_handler',
+    # JSON only: browsers get the same error body as API clients, never the
+    # browsable API page. Views that need another format set renderer_classes.
+    'DEFAULT_RENDERER_CLASSES': [
+        'rest_framework.renderers.JSONRenderer',
+    ],
 }
 
 SPECTACULAR_SETTINGS = {
@@ -278,6 +284,10 @@ SPECTACULAR_SETTINGS = {
 }
 
 MIDDLEWARE = [
+    # First: /health/live answers before host checks, https redirect and app serving.
+    'config.health.LivenessMiddleware',
+    # Next, so a hosted app cannot emit a Domain cookie after inner middleware.
+    'apps.hosting.middleware.HostedAppCookieScopeMiddleware',
     'django.middleware.security.SecurityMiddleware',
     # Inside SecurityMiddleware so hosted-app COOP is set before its setdefault.
     'apps.hosting.middleware.HostedAppNavigationPolicyMiddleware',
@@ -312,6 +322,9 @@ TEMPLATES = [
 ]
 
 WSGI_APPLICATION = 'config.wsgi.application'
+
+# Branded page for browsers, JSON under the API prefixes (config/errors.py).
+CSRF_FAILURE_VIEW = 'config.errors.csrf_failure'
 
 POSTGRES_DATABASE_URL = os.getenv('POSTGRES_DATABASE_URL', '').strip()
 
@@ -617,6 +630,16 @@ SECURE_HSTS_INCLUDE_SUBDOMAINS = _env_bool('SECURE_HSTS_INCLUDE_SUBDOMAINS', not
 SECURE_HSTS_PRELOAD = _env_bool('SECURE_HSTS_PRELOAD', False)
 SESSION_COOKIE_SECURE = _env_bool('SESSION_COOKIE_SECURE', not DEBUG)
 CSRF_COOKIE_SECURE = _env_bool('CSRF_COOKIE_SECURE', not DEBUG)
+# __Host- requires Secure, Path=/, and no Domain. Plain HTTP keeps the old names
+# so Django admin on http://localhost still sets a cookie the browser will store.
+SESSION_COOKIE_NAME = cookie_name('sessionid', secure=SESSION_COOKIE_SECURE)
+CSRF_COOKIE_NAME = cookie_name('csrftoken', secure=CSRF_COOKIE_SECURE)
+SESSION_COOKIE_PATH = '/'
+CSRF_COOKIE_PATH = '/'
+SESSION_COOKIE_DOMAIN = None
+CSRF_COOKIE_DOMAIN = None
+SESSION_COOKIE_HTTPONLY = True
+CSRF_COOKIE_HTTPONLY = True
 
 # Django admin UI (cross-tenant). Disable when unused — see docs/security-hardening.md.
 DJANGO_ADMIN_ENABLED = _env_bool('DJANGO_ADMIN_ENABLED', True)
@@ -737,6 +760,12 @@ SENTRY_TRACES_SAMPLE_RATE = _env_float('SENTRY_TRACES_SAMPLE_RATE', 0.0)
 
 if not DEBUG:
     _production_config_errors: list[str] = []
+    if len(SECRET_KEY) < 50 or SECRET_KEY.startswith('django-insecure-') or 'change-me' in SECRET_KEY:
+        # Never print the value. generate_env prints a strong key.
+        _production_config_errors.append(
+            'SECRET_KEY is shorter than 50 characters or a known placeholder when DEBUG=false. '
+            'Run: python manage.py generate_env'
+        )
     if not IDENTITY_ISSUER:
         _production_config_errors.append('IDENTITY_ISSUER is required when DEBUG=false.')
     if not IDENTITY_AUDIENCE:

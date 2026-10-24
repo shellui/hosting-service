@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from unittest.mock import MagicMock, patch
 
 import jwt
@@ -9,6 +10,7 @@ from django.test import SimpleTestCase, override_settings
 from rest_framework.exceptions import AuthenticationFailed
 
 from apps.authapi.authentication import IdentityJWKSAuthentication
+from apps.authapi.jwks_client import reset_jwks_client
 
 
 @override_settings(
@@ -229,3 +231,77 @@ class RequestIdResponseTests(SimpleTestCase):
         self.assertIn('request_id', data)
         self.assertEqual(response['X-Request-ID'], data['request_id'])
         self.assertIn('Token is invalid', data['detail'])
+
+
+def _rsa_jwks(*, kid: str):
+    from cryptography.hazmat.primitives.asymmetric import rsa
+    from jwt.algorithms import RSAAlgorithm
+
+    private = rsa.generate_private_key(public_exponent=65537, key_size=2048)
+    jwk = json.loads(RSAAlgorithm.to_jwk(private.public_key()))
+    jwk.update({'kid': kid, 'use': 'sig', 'alg': 'RS256'})
+    return private, {'keys': [jwk]}
+
+
+class JWKSAuthenticationFlowTests(SimpleTestCase):
+    """RS256 tokens verify when kid matches, and fail closed when it does not."""
+
+    def tearDown(self):
+        reset_jwks_client()
+
+    def _authenticate(self, token: str, document: dict):
+        reset_jwks_client()
+        with override_settings(
+            IDENTITY_JWKS_DOCUMENT=document,
+            IDENTITY_JWKS_URL=None,
+            JWT_ALGORITHMS=['RS256'],
+            IDENTITY_AUDIENCE='',
+            IDENTITY_ISSUER='',
+            JWT_HS256_FALLBACK_SECRET=None,
+            ALLOW_JWT_HS256_FALLBACK=False,
+            DEBUG=True,
+        ):
+            reset_jwks_client()
+            try:
+                return IdentityJWKSAuthentication().authenticate_credentials(token)
+            finally:
+                reset_jwks_client()
+
+    def test_current_kid_returns_principal(self):
+        private, document = _rsa_jwks(kid='kid-live')
+        token = jwt.encode(
+            {
+                'sub': '9',
+                'user_id': 9,
+                'company_id': 3,
+                'email': 'owner@example.com',
+                'user_metadata': {'is_staff': False, 'is_company_owner': True},
+                'exp': 2**31 - 1,
+            },
+            private,
+            algorithm='RS256',
+            headers={'kid': 'kid-live'},
+        )
+        principal = self._authenticate(token, document)
+        self.assertEqual(principal.user_id, 9)
+        self.assertEqual(principal.company_id, 3)
+        self.assertTrue(principal.is_company_owner)
+        self.assertTrue(principal.is_authenticated)
+
+    def test_unknown_kid_is_rejected(self):
+        private, document = _rsa_jwks(kid='kid-live')
+        token = jwt.encode(
+            {
+                'sub': '9',
+                'user_id': 9,
+                'company_id': 3,
+                'email': 'owner@example.com',
+                'user_metadata': {'is_staff': False, 'is_company_owner': True},
+                'exp': 2**31 - 1,
+            },
+            private,
+            algorithm='RS256',
+            headers={'kid': 'not-in-jwks'},
+        )
+        with self.assertRaises(AuthenticationFailed):
+            self._authenticate(token, document)

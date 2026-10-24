@@ -21,6 +21,44 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 See for sample https://raw.githubusercontent.com/favoloso/conventional-changelog-emoji/master/CHANGELOG.md
 -->
 
+## [0.8.0] - 2026-10-24
+
+### ✨ Feature
+
+- **Health check:** The image has a Docker `HEALTHCHECK` on `/health/live`, with no database or Redis check.
+- **Docker Hub:** A published GitHub release pushes a multi-arch image to `shellui/hosting-service`.
+- **generate_env:** `manage.py generate_env` prints the production env with a fresh `SECRET_KEY`.
+
+### 🛠 Improvements
+
+- **Errors:** Error pages use the Shellui design, and API errors always return JSON.
+
+### 🔒 Security
+
+- `SECRET_KEY` shorter than 50 characters or a placeholder is refused when `DEBUG=false`.
+- JWKS verification rejects a token whose `kid` is not in the key set.
+- Secure session and CSRF cookies use the `__Host-` prefix, and hosted app responses drop parent-domain cookies.
+- Startup warns when `HOSTING_APP_DOMAIN` shares a parent domain with a service URL.
+- `manage.py check --deploy` reports a weak `SECRET_KEY` as `authapi.E005`.
+
+### 🏗 Chore
+
+- `.env.example` is generated from `config/env_registry.py` and lists only the required settings.
+
+### 📚 Documentation
+
+- Configuration docs cover a region `HOSTING_APP_DOMAIN` such as `eu.shellui.app` and a per-region `EMAIL_SERVICE_URL`.
+
+## [0.7.1] - 2026-10-24
+
+### 🐛 Bug Fixes
+
+- **Region apex:** `HOSTING_APP_DOMAIN` with three labels, such as `eu.shellui.app`, shows the landing page instead of the 404 for an app called `eu`.
+
+### 🔒 Security
+
+- Bump `djangorestframework` to 3.18.2 and `certifi` to 2026.10.19 for published advisories.
+
 ## [0.7.0] - 2026-10-13
 
 ### 🐛 Bug Fixes

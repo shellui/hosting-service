@@ -37,11 +37,11 @@ Manual equivalents (if you are not using the script):
 
 ### 1. Version alignment
 
-Ensure these match the release version (e.g. `0.7.0`):
+Ensure these match the release version (e.g. `0.7.1`):
 
 - `version` in `pyproject.toml` (OpenAPI / API metadata via `config.settings.VERSION`)
 - `CHANGELOG.md` entry with date
-- Git tag `v0.7.0` (optional but recommended; not enforced by the script)
+- Git tag `v0.7.1` (optional but recommended; not enforced by the script)
 - CI green on the release commit (`.github/workflows/ci.yml` + pre-release workflow)
 
 ### 2. No secrets in the build context
@@ -63,6 +63,8 @@ Covered by `./tools/pre-release-check.sh`.
 
 ## Publish to Docker Hub
 
+Publishing a GitHub release runs `.github/workflows/publish.yml`. It builds `linux/amd64` and `linux/arm64` and pushes `shellui/hosting-service` tagged with the version, `major.minor` and `latest` (no `latest` for a prerelease). It needs the `DOCKERHUB_USERNAME` and `DOCKERHUB_TOKEN` repository secrets. The token needs read and write access to the repository and read access to public repositories. Run it again for an existing tag with **Run workflow**. The manual steps below stay as a fallback.
+
 ### Prerequisites
 
 1. Docker Hub account with push access to the `shellui` organization (or your namespace).
@@ -76,11 +78,11 @@ docker login
 
 ### Tagging
 
-For semver release `0.7.0`, typical Docker Hub tags:
+For semver release `0.7.1`, typical Docker Hub tags:
 
 | Tag      | Purpose                                  |
 | -------- | ---------------------------------------- |
-| `0.7.0`  | Exact release (pin in production)        |
+| `0.7.1`  | Exact release (pin in production)        |
 | `0.7`    | Latest patch in the 0.7 line             |
 | `latest` | Newest published release (use with care) |
 
@@ -89,7 +91,7 @@ For semver release `0.7.0`, typical Docker Hub tags:
 From the repository root:
 
 ```bash
-VERSION=0.7.0
+VERSION=0.7.1
 IMAGE=shellui/hosting-service
 
 docker build -t "${IMAGE}:${VERSION}" .
@@ -107,7 +109,7 @@ docker push "${IMAGE}:latest"
 If you build on Apple Silicon, a plain `docker build` may produce `linux/arm64` only. Most cloud VMs expect `linux/amd64`. Publish both with buildx:
 
 ```bash
-VERSION=0.7.0
+VERSION=0.7.1
 IMAGE=shellui/hosting-service
 
 docker buildx create --use --name multi 2>/dev/null || docker buildx use multi
@@ -123,14 +125,14 @@ docker buildx build \
 ### Git tag (recommended)
 
 ```bash
-VERSION=0.7.0
+VERSION=0.7.1
 git tag -a "v${VERSION}" -m "Release ${VERSION}"
 git push origin "v${VERSION}"
 ```
 
 ## Deploy
 
-Pull and run the published image:
+Pull and run the published image. Generate `SECRET_KEY` first with the command in [Configuration](docs/configuration.md).
 
 ```bash
 docker volume create hosting-service-data
@@ -139,13 +141,13 @@ docker run -d \
   --name hosting-service \
   -p 8002:8000 \
   -v hosting-service-data:/app/data \
-  -e SECRET_KEY='replace-with-generated-key' \
+  -e SECRET_KEY='your_secret_key_here' \
   -e ALLOWED_HOSTS='hosting.example.com,*.shellui.app' \
   -e CSRF_TRUSTED_ORIGINS='https://hosting.example.com' \
   -e HOSTING_APP_DOMAIN='shellui.app' \
   -e IDENTITY_JWKS='{"keys":[...]}' \
   -e REDIS_URL='redis://redis:6379/0' \
-  shellui/hosting-service:0.7.0
+  shellui/hosting-service:0.7.1
 ```
 
 The entrypoint runs migrations on start, then starts **Gunicorn** (`config.wsgi:application`) and the in-container scheduler as user `appuser`. `REDIS_URL` is required when `DEBUG` is false. Env vars `GUNICORN_WORKERS` (default `2`), `GUNICORN_THREADS` (default `2`), and `GUNICORN_TIMEOUT` (default `120`) are passed through.
@@ -176,12 +178,14 @@ Full JWT deploy/CLI flows cannot be verified without identity-service tokens - t
 
 ### Required runtime env vars (production)
 
+`python manage.py generate_env --host hosting.example.com` prints this list with a fresh `SECRET_KEY`. See [docs/configuration.md](docs/configuration.md#generate-the-env).
+
 | Variable | Notes |
 |----------|--------|
-| `SECRET_KEY` | Django sessions/CSRF |
+| `SECRET_KEY` | Django sessions/CSRF. Generate one; `manage.py check --deploy` errors (`authapi.E005`) when `DEBUG=false` and the key is empty, a known placeholder, or shorter than 50 characters |
 | `IDENTITY_JWKS` or `IDENTITY_JWKS_FILE` | **Pinned** JWKS in production (`IDENTITY_JWKS_URL` fetch is dev-only) |
 | `IDENTITY_ISSUER` / `IDENTITY_AUDIENCE` | Required when `DEBUG=false` |
-| `HOSTING_APP_DOMAIN` | e.g. `shellui.app` (required when `DEBUG=false`) |
+| `HOSTING_APP_DOMAIN` | e.g. `shellui.app` (required when `DEBUG=false`). Use a different registrable domain from identity and admin (`shellui.com`) |
 | `ALLOWED_HOSTS` | Comma-separated hostnames |
 | `HOSTING_BACKEND` | `filesystem` or S3 settings |
 | `HOSTING_DEBUG_OPEN` | Must be **unset** or `false` in production (startup fails if enabled with `DEBUG=false`) |

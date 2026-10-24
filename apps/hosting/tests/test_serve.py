@@ -2,7 +2,9 @@
 
 import io
 import tarfile
+from unittest.mock import patch
 
+from django.http import HttpResponse
 from django.test import Client, TestCase, override_settings
 from django.utils import timezone
 
@@ -138,11 +140,53 @@ class ServeIntegrationTests(TestCase):
         response = self.client.get('/assets/missing.js', HTTP_HOST=self.app_host)
         self.assertEqual(response.status_code, 404)
 
+    def test_hosted_site_404_is_unchanged(self):
+        """A hosted site's missing file keeps Django's default 404, never the Shellui page."""
+        response = self.client.get(
+            '/assets/missing.js',
+            HTTP_HOST=self.app_host,
+            HTTP_ACCEPT='text/html,application/xhtml+xml,*/*;q=0.8',
+        )
+        self.assertEqual(response.status_code, 404)
+        body = self._body(response)
+        self.assertIn(b'<h1>Not Found</h1>', body)
+        self.assertNotIn(b"This page doesn", body)
+        self.assertNotIn(b'Shellui Hosting', body)
+
+    def test_hosted_site_unavailable_page_is_unchanged(self):
+        response = self.client.get('/no-such-page', HTTP_HOST='missing.shellui.test')
+        self.assertEqual(response.status_code, 404)
+        self.assertTemplateUsed(response, 'hosting/site_unavailable.html')
+        self.assertTemplateNotUsed(response, 'errors/error.html')
+
+    def test_platform_host_unknown_path_gets_shellui_404(self):
+        response = self.client.get('/no-such-page', HTTP_HOST='localhost')
+        self.assertEqual(response.status_code, 404)
+        self.assertIn(b"This page doesn", self._body(response))
+
     def test_hosted_app_can_be_embedded_in_iframe(self):
         response = self.client.get('/', HTTP_HOST=self.app_host)
         self.assertEqual(response.status_code, 200)
         self.assertNotEqual(response.get('X-Frame-Options'), 'DENY')
         self.assertNotEqual(response.get('X-Frame-Options'), 'SAMEORIGIN')
+
+    def test_hosted_response_drops_parent_domain_cookies(self):
+        def view(request, path=''):
+            response = HttpResponse('ok')
+            response.set_cookie('planted', 'evil', domain='shellui.test', path='/')
+            response.set_cookie('local', 'ok', path='/')
+            response['Set-Cookie'] = 'raw=1; Domain=shellui.test; Path=/'
+            return response
+
+        with patch('apps.hosting.serve.AppServeView.as_view', return_value=view):
+            response = self.client.get('/', HTTP_HOST=self.app_host)
+        self.assertEqual(response.status_code, 200)
+        self.assertNotIn('planted', response.cookies)
+        self.assertEqual(response.cookies['local'].value, 'ok')
+        self.assertEqual(response.cookies['local']['domain'], '')
+        raw = response.headers.get('Set-Cookie')
+        self.assertTrue(raw is None or 'domain' not in raw.lower())
+        self.assertEqual(response['Cross-Origin-Opener-Policy'], 'unsafe-none')
 
     def test_hosted_app_coop_allows_cross_site_navigation(self):
         response = self.client.get('/', HTTP_HOST=self.app_host)
