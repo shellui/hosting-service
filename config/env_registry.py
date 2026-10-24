@@ -116,6 +116,7 @@ OPTIONAL = (
     Var('SHELLUI_PLAYGROUND_URL', 'https://playground.shellui.com'),
     Var('SHELLUI_GITHUB_URL', 'https://github.com/shellui'),
     Var('SHELLUI_AI_URL', 'https://shellui.ai'),
+    Var('HOSTING_REGION', ''),
     Var('SENTRY_DSN', '', 'Error reporting'),
     Var('SENTRY_ENVIRONMENT', 'production'),
     Var('SENTRY_RELEASE', ''),

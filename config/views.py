@@ -71,6 +71,25 @@ def _bootstrap_allowed(request):
     return secrets.compare_digest(provided, setup_token)
 
 
+def _landing_context():
+    """Region and URLs for the apex landing, all from config (no region hardcoded)."""
+    from apps.hosting.public_urls import _app_domain, _app_scheme
+
+    domain = _app_domain()
+    scheme = _app_scheme()
+    return {
+        'app_domain': domain,
+        'app_base_url': f'{scheme}://{domain}',
+        'example_app_url': f'{scheme}://q8n4m2xk7wph.{domain}/',
+        'hosting_region': getattr(settings, 'HOSTING_REGION', ''),
+        'website_url': getattr(settings, 'SHELLUI_WEBSITE_URL', 'https://shellui.com'),
+        'docs_url': getattr(settings, 'SHELLUI_DOCS_URL', 'https://docs.shellui.com'),
+        'playground_url': getattr(settings, 'SHELLUI_PLAYGROUND_URL', 'https://playground.shellui.com'),
+        'github_url': getattr(settings, 'SHELLUI_GITHUB_URL', 'https://github.com/shellui'),
+        'ai_url': getattr(settings, 'SHELLUI_AI_URL', 'https://shellui.ai'),
+    }
+
+
 def root(request):
     from apps.hosting.hosts import slug_from_host
     from apps.hosting.serve import AppServeView
@@ -134,11 +153,7 @@ def root(request):
         'version': settings.VERSION,
         'setup_done': request.GET.get('setup') == 'done',
         'setup_token': _provided_setup_token(request) if bootstrap_allowed and not has_users else '',
-        'website_url': getattr(settings, 'SHELLUI_WEBSITE_URL', 'https://shellui.com'),
-        'docs_url': getattr(settings, 'SHELLUI_DOCS_URL', 'https://docs.shellui.com'),
-        'playground_url': getattr(settings, 'SHELLUI_PLAYGROUND_URL', 'https://playground.shellui.com'),
-        'github_url': getattr(settings, 'SHELLUI_GITHUB_URL', 'https://github.com/shellui'),
-        'ai_url': getattr(settings, 'SHELLUI_AI_URL', 'https://shellui.ai'),
+        **_landing_context(),
     }
     return render(request, 'home.html', context)
 
@@ -154,5 +169,6 @@ def llms_txt(request):
     return render(
         request,
         'llms.txt',
+        _landing_context(),
         content_type='text/plain; charset=utf-8',
     )
