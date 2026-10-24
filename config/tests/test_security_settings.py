@@ -65,6 +65,7 @@ class ProductionSettingsValidationTests(unittest.TestCase):
             IDENTITY_ISSUER='https://id.shellui.com',
             IDENTITY_AUDIENCE='hosting',
             IDENTITY_JWKS='{"keys":[{"kty":"RSA","kid":"k1","n":"x","e":"AQAB","alg":"RS256","use":"sig"}]}',
+            SECRET_KEY='x7' * 30,
         )
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
 

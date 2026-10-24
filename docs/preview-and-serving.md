@@ -25,6 +25,7 @@ The first label of the `Host` header is the slug when all of these are true:
 - The hostname has at least three labels (`slug.shellui.app`, not `shellui.app`)
 - It is not an IP address
 - It is not `localhost` or the Django test hostname
+- It is not `HOSTING_APP_DOMAIN` or `www.{HOSTING_APP_DOMAIN}`, so a region domain such as `eu.shellui.app` shows the landing page
 - The first label is not `www`, `hosting`, `api`, or `admin`
 
 `shellui.app` and `localhost:8002` stay on the platform: landing page, `/hosting/v1/`, `/admin/`, `/api/docs/`, and `/llms.txt`. On an app host, every path is the hosted site, including `/admin`. That keeps a single-page app refresh on a client route from opening Django admin.
