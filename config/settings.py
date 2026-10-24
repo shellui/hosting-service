@@ -552,6 +552,8 @@ SHELLUI_PLAYGROUND_URL = (
 )
 SHELLUI_GITHUB_URL = os.getenv('SHELLUI_GITHUB_URL', 'https://github.com/shellui').strip() or 'https://github.com/shellui'
 SHELLUI_AI_URL = os.getenv('SHELLUI_AI_URL', 'https://shellui.ai').strip() or 'https://shellui.ai'
+# Region label on the apex landing, for example EU. Empty hides the region line.
+HOSTING_REGION = os.getenv('HOSTING_REGION', '').strip()
 
 # Public browsable app URLs ({slug}.{HOSTING_APP_DOMAIN} — domain is canonical for API links only)
 HOSTING_APP_DOMAIN = os.getenv('HOSTING_APP_DOMAIN', '').strip().lstrip('.')

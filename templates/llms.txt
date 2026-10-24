@@ -1,9 +1,10 @@
-# shellui.app
+# {{ app_domain }}
 
-> Shellui Hosting - deploy Shellui apps to stable HTTPS subdomains on *.shellui.app.
+> Shellui Hosting. Deploy Shellui apps to stable HTTPS subdomains on *.{{ app_domain }}.
 
 ## What this is
-shellui.app is the hosting surface for the Shellui platform. Build with the Shellui CLI, log in, deploy, and get a public URL such as https://q8n4m2xk7wph.shellui.app. Products run inside the shell; this host handles public URLs, previews, and delivery.
+{% if hosting_region %}Region: {{ hosting_region }}. Sites and their data stay in this region.
+{% endif %}{{ app_domain }} is the hosting surface for the Shellui platform. Build with the Shellui CLI, log in, deploy, and get a public URL such as {{ example_app_url }}. Products run inside the shell; this host handles public URLs, previews, and delivery.
 
 ## Quick start
 ```
@@ -16,13 +17,13 @@ Example CLI output:
 Logged in as you@example.com
 Uploading build…
 Deployed
-q8n4m2xk7wph https://q8n4m2xk7wph.shellui.app/
+q8n4m2xk7wph {{ example_app_url }}
 ```
 
 ## Related
-- Product site: https://shellui.com
-- Docs: https://docs.shellui.com
-- Playground: https://playground.shellui.com
-- Agent bootstrap: https://shellui.ai
-- Source: https://github.com/shellui
-- This overview: https://shellui.app/llms.txt
+- Product site: {{ website_url }}
+- Docs: {{ docs_url }}
+- Playground: {{ playground_url }}
+- Agent bootstrap: {{ ai_url }}
+- Source: {{ github_url }}
+- This overview: {{ app_base_url }}/llms.txt

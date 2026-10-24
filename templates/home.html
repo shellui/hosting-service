@@ -8,7 +8,7 @@
     <title>{% if show_setup_form %}Setup · {% endif %}Shellui Hosting</title>
     <meta
       name="description"
-      content="Deploy Shellui apps on shellui.app - login, deploy, and get a stable HTTPS URL on *.shellui.app."
+      content="Deploy Shellui apps on {{ app_domain }}. Log in, deploy, and get a stable HTTPS URL on *.{{ app_domain }}."
     />
     <script>
       (function () {
@@ -121,7 +121,7 @@
           <a
             href="/"
             class="inline-flex shrink-0 items-center text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
-            aria-label="shellui.app"
+            aria-label="{{ app_domain }}"
             translate="no"
           >
             <svg
@@ -374,10 +374,21 @@
             <span class="text-primary-ink dark:text-primary">Shellui</span> apps
           </h1>
           <p class="mt-6 max-w-xl text-lg/7 text-muted-foreground">
-            shellui.app is Shellui Hosting - deploy a build and serve it on a
-            stable subdomain. Your products run inside the shell; we handle the
-            public URL, previews, and delivery.
+            {{ app_domain }} is Shellui Hosting. Deploy a build and serve it on
+            a stable subdomain. Your products run inside the shell. We handle
+            the public URL, previews, and delivery.
           </p>
+          {% if hosting_region %}
+          <p class="mt-4 text-sm text-muted-foreground" data-region="{{ hosting_region }}">
+            Region:
+            <strong class="font-medium text-foreground">{{ hosting_region }}</strong>.
+            Sites in this region are served at
+            <code class="font-mono text-primary-ink dark:text-primary"
+              >&lt;name&gt;.{{ app_domain }}</code
+            >
+            and their data stays in this region.
+          </p>
+          {% endif %}
 
           <section class="mt-12">
             <h2 class="text-2xl font-semibold tracking-tight text-foreground">
@@ -386,7 +397,7 @@
             <p class="mt-2 text-lg/7 text-muted-foreground">
               Log in once, then deploy. You get a real HTTPS origin on
               <code class="font-mono text-sm text-primary-ink dark:text-primary"
-                >*.shellui.app</code
+                >*.{{ app_domain }}</code
               >.
             </p>
             <pre
@@ -398,7 +409,7 @@
 <span class="text-white/45">$</span> <span class="text-white/90">shellui deploy</span>
 <span class="text-white/45">Uploading build…</span>
 <span class="text-green-300">Deployed</span>
-<span class="text-white/45">q8n4m2xk7wph</span> <span class="text-primary">https://q8n4m2xk7wph.shellui.app/</span>
+<span class="text-white/45">q8n4m2xk7wph</span> <span class="text-primary">{{ example_app_url }}</span>
 </code></pre>
           </section>
 
@@ -431,7 +442,7 @@
                 >
                 to a slug on
                 <code class="font-mono text-primary-ink dark:text-primary"
-                  >*.shellui.app</code
+                  >*.{{ app_domain }}</code
                 >.
               </li>
               <li>
@@ -546,7 +557,7 @@
           <a
             href="/"
             class="inline-flex items-center text-foreground"
-            aria-label="shellui.app"
+            aria-label="{{ app_domain }}"
             translate="no"
           >
             <svg

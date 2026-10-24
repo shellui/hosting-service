@@ -3,6 +3,7 @@
 from django.test import Client, TestCase, override_settings
 
 
+@override_settings(HOSTING_APP_DOMAIN='shellui.app', HOSTING_APP_SCHEME='https')
 class RootViewTests(TestCase):
     def setUp(self):
         self.client = Client()
@@ -78,3 +79,38 @@ class RootViewTests(TestCase):
         self.assertIn('Example CLI output', body)
         self.assertNotIn('Optimistic', body)
 
+
+
+@override_settings(HOSTING_APP_DOMAIN='eu.shellui.test', HOSTING_APP_SCHEME='https')
+class RootRegionTests(TestCase):
+    def setUp(self):
+        from django.contrib.auth import get_user_model
+
+        get_user_model().objects.create_superuser('admin', 'a@b.co', 'test-pass-12345')
+
+    def test_region_line_shown_when_configured(self):
+        with self.settings(HOSTING_REGION='EU'):
+            body = self.client.get('/').content.decode()
+        self.assertIn('data-region="EU"', body)
+        self.assertIn('Region:', body)
+        self.assertIn('&lt;name&gt;.eu.shellui.test', body)
+        self.assertIn('https://q8n4m2xk7wph.eu.shellui.test/', body)
+        self.assertIn('*.eu.shellui.test', body)
+
+    def test_region_line_hidden_when_unset(self):
+        with self.settings(HOSTING_REGION=''):
+            body = self.client.get('/').content.decode()
+        self.assertNotIn('data-region', body)
+        self.assertNotIn('Region:', body)
+        self.assertIn('*.eu.shellui.test', body)
+        self.assertNotIn('*.shellui.app', body)
+
+    def test_llms_txt_uses_region_domain(self):
+        with self.settings(HOSTING_REGION='EU'):
+            body = self.client.get('/llms.txt').content.decode()
+        self.assertIn('# eu.shellui.test', body)
+        self.assertIn('Region: EU.', body)
+        self.assertIn('https://eu.shellui.test/llms.txt', body)
+        with self.settings(HOSTING_REGION=''):
+            body = self.client.get('/llms.txt').content.decode()
+        self.assertNotIn('Region:', body)
