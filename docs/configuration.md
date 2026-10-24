@@ -27,7 +27,7 @@ The Docker image sets `DEBUG=false`. Startup fails until these are set:
 | `IDENTITY_ISSUER` | JWT `iss` must match this value |
 | `IDENTITY_AUDIENCE` | JWT `aud` must match this value |
 | `IDENTITY_JWKS_FILE` or `IDENTITY_JWKS` | Pinned JSON Web Key Set (JWKS). A URL fetch is refused |
-| `HOSTING_APP_DOMAIN` | Domain used in API browse links, for example `shellui.app` |
+| `HOSTING_APP_DOMAIN` | Apps domain, for example `shellui.app`, or `eu.shellui.app` for a region. Used in browse links, OAuth redirect sync, and `ALLOWED_HOSTS` |
 
 `HOSTING_DEBUG_OPEN=true` is also refused while `DEBUG=false`. `JWT_HS256_FALLBACK_SECRET` is refused unless you also set `ALLOW_JWT_HS256_FALLBACK=true`.
 
@@ -76,7 +76,7 @@ See [JWT and claim trust](claim-trust.md).
 | `HOSTING_SERVE_CACHE_TTL_SECONDS` | `45` | In-process cache of slug-to-app lookups. `0` disables it. Cleared on finalize and rollback |
 | `HOSTING_DEBUG_OPEN` | `false` | Skip the company waitlist. Refused when `DEBUG=false`. [`.env.example`](../.env.example) sets `true` for local clones |
 
-The public URL is `{scheme}://{slug}.{HOSTING_APP_DOMAIN}/`. Serving itself uses the first hostname label, not only this domain. See [Preview sites and public URLs](preview-and-serving.md).
+The public URL is `{scheme}://{slug}.{HOSTING_APP_DOMAIN}/`. Serving itself uses the first hostname label, not only this domain. `HOSTING_APP_DOMAIN` and `www.{HOSTING_APP_DOMAIN}` show the landing page. See [Preview sites and public URLs](preview-and-serving.md).
 
 ## Quotas
 
@@ -192,7 +192,7 @@ Set `EMAIL_SERVICE_API_KEY` to forward hosting events to email-service. An empty
 
 | Variable | Default | Purpose |
 | --- | --- | --- |
-| `EMAIL_SERVICE_URL` | `https://email.shellui.com` | Origin only. hosting-service appends `/api/v1/events` |
+| `EMAIL_SERVICE_URL` | `https://email.shellui.com` | Origin only. hosting-service appends `/api/v1/events`. Set it in every region, for example `https://email.eu.shellui.com` |
 | `EMAIL_SERVICE_API_KEY` | empty | Service key (`esk_`). Empty disables forwarding |
 | `EMAIL_SERVICE_ALLOW_PRIVATE` | `false` | Allow a URL that resolves to a private or loopback address |
 
