@@ -37,6 +37,10 @@ See for sample https://raw.githubusercontent.com/favoloso/conventional-changelog
 
 - `.env.example` is generated from `config/env_registry.py` and lists only the required settings.
 
+### 📚 Documentation
+
+- Configuration docs cover a region `HOSTING_APP_DOMAIN` such as `eu.shellui.app` and a per-region `EMAIL_SERVICE_URL`.
+
 ## [0.7.1] - 2026-10-24
 
 ### 🐛 Bug Fixes
