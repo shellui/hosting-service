@@ -1,277 +1,89 @@
 # hosting-service
 
-`hosting-service` is a Django backend that hosts Shellui microfrontend apps: deployment API under `/hosting/v1/*` and **public static serving** at `{slug}.{HOSTING_APP_DOMAIN}`.
+Deploys and serves Shellui apps, one subdomain per site.
 
-It authenticates with JWTs issued by [identity-service](https://github.com/shellui/identity-service), stores deployment tarballs in **S3** (or local filesystem), extracts them for browsing, and manages company access waitlists, app slugs, and deployments.
+[![CI](https://github.com/shellui/hosting-service/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/shellui/hosting-service/actions/workflows/ci.yml)
+[![Docker Hub](https://img.shields.io/docker/v/shellui/hosting-service?sort=semver&label=docker)](https://hub.docker.com/r/shellui/hosting-service)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 
-## Documentation
+hosting-service is what `shellui deploy` talks to. It takes a build of your shell through the `/hosting/v1/*` API, stores it on S3 or the filesystem, and serves it at `https://{slug}.{HOSTING_APP_DOMAIN}/`. It verifies JWTs from [identity-service](https://github.com/shellui/identity-service) and registers each site on the company OAuth redirect allowlist, so sign-in works on a fresh preview.
 
-The handbook is in [`docs/`](docs/index.md). It is published on [docs.shellui.com](https://docs.shellui.com) at `docs.shellui.com/hosting`.
+## Get started
 
-Start with the [overview](docs/index.md), then [Run hosting-service](docs/getting-started.md) and [Configuration](docs/configuration.md). Apps, preview URLs, company access, JWT claim trust, Shellui Actions webhooks, email notifications, the event log, security, maintenance jobs, and the API each have a page in that sidebar.
-
-Preview with live reload from a sibling checkout of [shellui/shellui](https://github.com/shellui/shellui). In `../shellui`, run `pnpm install`, then `DOCS_SERVICES=hosting pnpm docs:start`. The steps are in [Build the docs site](https://github.com/shellui/shellui/blob/main/docs/docs-site.md).
-
-## Features
-
-- REST API under `/hosting/v1/*` for access, apps, deployments, stats, and metrics
-- **Browsable hosted apps** on any domain - slug is the first subdomain label (e.g. `https://{slug}.shellui.app/` or `http://{slug}.shellui.local:8002/`)
-- Company hosting access waitlist (`CompanyHostingAccess`)
-- Globally unique auto-generated site slugs for public URLs; company-scoped app names for API/CLI
-- JWT verification via identity-service JWKS (`IDENTITY_SERVICE_URL` → `/.well-known/jwks.json`, or a local document / explicit `IDENTITY_JWKS_URL`)
-- Pluggable artifact backend: **S3** or **filesystem**
-- OpenAPI docs (Swagger + ReDoc); opening Swagger from Django Admin auto-applies the Shellui session access token
-- Prometheus metrics (`/hosting/v1/metrics`, `/hosting/v1/metrics/all`) for staff or company-owner JWT / PAT
-- Permissive API CORS by default (`CORS_ALLOW_ALL_ORIGINS=true`, `CORS_ALLOW_CREDENTIALS=false`); auth is Bearer JWT - hosted preview origins do not need CORS env entries
-- **Shellui Actions** webhooks on hosting domain events (`hosting.*`), admin REST API under `/api/v1/actions/`, retries via `manage.py retry_webhooks` - see [`docs/actions.md`](docs/actions.md) and [**n8n setup**](docs/n8n.md)
-- **Email notifications** for the same events, forwarded to email-service when `EMAIL_SERVICE_API_KEY` is set. See [`docs/email.md`](docs/email.md).
-- **Event log** of every hosting event with the acting user, purged after `EVENT_LOG_RETENTION_DAYS` - see [`docs/event-log.md`](docs/event-log.md)
-- Production security hardening: rate limits, HSTS/secure cookies, Postgres SSL, pinned JWKS - see [`docs/security-hardening.md`](docs/security-hardening.md) and [`docs/claim-trust.md`](docs/claim-trust.md)
-
-## Project structure
-
-- `config/` - Django settings and URL routing
-- `apps/authapi/` - JWKS JWT authentication
-- `apps/hosting/` - apps, deployments, access, static serving
-- `apps/actions/` - Shellui Actions webhook outbox, delivery, admin API
-
-## Main endpoints
-
-| Area | Path |
-|------|------|
-| Health | `GET /hosting/v1/health` |
-| Access | `GET/POST /hosting/v1/access`, `POST /hosting/v1/access/request` |
-| Apps | `GET/POST /hosting/v1/apps`, `GET/DELETE /hosting/v1/apps/{name\|uuid}` |
-| Deployments | `GET/POST /hosting/v1/apps/{app}/deployments` |
-| Upload | `PUT /hosting/v1/apps/{app}/deployments/{id}/upload` |
-| Finalize / rollback | `POST .../finalize`, `POST .../rollback` |
-| Stats | `GET /hosting/v1/stats` |
-| Metrics | `GET /hosting/v1/metrics`, `GET /hosting/v1/metrics/all` |
-| Django admin | `/admin/` |
-| **Browse** | `GET https://{site_slug}.{HOSTING_APP_DOMAIN}/` |
-| OpenAPI | `/api/docs/`, `/api/docs/redoc/` |
-| Shellui Actions | `/api/v1/actions/events`, `/api/v1/actions/rules`, `/api/v1/actions/deliveries` |
-
-Auth header: `Authorization: Bearer <access_token>` from identity-service.
-
-## Quick start (local)
-
-### 1. Start identity-service
-
-Hosting validates JWTs from identity. Run identity on port **8000** (see `identity-service/README.md`).
-
-### 2. Start hosting-service
+You need Docker and Git, and an [identity-service](https://github.com/shellui/identity-service) running on port 8000.
 
 ```bash
+git clone https://github.com/shellui/hosting-service.git
 cd hosting-service
-uv sync
-cp .env.example .env   # then set SECRET_KEY (generate command is in .env.example)
-npm ci && npm run build:css   # first run only (or skip if watch:css is already running)
-uv run python manage.py migrate
+cp .env.example .env   # then set SECRET_KEY
+docker compose up --build
 ```
 
-When you work on the apex landing (`templates/home.html`, `assets/css/`), run **two terminals**:
+The API runs on [http://localhost:8002](http://localhost:8002). `/api/docs/` is the OpenAPI reference and `/admin/` is Django admin.
 
-```bash
-# Terminal 1 - Tailwind watch (required when editing templates/CSS)
-npm run watch:css
-
-# Terminal 2 - Django (auto-reloads Python + templates when DEBUG=true)
-uv run python manage.py runserver 8002
-```
-
-Django already hot-reloads templates in `DEBUG=true`. **New Tailwind class names only land after the CSS rebuild** (`watch:css` writes `static/css/site.css` on save). Hard refresh once if the browser cached `site.css`. Production and Docker still use one-shot `npm run build:css` (minified) before `collectstatic`.
-
-With `DEBUG=true` (local default), visiting `http://localhost:8002/` shows a one-time web form to create the first Django superuser when the user table is empty. In production (`DEBUG=false`), use `uv run python manage.py createsuperuser` instead, or set `SETUP_TOKEN` and open `/?setup_token=<token>` for a one-time web setup (same pattern as identity-service).
-
-Open `http://localhost:8002/` for Swagger / ReDoc. From Django Admin, Swagger pre-authorizes with the Shellui session access token (same flow as identity-service / storage-service).
-
-Waitlist approval is **staff-only** (`POST /hosting/v1/access` with `status=approved` or `denied`). Company owners can request access but cannot self-approve.
-
-To skip the waitlist gate in local dev, set `HOSTING_DEBUG_OPEN=true` explicitly (fail-closed by default - unset or `false` enforces the waitlist even when `DEBUG=true`). Approve a company with:
-
-```bash
-uv run python manage.py approve_hosting_access 1
-```
-
-### 3. Fake app domains locally
-
-Hosted apps are served on subdomains, not path prefixes. Add entries to `/etc/hosts` after deploying:
-
-```
-127.0.0.1  vpzzsxvzsmp7.shellui.local
-127.0.0.1  hosting.shellui.local
-```
-
-Use `HOSTING_APP_DOMAIN=shellui.local` and `HOSTING_APP_SCHEME=http` in `.env` (defaults in `.env.example`). This domain is used for **API browse links** only - the server accepts app requests on **any** hostname whose first label is the site slug.
-
-In `DEBUG`, `HOSTING_ALLOW_ANY_HOST` defaults to **on** (`ALLOWED_HOSTS` includes `*`), so you only need `/etc/hosts` entries - no per-domain Django config.
-
-The deployment API stays at `http://localhost:8002/hosting/v1/`. Browsable apps are at `http://{site_slug}.shellui.local:8002/` (or any domain you point at the server).
-
-### Hosted-app serve performance (defaults)
-
-Serving stays **local-friendly**: filesystem or S3, no Redis/CDN required.
-
-- `HOSTING_SERVE_CACHE_TTL_SECONDS` (default `45`) - in-process cache of slug→App lookups; set `0` to disable. Cleared automatically when a deploy is finalized.
-- Content-hashed assets (`main-D9ih21to.js`) get `Cache-Control: public, max-age=31536000, immutable`. HTML stays `no-cache`. Other static assets get a day-scale `max-age`.
-- Static asset requests skip an extra storage HEAD on `index.html`.
-
-A CDN or signed S3 redirects can still be added later for edge latency; this keeps the default path easy to run and reason about.
-
-### 4. Deploy from a shellui project
-
-In your shellui repo (with `hosting.url` in config):
+Then deploy from any Shellui project with `hosting.url` set to `http://localhost:8002`:
 
 ```bash
 shellui login
 shellui deploy --build
 ```
 
-Each deploy creates a **new preview site** (new slug) unless you set `hosting.slug` in config to redeploy an existing one you own. Preview sites expire after **7 days**; redeploying to the same slug resets the timer.
+The CLI prints the site URL, its slug and its expiry. Local sites live on `{slug}.shellui.local`, so add the slug to `/etc/hosts`. The full path, including company approval, is in [Run hosting-service](docs/getting-started.md).
 
-The CLI prints the browsable URL, slug, and expiry, e.g.:
+## Configuration
 
-```
-Browse:       http://vpzzsxvzsmp7.shellui.local/
-Slug:          vpzzsxvzsmp7
-Expires:      2026-09-09T...
-```
-
-Add the slug to `/etc/hosts` pointing at `127.0.0.1`, then open it on port **8002**.
-
-To redeploy later, add the slug to config:
-
-```json
-"hosting": {
-  "url": "http://localhost:8002",
-  "slug": "vpzzsxvzsmp7"
-}
-```
-
-## Public URL configuration
+For production, `python manage.py generate_env --host hosting.example.com` prints the required settings with a fresh `SECRET_KEY`.
 
 | Variable | Purpose |
-|----------|---------|
-| `HOSTING_APP_DOMAIN` | Canonical domain for API browse links (default `shellui.local` when `DEBUG=true`, e.g. `shellui.app` in production) |
-| `HOSTING_APP_SCHEME` | `http` (local) or `https` (production). Defaults to `http` when `DEBUG=true`, else `https` |
-| `HOSTING_ALLOW_ANY_HOST` | When `true` (default in `DEBUG`), accept any `Host` header - useful with `/etc/hosts` |
-| `HOSTING_PREVIEW_TTL_DAYS` | Preview site lifetime in days (default `7`) |
-| `HOSTING_DEBUG_OPEN` | Skip company waitlist when explicitly `true` (default off; never auto-on with `DEBUG`) |
-| `HOSTING_SERVE_CACHE_TTL_SECONDS` | In-process slug→App cache TTL for hosted-app serving (default `45`; `0` disables). Cleared on deploy finalize |
-| `ROOT_REDIRECT_URL` | Optional absolute URL; when set, apex `/` responds with **301**. **Unset on shellui.app** to show the Hosting landing (website/docs links). Does not affect `{slug}.*` app serving |
+| --- | --- |
+| `SECRET_KEY` | Django secret, 50+ characters when `DEBUG=false` |
+| `HOSTING_APP_DOMAIN` | Apps domain, for example `shellui.app` or `eu.shellui.app` |
+| `IDENTITY_JWKS` | Pinned identity public keys, required in production |
+| `IDENTITY_ISSUER`, `IDENTITY_AUDIENCE` | Must match identity `JWT_ISSUER` and `JWT_AUDIENCE` |
+| `REDIS_URL` | Required when `DEBUG=false`. Rate limits and scheduled jobs |
 
+Every setting is in [Configuration](docs/configuration.md).
 
-**Local:**
+## Documentation
 
-```
-http://{site_slug}.shellui.local:8002/
-```
+The handbook lives in [`docs/`](docs/index.md) and is published at [docs.shellui.com/hosting](https://docs.shellui.com/hosting).
 
-**Production:**
+- [Apps and deployments](docs/apps-and-deployments.md) and [preview URLs and serving](docs/preview-and-serving.md)
+- [Company access](docs/company-access.md) and [JWT claim trust](docs/claim-trust.md)
+- [Webhooks](docs/actions.md), [email](docs/email.md), [event log](docs/event-log.md) and [maintenance jobs](docs/maintenance-jobs.md)
+- [Security hardening](docs/security-hardening.md) and the [API](docs/api.md)
 
-```
-https://{site_slug}.shellui.app/
-```
-
-Run the deployment API on a separate host (e.g. `hosting.shellui.app` or the apex). App subdomains are served by the same process: every path on `{slug}.*` goes to the hosted site (SPA-friendly), while Django admin / API / docs only resolve on the apex / reserved hosts.
-
-## Environment
-
-See `.env.example` for all settings. Key quotas:
-
-- `HOSTING_MAX_APPS_PER_COMPANY` (default `5`)
-- `HOSTING_MAX_DEPLOYMENTS_PER_APP` (default `20`)
-- `HOSTING_MAX_UPLOAD_BYTES` (default `100M`)
-- `HOSTING_MAX_EXTRACT_FILES` (default `5000`) - max regular files extracted from an artifact
-- `HOSTING_MAX_EXTRACT_BYTES` (default `500M`) - max total uncompressed bytes extracted
-- `HOSTING_MAX_EXTRACT_FILE_BYTES` (default same as upload cap) - max size per extracted file
-
-Identity OAuth redirect sync (so `shellui deploy` sites can log in without manual allowlist edits):
-
-- `IDENTITY_SERVICE_URL`: identity base URL (for example `http://localhost:8000`)
-
-Preview create, redeploy, and finalize forward the caller's JWT and register `{scheme}://{slug}.{HOSTING_APP_DOMAIN}` on the company OAuth redirect allowlist. Deleting the app removes that origin. If `IDENTITY_SERVICE_URL` is empty and the JWKS document is pinned, sync uses the origin of `IDENTITY_JWKS_URL` when that URL ends in `/.well-known/jwks.json`.
-
-Preview and finalize return `oauth_redirect_registered`, `oauth_redirect_origin`, and `oauth_redirect_warning`. `python manage.py sync_oauth_redirects --access-token your_access_token_here` backfills apps already deployed for that token's company. The allowlist controls where the browser returns after login. It is not API CORS.
-
-Hosting API CORS is permissive by default (`CORS_ALLOW_ALL_ORIGINS=true`, credentials off). Set `CORS_ALLOW_ALL_ORIGINS=false` and `CORS_ALLOWED_ORIGINS` only when you lock the API down. See [`docs/preview-and-serving.md`](docs/preview-and-serving.md) and [`docs/security-hardening.md`](docs/security-hardening.md).
-
-Deployment artifacts are stored at `{slug}/deployments/{id}/artifact.tar.gz` and extracted to `{prefix}extracted/` for static serving.
-
-## Tests
+## Development
 
 ```bash
+uv sync
+uv run python manage.py migrate
+uv run python manage.py runserver 8002
 uv run python manage.py test
 ```
 
-Pull requests and pushes to `main` / `develop` run [`.github/workflows/ci.yml`](.github/workflows/ci.yml): Django tests, lockfile check, dependency audit (`pip-audit`), secret scan (gitleaks), markdown link check (lychee), a docs build against [shellui/shellui](https://github.com/shellui/shellui), and a Docker image build.
+Run `npm run watch:css` in a second terminal when you edit the landing page templates. To preview the docs site, clone [shellui/shellui](https://github.com/shellui/shellui) next to this repository and run `DOCS_SERVICES=hosting pnpm docs:start` there.
 
-Pull requests **to `main`** also run the pre-release checklist ([`.github/workflows/pre-release.yml`](.github/workflows/pre-release.yml)) - same checks as:
+Releases go to Docker Hub as `shellui/hosting-service`. The checklist is in [PUBLISH.md](PUBLISH.md) and changes are in [CHANGELOG.md](CHANGELOG.md).
 
-```bash
-./tools/pre-release-check.sh
-```
+## Contributing
 
-## Releases (Docker Hub)
+Open an issue or a pull request against `develop`. CI runs the tests, a dependency audit, a secret scan, a link check and the docs build. Coding agents start with [AGENTS.md](AGENTS.md).
 
-See [PUBLISH.md](PUBLISH.md) for the pre-release checklist (automated via `./tools/pre-release-check.sh`), tagging, and deploy notes for `shellui/hosting-service`.
+## Shellui projects
 
-### Post-deploy prod check
-
-After a production deploy, run [`tools/prod-config-check.sh`](tools/prod-config-check.sh) against the live **platform** URL - the apex or API host where `/hosting/v1/` lives (e.g. `https://shellui.app`), **not** a customer preview subdomain like `https://{slug}.shellui.app` alone.
-
-```bash
-# From a checkout of hosting-service (develop/main)
-./tools/prod-config-check.sh https://shellui.app
-./tools/prod-config-check.sh https://shellui.app --slug YOUR_PREVIEW_SLUG
-
-# Or one-off without a full clone:
-curl -fsSL https://raw.githubusercontent.com/shellui/hosting-service/develop/tools/prod-config-check.sh -o prod-config-check.sh
-chmod +x prod-config-check.sh
-./prod-config-check.sh https://shellui.app
-```
-
-`--slug` is optional: it adds a smoke check that a hosted preview app responds on `{slug}.{HOSTING_APP_DOMAIN}`.
-
-The script prints `PASS:` / `FAIL:` / `WARN:` / `INFO:` lines and exits **0** when all hard checks pass, **non-zero** if any `FAIL:` occurs.
-
-**Coolify / internal Postgres:** if the container fails at boot with Postgres SSL errors against an internal Docker database, use `POSTGRES_SSL_REQUIRE=false` (same pattern as [identity-service](https://github.com/shellui/identity-service)); hosting defaults to non-SSL for `POSTGRES_DATABASE_URL` parsing.
-
-Full check list, optional env vars (`HOSTING_APP_DOMAIN`, `CORS_PROBE_ORIGIN`), and deploy context: [PUBLISH.md - Post-deploy production config check](PUBLISH.md#post-deploy-production-config-check).
-
-## Docker
-
-```bash
-docker build -t hosting-service .
-docker run --rm -p 8002:8000 -v hosting-service-data:/app/data --env-file .env hosting-service
-```
-
-### Docker Compose (recommended local run)
-
-```bash
-cp .env.example .env
-docker compose up --build
-```
-
-Stop:
-
-```bash
-docker compose down
-```
-
-Data persists in named volume `hosting-service-data` (`/app/data` in the container).
-
-Runtime env vars (see `.env.example`):
-
-- `REDIS_URL` (required when `DEBUG=false`; shared cache for rate limits and the job broker). Example: `redis://redis:6379/0`. With `DEBUG=true`, unset keeps the in-process cache and leaves the scheduler off
-- `SCHEDULER_ENABLED` (default `true`; `false` keeps the Celery worker out of this container)
-- `GUNICORN_WORKERS` (default `2`)
-- `GUNICORN_THREADS` (default `2`)
-- `GUNICORN_TIMEOUT` (default `120`)
-
-The image runs `retry_webhooks` every minute and `purge_expired_data` every hour at minute 17. See [docs/maintenance-jobs.md](docs/maintenance-jobs.md).
+| Project | What it does |
+| --- | --- |
+| [shellui](https://github.com/shellui/shellui) | The shell, CLI and SDK |
+| [admin](https://github.com/shellui/admin) | Administration app inside the shell |
+| [files](https://github.com/shellui/files) | File explorer for storage-service |
+| [identity-service](https://github.com/shellui/identity-service) | Sign-in, companies and tokens |
+| [storage-service](https://github.com/shellui/storage-service) | File storage |
+| [hosting-service](https://github.com/shellui/hosting-service) | Deploys and serves Shellui apps |
+| [email-service](https://github.com/shellui/email-service) | Templates and sends email |
+| [skills](https://github.com/shellui/skills) | Agent Skills for coding agents |
+| [playground](https://github.com/shellui/playground) | Live demo of the shell |
 
 ## License
 
-See [LICENSE](LICENSE).
+[MIT](LICENSE)
