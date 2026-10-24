@@ -27,6 +27,10 @@ See for sample https://raw.githubusercontent.com/favoloso/conventional-changelog
 
 - **Region apex:** `HOSTING_APP_DOMAIN` with three labels, such as `eu.shellui.app`, shows the landing page instead of the 404 for an app called `eu`.
 
+### 🔒 Security
+
+- Bump `djangorestframework` to 3.18.2 and `certifi` to 2026.10.19 for published advisories.
+
 ## [0.7.0] - 2026-10-13
 
 ### 🐛 Bug Fixes
