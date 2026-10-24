@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import ipaddress
 
+from django.conf import settings
+
 # Hostnames that should never map to a hosted app (API / dev landing).
 _RESERVED_HOSTS = frozenset({'localhost', 'testserver'})
 
@@ -19,9 +21,16 @@ def slug_from_host(host: str) -> str | None:
         vpzzsxvzsmp7.shellui.local -> vpzzsxvzsmp7
         vpzzsxvzsmp7.shellui.app   -> vpzzsxvzsmp7
         vpzzsxvzsmp7.example.com   -> vpzzsxvzsmp7
+
+    ``HOSTING_APP_DOMAIN`` itself (and ``www.`` on it) is the platform apex,
+    never an app, so a region domain such as ``eu.shellui.app`` works.
     """
-    host = (host or '').split(':', 1)[0].strip().lower().rstrip('.')
+    host = _normalize(host)
     if not host or host in _RESERVED_HOSTS:
+        return None
+
+    app_domain = _normalize(getattr(settings, 'HOSTING_APP_DOMAIN', ''))
+    if app_domain and host in (app_domain, f'www.{app_domain}'):
         return None
 
     try:
@@ -39,3 +48,7 @@ def slug_from_host(host: str) -> str | None:
         return None
 
     return slug
+
+
+def _normalize(host: str) -> str:
+    return (host or '').split(':', 1)[0].strip().lower().rstrip('.').lstrip('.')
