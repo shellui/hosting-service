@@ -220,6 +220,7 @@ INSTALLED_APPS = [
     'corsheaders',
     'rest_framework',
     'drf_spectacular',
+    'drf_spectacular_sidecar',
     'storages',
     'apps.authapi',
     'apps.hosting',
@@ -270,6 +271,9 @@ SPECTACULAR_SETTINGS = {
     ),
     'VERSION': VERSION,
     'SERVE_INCLUDE_SCHEMA': False,
+    # Redoc ships from the sidecar package, pinned with the app. The CDN's redoc@latest (3.x)
+    # is an ES module and no longer loads as a classic script.
+    'REDOC_DIST': 'SIDECAR',
     'SWAGGER_UI_SETTINGS': {
         'persistAuthorization': True,
     },
