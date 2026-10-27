@@ -14,6 +14,8 @@ Each running hosting-service serves its own HTTP reference. This page lists wher
 | ReDoc | `/api/docs/redoc/` |
 | OpenAPI schema | `/api/schema/` |
 
+Both pages load ReDoc, Swagger UI and `@shellui/sdk` from the service's own static files, pinned with the release. Nothing on them comes from a CDN, so they work offline and a new upstream version cannot break them.
+
 Open Swagger from Django admin and the session access token is applied for you. Otherwise choose **Authorize** and paste `Bearer your_access_token_here`, or the raw JWT.
 
 `GET /hosting/v1/health` does not require a token. It returns `status`, `version`, the artifact backend, and which JWKS source is in use. Every other `/hosting/v1/` route expects `Authorization: Bearer your_access_token_here` from identity-service.

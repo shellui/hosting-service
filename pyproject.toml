@@ -1,6 +1,6 @@
 [project]
 name = "hosting-service"
-version = "0.8.1"
+version = "0.8.2"
 description = "A hosting service for deploying and serving Shellui applications"
 readme = "README.md"
 requires-python = ">=3.14"
@@ -8,6 +8,7 @@ dependencies = [
     "django==6.0.8",
     "djangorestframework==3.18.2",
     "drf-spectacular==0.29.0",
+    "drf-spectacular-sidecar==2026.10.1",
     "django-cors-headers==4.9.0",
     "django-storages[s3]==1.14.6",
     "python-dotenv==1.2.2",
