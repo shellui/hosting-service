@@ -1,6 +1,6 @@
 from django.contrib import admin
 
-from .models import App, CompanyHostingAccess, Deployment
+from .models import App, CompanyHostingAccess, DeployToken, Deployment
 from .services import delete_app
 
 admin.site.register(CompanyHostingAccess)
@@ -16,3 +16,9 @@ class AppAdmin(admin.ModelAdmin):
     def delete_queryset(self, request, queryset):
         for app in queryset:
             delete_app(app)
+
+
+@admin.register(DeployToken)
+class DeployTokenAdmin(admin.ModelAdmin):
+    list_display = ('name', 'prefix', 'company_id', 'created_at', 'last_used_at', 'expires_at', 'revoked_at')
+    readonly_fields = ('prefix', 'token_hash', 'created_at', 'last_used_at')
