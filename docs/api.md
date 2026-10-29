@@ -18,7 +18,7 @@ Both pages load ReDoc, Swagger UI and `@shellui/sdk` from the service's own stat
 
 Open Swagger from Django admin and the session access token is applied for you. Otherwise choose **Authorize** and paste `Bearer your_access_token_here`, or the raw JWT.
 
-`GET /hosting/v1/health` does not require a token. It returns `status`, `version`, the artifact backend, and which JWKS source is in use. Every other `/hosting/v1/` route expects `Authorization: Bearer your_access_token_here` from identity-service.
+`GET /hosting/v1/health` does not require a token. It returns `status`, `version`, the artifact backend, and which JWKS source is in use. Every other `/hosting/v1/` route expects `Authorization: Bearer your_access_token_here` from identity-service. Preview deploy routes also accept a company deploy token (`Bearer shellui_dt_...`). See [Deploy with the CLI](deploy-with-cli.md).
 
 ## Route groups
 
@@ -33,6 +33,7 @@ Paths below are relative to the apex host, for example `http://localhost:8002`. 
 | Deployments | `GET` and `POST /hosting/v1/apps/{app_ref}/deployments` |
 | Upload | `PUT /hosting/v1/apps/{app_ref}/deployments/{id}/upload` |
 | Finalize and rollback | `POST /hosting/v1/apps/{app_ref}/deployments/{id}/finalize`, same path with `/rollback` |
+| Deploy tokens | `GET` and `POST /hosting/v1/deploy-tokens`, `POST /hosting/v1/deploy-tokens/{id}/revoke` |
 | Stats | `GET /hosting/v1/stats` |
 | Metrics | `GET /hosting/v1/metrics`, `GET /hosting/v1/metrics/all` |
 | Shellui Actions | `/api/v1/actions/events`, `/rules`, `/deliveries` |
@@ -54,6 +55,8 @@ Company members with `company_id` in the token can list and deploy their company
 | `GET /hosting/v1/metrics/all` | Staff, or a personal access token with the `pat_agm` claim. Includes `shellui_hosting_scheduled_job_*` and `shellui_hosting_scheduler_*` |
 | `/api/v1/scheduled-jobs` | Django staff. Company owners receive 403 |
 | `/api/v1/actions/*` | Staff, or a company owner scoped to the token `company_id` |
+| `/hosting/v1/deploy-tokens*` | Staff or a company owner, for tokens of the JWT `company_id` |
+| Deploy token (`shellui_dt_...`) | Only `POST /hosting/v1/preview`, `PUT .../upload` and `POST .../finalize` on preview sites of its company. Everything else is 403 |
 
 Metrics responses are Prometheus text, not JSON. The gauge names start with `shellui_hosting_`.
 

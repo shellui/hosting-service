@@ -30,6 +30,7 @@ const sidebars = {
     ]),
     category('Core concepts', [
       doc('apps-and-deployments', 'Apps and deployments'),
+      doc('deploy-with-cli', 'Deploy with the CLI'),
       doc('preview-and-serving', 'Preview sites and public URLs'),
       doc('company-access', 'Company access'),
     ]),

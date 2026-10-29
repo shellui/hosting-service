@@ -34,6 +34,12 @@ urlpatterns = [
         views.DeploymentRollbackView.as_view(),
         name='hosting-deployment-rollback',
     ),
+    path('deploy-tokens', views.DeployTokenListCreateView.as_view(), name='hosting-deploy-token-list'),
+    path(
+        'deploy-tokens/<uuid:token_id>/revoke',
+        views.DeployTokenRevokeView.as_view(),
+        name='hosting-deploy-token-revoke',
+    ),
     path('stats', views.StatsView.as_view(), name='hosting-stats'),
     path('metrics', views.HostingMetricsView.as_view(), name='hosting-metrics'),
     path('metrics/all', views.HostingGlobalMetricsView.as_view(), name='hosting-metrics-all'),

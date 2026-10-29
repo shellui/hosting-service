@@ -53,6 +53,12 @@ Extract keeps regular files only, drops path traversal, and enforces three limit
 
 Files land at `{HOSTING_KEY_PREFIX}/{app_uuid}/deployments/{deployment_uuid}/artifact.tar.gz`, with the extracted tree under `extracted/`.
 
+## Deploy tokens
+
+A deploy token lets CI create and update preview sites without a personal login. Staff or a company owner creates it with `POST /hosting/v1/deploy-tokens` and a `name`, plus an optional `expires_in_days` (1 to 366). The response holds `token` once. Only its sha256 hash and a short prefix are stored. `GET /hosting/v1/deploy-tokens` lists the company tokens with `prefix`, `created_by_id`, `last_used_at`, `expires_at` and `revoked_at`, never the token. `POST /hosting/v1/deploy-tokens/{id}/revoke` revokes one.
+
+A deploy token belongs to a company and only reaches `POST /hosting/v1/preview`, `PUT .../upload` and `POST .../finalize`. It can create a preview or redeploy any existing preview slug of its company. Apps created in admin return 403 `deploy_token_preview_only`. Other errors are 401 `deploy_token_invalid`, `deploy_token_revoked` or `deploy_token_expired`. The token never appears in logs or error bodies. New previews are owned by the user who created the token. With a token, finalize skips the sign-in redirect sync because there is no user session. Details and a GitHub Actions example are in [Deploy with the CLI](deploy-with-cli.md).
+
 ## Roll back
 
 `POST /hosting/v1/apps/{app_ref}/deployments/{id}/rollback` makes an older deployment active again. The target must already have an archive and a status of `active`, `superseded`, or `ready`. Current deploys do not write `ready`. Rollback still accepts it. The serve cache is cleared. Rollback does not emit a hosting event and does not extend `expires_at`.

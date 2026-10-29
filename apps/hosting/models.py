@@ -106,3 +106,24 @@ class Deployment(models.Model):
 
     def __str__(self) -> str:
         return f'{self.app.name}@{self.app_version} ({self.status})'
+
+
+class DeployToken(models.Model):
+    """Company CI token for preview deploys. Only a sha256 hash is stored; the raw token is shown once."""
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    company_id = models.PositiveIntegerField(db_index=True)
+    name = models.CharField(max_length=100)
+    prefix = models.CharField(max_length=24, db_index=True)
+    token_hash = models.CharField(max_length=64, unique=True)
+    created_by_id = models.PositiveIntegerField(null=True, blank=True)
+    created_at = models.DateTimeField(default=timezone.now)
+    last_used_at = models.DateTimeField(null=True, blank=True)
+    expires_at = models.DateTimeField(null=True, blank=True)
+    revoked_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ['-created_at']
+
+    def __str__(self) -> str:
+        return f'{self.name} ({self.prefix}...)'

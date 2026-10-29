@@ -248,6 +248,7 @@ EMAIL_SERVICE_ALLOW_PRIVATE = _env_bool('EMAIL_SERVICE_ALLOW_PRIVATE', False)
 REST_FRAMEWORK = {
     'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
     'DEFAULT_AUTHENTICATION_CLASSES': [
+        'apps.hosting.deploy_tokens.DeployTokenAuthentication',
         'apps.authapi.authentication.IdentityJWKSAuthentication',
     ],
     'DEFAULT_PERMISSION_CLASSES': [
