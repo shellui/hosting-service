@@ -36,9 +36,7 @@ from .deploy_tokens import create_deploy_token, revoke_deploy_token, serialize_d
 from .models import DeployToken
 from .services import (
     HostingError,
-    assert_deploy_token_app,
-    prepare_production_deploy,
-    promote_deployment,
+    assert_deploy_token_preview,
     create_app,
     create_deployment,
     finalize_deployment,
@@ -100,9 +98,9 @@ def _oauth_redirect_api(record) -> dict:
 
 
 def _scoped_app(request, app_ref):
-    """Resolve an app in the caller's company; deploy tokens only reach their own app."""
+    """Resolve an app in the caller's company; deploy tokens only reach preview sites."""
     app = resolve_app_ref(app_ref, company_id=require_company_id(request.user))
-    assert_deploy_token_app(request.user, app)
+    assert_deploy_token_preview(request.user, app)
     return app
 
 
@@ -207,6 +205,7 @@ class AccessRequestView(APIView):
 
 class PreviewPrepareView(APIView):
     permission_classes = [IsAuthenticatedPrincipal]
+    deploy_token_methods = ('POST',)
     rate_limit_scope = 'deploy'
     throttle_classes = [HostingScopeThrottle]
 
@@ -230,6 +229,7 @@ class PreviewPrepareView(APIView):
                 shellui_version=str(data.get('shellui_version') or ''),
                 access_token=access_token,
                 actor_email=request.user.email,
+                any_user=bool(request.user.deploy_token_id),
             )
         except HostingError as exc:
             return _error(exc)
@@ -381,7 +381,6 @@ class AppRenewExpiryView(APIView):
 )
 class DeploymentListCreateView(APIView):
     permission_classes = [IsAuthenticatedPrincipal]
-    deploy_token_methods = ('POST',)
     rate_limit_scope = 'deploy'
 
     def get_throttles(self):
@@ -522,88 +521,31 @@ class DeploymentRollbackView(APIView):
         return Response(serialize_deployment(deployment))
 
 
-class ProductionDeployView(APIView):
-    permission_classes = [IsAuthenticatedPrincipal]
-    deploy_token_methods = ('POST',)
-    rate_limit_scope = 'deploy'
-    throttle_classes = [HostingScopeThrottle]
-
-    @extend_schema(
-        tags=['deployments'],
-        summary='Create a draft production deployment (then upload and finalize)',
-        request=DeploymentCreateSerializer,
-        responses={201: OpenApiTypes.OBJECT, **_SCHEMA_ERRORS},
-    )
-    def post(self, request, app_ref):
-        try:
-            app = _scoped_app(request, app_ref)
-            data = request.data if isinstance(request.data, dict) else {}
-            deployment = prepare_production_deploy(
-                app=app,
-                app_version=str(data.get('app_version') or ''),
-                shellui_version=str(data.get('shellui_version') or ''),
-                deployed_by_id=request.user.user_id or None,
-                actor_email=request.user.email,
-            )
-        except HostingError as exc:
-            return _error(exc)
-        except ValueError as exc:
-            return _error_message(str(exc))
-        return Response(
-            {'slug': app.slug, 'app': serialize_app(app), 'deployment': serialize_deployment(deployment)},
-            status=status.HTTP_201_CREATED,
-        )
-
-
-class DeploymentPromoteView(APIView):
-    permission_classes = [IsAuthenticatedPrincipal]
-    deploy_token_methods = ('POST',)
-    rate_limit_scope = 'deploy'
-    throttle_classes = [HostingScopeThrottle]
-
-    @extend_schema(
-        tags=['deployments'],
-        summary='Make a ready or earlier deployment of a production app live',
-        request=None,
-        responses={200: DeploymentSerializer, **_SCHEMA_ERRORS},
-    )
-    def post(self, request, app_ref, deployment_id):
-        try:
-            app = _scoped_app(request, app_ref)
-            deployment = Deployment.objects.get(id=deployment_id, app=app)
-            deployment = promote_deployment(deployment=deployment)
-        except Deployment.DoesNotExist:
-            return _error_message('Deployment not found.', status_code=404, code='deployment_not_found')
-        except HostingError as exc:
-            return _error(exc)
-        return Response(serialize_deployment(deployment))
-
-
 class DeployTokenListCreateView(APIView):
     permission_classes = [IsAuthenticatedPrincipal, IsStaffOrCompanyOwner]
 
-    @extend_schema(tags=['deploy-tokens'], summary='List deploy tokens for an app', responses={200: OpenApiTypes.OBJECT, **_SCHEMA_ERRORS})
-    def get(self, request, app_ref):
+    @extend_schema(tags=['deploy-tokens'], summary='List company deploy tokens', responses={200: OpenApiTypes.OBJECT, **_SCHEMA_ERRORS})
+    def get(self, request):
         try:
-            app = _scoped_app(request, app_ref)
+            company_id = require_company_id(request.user)
         except HostingError as exc:
             return _error(exc)
-        return Response([serialize_deploy_token(t) for t in app.deploy_tokens.all()])
+        return Response([serialize_deploy_token(t) for t in DeployToken.objects.filter(company_id=company_id)])
 
     @extend_schema(
         tags=['deploy-tokens'],
-        summary='Create a deploy token (the token is returned once)',
+        summary='Create a company deploy token for preview deploys (the token is returned once)',
         request=OpenApiTypes.OBJECT,
         responses={201: OpenApiTypes.OBJECT, **_SCHEMA_ERRORS},
     )
-    def post(self, request, app_ref):
+    def post(self, request):
         data = request.data if isinstance(request.data, dict) else {}
         raw_days = data.get('expires_in_days')
         try:
-            app = _scoped_app(request, app_ref)
+            company_id = require_company_id(request.user)
             days = int(raw_days) if raw_days not in (None, '') else None
             token, raw = create_deploy_token(
-                app=app,
+                company_id=company_id,
                 name=str(data.get('name') or ''),
                 created_by_id=request.user.user_id,
                 expires_in_days=days,
@@ -621,10 +563,9 @@ class DeployTokenRevokeView(APIView):
     permission_classes = [IsAuthenticatedPrincipal, IsStaffOrCompanyOwner]
 
     @extend_schema(tags=['deploy-tokens'], summary='Revoke a deploy token', request=None, responses={200: OpenApiTypes.OBJECT, **_SCHEMA_ERRORS})
-    def post(self, request, app_ref, token_id):
+    def post(self, request, token_id):
         try:
-            app = _scoped_app(request, app_ref)
-            token = app.deploy_tokens.get(id=token_id)
+            token = DeployToken.objects.get(id=token_id, company_id=require_company_id(request.user))
         except DeployToken.DoesNotExist:
             return _error_message('Deploy token not found.', status_code=404, code='deploy_token_not_found')
         except HostingError as exc:

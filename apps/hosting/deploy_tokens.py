@@ -1,4 +1,4 @@
-"""Per-app deploy tokens for CI (`shellui_dt_...`). Raw tokens are never stored or logged."""
+"""Company deploy tokens for CI preview deploys (`shellui_dt_...`). Raw tokens are never stored or logged."""
 
 from __future__ import annotations
 
@@ -12,7 +12,7 @@ from rest_framework import authentication, exceptions
 
 from apps.authapi.principal import HostingPrincipal
 
-from .models import App, DeployToken
+from .models import DeployToken
 
 TOKEN_PREFIX = 'shellui_dt_'
 _LOOKUP_LEN = len(TOKEN_PREFIX) + 8
@@ -24,7 +24,7 @@ def hash_token(raw: str) -> str:
 
 
 def create_deploy_token(
-    *, app: App, name: str, created_by_id: int | None, expires_in_days: int | None = None
+    *, company_id: int, name: str, created_by_id: int | None, expires_in_days: int | None = None
 ) -> tuple[DeployToken, str]:
     label = (name or '').strip()[:100]
     if not label:
@@ -36,8 +36,7 @@ def create_deploy_token(
         expires_at = timezone.now() + timedelta(days=expires_in_days)
     raw = TOKEN_PREFIX + secrets.token_urlsafe(32)
     token = DeployToken.objects.create(
-        app=app,
-        company_id=app.company_id,
+        company_id=company_id,
         name=label,
         prefix=raw[:_LOOKUP_LEN],
         token_hash=hash_token(raw),
@@ -58,7 +57,6 @@ def serialize_deploy_token(token: DeployToken) -> dict:
     iso = lambda v: v.isoformat() if v else None  # noqa: E731
     return {
         'id': str(token.id),
-        'app_id': str(token.app_id),
         'name': token.name,
         'prefix': token.prefix,
         'created_by_id': token.created_by_id,
@@ -102,7 +100,7 @@ class DeployTokenAuthentication(authentication.BaseAuthentication):
         principal = HostingPrincipal(
             user_id=token.created_by_id or 0,
             company_id=token.company_id,
-            deploy_token_app_id=str(token.app_id),
+            deploy_token_id=str(token.id),
         )
         return (principal, None)
 

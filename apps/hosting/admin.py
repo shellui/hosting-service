@@ -20,5 +20,5 @@ class AppAdmin(admin.ModelAdmin):
 
 @admin.register(DeployToken)
 class DeployTokenAdmin(admin.ModelAdmin):
-    list_display = ('name', 'prefix', 'app', 'company_id', 'created_at', 'last_used_at', 'expires_at', 'revoked_at')
+    list_display = ('name', 'prefix', 'company_id', 'created_at', 'last_used_at', 'expires_at', 'revoked_at')
     readonly_fields = ('prefix', 'token_hash', 'created_at', 'last_used_at')

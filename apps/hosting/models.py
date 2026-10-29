@@ -109,10 +109,9 @@ class Deployment(models.Model):
 
 
 class DeployToken(models.Model):
-    """Per-app CI token. Only a sha256 hash is stored; the raw token is shown once."""
+    """Company CI token for preview deploys. Only a sha256 hash is stored; the raw token is shown once."""
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    app = models.ForeignKey(App, on_delete=models.CASCADE, related_name='deploy_tokens')
     company_id = models.PositiveIntegerField(db_index=True)
     name = models.CharField(max_length=100)
     prefix = models.CharField(max_length=24, db_index=True)

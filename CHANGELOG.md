@@ -25,12 +25,11 @@ See for sample https://raw.githubusercontent.com/favoloso/conventional-changelog
 
 ### ✨ Feature
 
-- **Production deploys:** `POST /hosting/v1/apps/{app_ref}/production` and `POST .../deployments/{id}/promote` for production apps.
-- **Deploy tokens:** per-app `shellui_dt_` tokens for CI, shown once, stored hashed, revocable, deploy-only.
+- **Deploy tokens:** company `shellui_dt_` tokens so CI can create and update 7-day previews. Shown once, stored hashed, revocable, with optional expiry and `last_used_at`. A token can only prepare, upload and finalize preview deploys of its company.
 
 ### 📚 Documentation
 
-- **Deploy with the CLI:** new page with preview, production and a GitHub Actions example.
+- **Deploy with the CLI:** new page with preview deploys and a GitHub Actions example.
 
 ## [0.8.2] - 2026-10-27
 

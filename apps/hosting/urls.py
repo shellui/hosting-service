@@ -34,15 +34,9 @@ urlpatterns = [
         views.DeploymentRollbackView.as_view(),
         name='hosting-deployment-rollback',
     ),
-    path('apps/<str:app_ref>/production', views.ProductionDeployView.as_view(), name='hosting-production-deploy'),
+    path('deploy-tokens', views.DeployTokenListCreateView.as_view(), name='hosting-deploy-token-list'),
     path(
-        'apps/<str:app_ref>/deployments/<uuid:deployment_id>/promote',
-        views.DeploymentPromoteView.as_view(),
-        name='hosting-deployment-promote',
-    ),
-    path('apps/<str:app_ref>/deploy-tokens', views.DeployTokenListCreateView.as_view(), name='hosting-deploy-token-list'),
-    path(
-        'apps/<str:app_ref>/deploy-tokens/<uuid:token_id>/revoke',
+        'deploy-tokens/<uuid:token_id>/revoke',
         views.DeployTokenRevokeView.as_view(),
         name='hosting-deploy-token-revoke',
     ),

@@ -216,7 +216,7 @@ def resolve_app_ref(app_ref: str, *, company_id: int | None = None) -> App:
     return app
 
 
-def resolve_preview_app(*, slug: str, company_id: int, user_id: int) -> App:
+def resolve_preview_app(*, slug: str, company_id: int, user_id: int, any_user: bool = False) -> App:
     normalized = validate_slug(slug)
     app = App.objects.filter(slug=normalized).first()
     if app is None:
@@ -233,7 +233,13 @@ def resolve_preview_app(*, slug: str, company_id: int, user_id: int) -> App:
             status=403,
             code='preview_forbidden',
         )
-    if app.created_by_id is not None and app.created_by_id != user_id:
+    if any_user and not is_preview_app(app):
+        raise HostingError(
+            'Deploy tokens can only deploy preview sites. Check hosting.slug in shellui.config.json.',
+            status=403,
+            code='deploy_token_preview_only',
+        )
+    if not any_user and app.created_by_id is not None and app.created_by_id != user_id:
         raise HostingError(
             'Preview site belongs to another user.',
             status=403,
@@ -285,8 +291,10 @@ def prepare_preview_deploy(
     shellui_version: str,
     access_token: str | None = None,
     actor_email: str = '',
+    any_user: bool = False,
 ) -> tuple[App, Deployment]:
     app, deployment = _prepare_preview_deploy(
+        any_user=any_user,
         company_id=company_id,
         user_id=user_id,
         slug=slug,
@@ -310,9 +318,10 @@ def _prepare_preview_deploy(
     app_version: str,
     shellui_version: str,
     actor_email: str = '',
+    any_user: bool = False,
 ) -> tuple[App, Deployment]:
     if slug and slug.strip():
-        app = resolve_preview_app(slug=slug.strip(), company_id=company_id, user_id=user_id)
+        app = resolve_preview_app(slug=slug.strip(), company_id=company_id, user_id=user_id, any_user=any_user)
     else:
         app = create_preview_app(
             company_id=company_id,
@@ -630,46 +639,16 @@ def delete_app(
         delete_hosting_oauth_redirect_origin(origin=origin, access_token=access_token)
 
 
+
 def is_preview_app(app: App) -> bool:
     return app.created_by_id is not None or app.expires_at is not None
 
 
-def require_production_app(app: App) -> App:
-    if is_preview_app(app):
+def assert_deploy_token_preview(principal, app: App) -> None:
+    """A deploy token may only deploy preview sites of its company."""
+    if getattr(principal, 'deploy_token_id', None) and not is_preview_app(app):
         raise HostingError(
-            'This app is a preview site. Production deploys need an app created in admin (Hosting > Apps).',
-            status=409,
-            code='not_production_app',
-        )
-    return app
-
-
-def assert_deploy_token_app(principal, app: App) -> None:
-    """A deploy token may only touch the app it was created for."""
-    scoped = getattr(principal, 'deploy_token_app_id', None)
-    if scoped and str(app.id) != scoped:
-        raise HostingError(
-            'This deploy token belongs to another app. Check hosting.app in shellui.config.json.',
+            'Deploy tokens can only deploy preview sites. Check hosting.slug in shellui.config.json.',
             status=403,
-            code='deploy_token_wrong_app',
+            code='deploy_token_preview_only',
         )
-
-
-def prepare_production_deploy(
-    *, app: App, app_version: str, shellui_version: str, deployed_by_id: int | None, actor_email: str = ''
-) -> Deployment:
-    require_production_app(app)
-    assert_hosting_access(app.company_id)
-    return create_deployment(
-        app=app,
-        app_version=app_version,
-        shellui_version=shellui_version,
-        deployed_by_id=deployed_by_id,
-        actor_email=actor_email,
-    )
-
-
-def promote_deployment(*, deployment: Deployment) -> Deployment:
-    """Make an uploaded, ready or earlier deployment of a production app the live one."""
-    require_production_app(deployment.app)
-    return rollback_deployment(deployment=deployment)
