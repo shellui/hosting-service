@@ -6,7 +6,12 @@ class IsAuthenticatedPrincipal(BasePermission):
 
     def has_permission(self, request, view):
         user = request.user
-        return bool(user and getattr(user, 'is_authenticated', False))
+        if not (user and getattr(user, 'is_authenticated', False)):
+            return False
+        if getattr(user, 'deploy_token_app_id', None):
+            # Deploy tokens only reach views that opt in, for the listed methods.
+            return request.method in getattr(view, 'deploy_token_methods', ())
+        return True
 
 
 class IsStaffOrCompanyOwner(BasePermission):

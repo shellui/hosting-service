@@ -17,6 +17,8 @@ class HostingPrincipal:
     is_staff: bool = False
     is_company_owner: bool = False
     access_global_metrics: bool = False
+    # Set when the request used a deploy token: the only app it may deploy.
+    deploy_token_app_id: str | None = None
     claims: dict[str, Any] = field(default_factory=dict)
 
     @property

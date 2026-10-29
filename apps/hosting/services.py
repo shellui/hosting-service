@@ -628,3 +628,48 @@ def delete_app(
     emit_event_if_rules('hosting.app.deleted', company_id, payload, actor=_action_actor(user_id, actor_email))
     if origin:
         delete_hosting_oauth_redirect_origin(origin=origin, access_token=access_token)
+
+
+def is_preview_app(app: App) -> bool:
+    return app.created_by_id is not None or app.expires_at is not None
+
+
+def require_production_app(app: App) -> App:
+    if is_preview_app(app):
+        raise HostingError(
+            'This app is a preview site. Production deploys need an app created in admin (Hosting > Apps).',
+            status=409,
+            code='not_production_app',
+        )
+    return app
+
+
+def assert_deploy_token_app(principal, app: App) -> None:
+    """A deploy token may only touch the app it was created for."""
+    scoped = getattr(principal, 'deploy_token_app_id', None)
+    if scoped and str(app.id) != scoped:
+        raise HostingError(
+            'This deploy token belongs to another app. Check hosting.app in shellui.config.json.',
+            status=403,
+            code='deploy_token_wrong_app',
+        )
+
+
+def prepare_production_deploy(
+    *, app: App, app_version: str, shellui_version: str, deployed_by_id: int | None, actor_email: str = ''
+) -> Deployment:
+    require_production_app(app)
+    assert_hosting_access(app.company_id)
+    return create_deployment(
+        app=app,
+        app_version=app_version,
+        shellui_version=shellui_version,
+        deployed_by_id=deployed_by_id,
+        actor_email=actor_email,
+    )
+
+
+def promote_deployment(*, deployment: Deployment) -> Deployment:
+    """Make an uploaded, ready or earlier deployment of a production app the live one."""
+    require_production_app(deployment.app)
+    return rollback_deployment(deployment=deployment)
