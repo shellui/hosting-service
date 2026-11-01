@@ -18,6 +18,24 @@ from apps.actions.serializers import ActionRuleCreateSerializer, ActionRuleUpdat
 from apps.actions.webhook_signing import generate_webhook_signing_secret
 from apps.actions.webhook_test_send import send_webhook_test_for_rule
 from apps.authapi.mcp_openapi import mcp_tool
+from apps.actions.openapi_schema import (
+    ActionEventListSerializer,
+    ActionRuleListSerializer,
+    ActionRuleSerializer,
+    ActionTestResultSerializer,
+    DeliveryDetailSerializer,
+    DeliveryListSerializer,
+    DeliverySerializer,
+)
+from apps.hosting.openapi_admin import (
+    ACTION_RULE_ID_PATH,
+    ADMIN_API_ERRORS,
+    COMPANY_QUERY,
+    DELIVERY_ID_PATH,
+    mcp_openapi_fields,
+)
+
+_API_ERRORS = ADMIN_API_ERRORS
 
 SUPPORTED_ACTION_KINDS = [ActionRule.ACTION_WEBHOOK]
 
@@ -127,9 +145,10 @@ def _sample_payload(event_type: str, company_id: int) -> dict:
 @extend_schema_view(
     get=extend_schema(
         tags=['webhooks'],
-        summary='List webhook event types you can subscribe to',
-        description='Domain events emitted by hosting-service for Shellui Actions rules.',
         operation_id='api_v1_actions_events_list',
+        parameters=[COMPANY_QUERY],
+        responses={200: ActionEventListSerializer, **_API_ERRORS},
+        **mcp_openapi_fields('api_v1_actions_events_list'),
         **mcp_tool(operation_id='api_v1_actions_events_list', read_only=True),
     ),
 )
@@ -161,16 +180,19 @@ class ShellUIAdminActionEventsView(APIView):
 @extend_schema_view(
     get=extend_schema(
         tags=['webhooks'],
-        summary='List Shellui Actions webhook rules',
         operation_id='api_v1_actions_rules_list',
+        parameters=[COMPANY_QUERY],
+        responses={200: ActionRuleListSerializer, **_API_ERRORS},
+        **mcp_openapi_fields('api_v1_actions_rules_list'),
         **mcp_tool(operation_id='api_v1_actions_rules_list', read_only=True, sensitive=True),
     ),
     post=extend_schema(
         tags=['webhooks'],
-        summary='Create a Shellui Actions webhook rule',
-        description='Returns the signing secret once in `secret`. Store it before closing the response.',
-        request=ActionRuleCreateSerializer,
         operation_id='api_v1_actions_rules_create',
+        parameters=[COMPANY_QUERY],
+        request=ActionRuleCreateSerializer,
+        responses={201: ActionRuleSerializer, **_API_ERRORS},
+        **mcp_openapi_fields('api_v1_actions_rules_create'),
         **mcp_tool(operation_id='api_v1_actions_rules_create', read_only=False, sensitive=True),
     ),
 )
@@ -212,21 +234,27 @@ class ShellUIAdminActionRuleListCreateView(APIView):
 @extend_schema_view(
     get=extend_schema(
         tags=['webhooks'],
-        summary='Read one webhook rule',
         operation_id='api_v1_actions_rules_retrieve',
+        parameters=[ACTION_RULE_ID_PATH],
+        responses={200: ActionRuleSerializer, **_API_ERRORS},
+        **mcp_openapi_fields('api_v1_actions_rules_retrieve'),
         **mcp_tool(operation_id='api_v1_actions_rules_retrieve', read_only=True, sensitive=True),
     ),
     patch=extend_schema(
         tags=['webhooks'],
-        summary='Update name, URL, or enabled state',
-        request=ActionRuleUpdateSerializer,
         operation_id='api_v1_actions_rules_partial_update',
+        parameters=[ACTION_RULE_ID_PATH],
+        request=ActionRuleUpdateSerializer,
+        responses={200: ActionRuleSerializer, **_API_ERRORS},
+        **mcp_openapi_fields('api_v1_actions_rules_partial_update'),
         **mcp_tool(operation_id='api_v1_actions_rules_partial_update', read_only=False, sensitive=True),
     ),
     delete=extend_schema(
         tags=['webhooks'],
-        summary='Delete a webhook rule',
         operation_id='api_v1_actions_rules_destroy',
+        parameters=[ACTION_RULE_ID_PATH],
+        responses={204: None, **_API_ERRORS},
+        **mcp_openapi_fields('api_v1_actions_rules_destroy'),
         **mcp_tool(operation_id='api_v1_actions_rules_destroy', read_only=False, destructive=True),
     ),
 )
@@ -277,12 +305,11 @@ class ShellUIAdminActionRuleDetailView(APIView):
 @extend_schema_view(
     post=extend_schema(
         tags=['webhooks'],
-        summary='Rotate the webhook signing secret',
-        description='Returns the new plaintext secret once.',
         operation_id='api_v1_actions_rules_rotate_secret',
-        responses={
-            200: OpenApiResponse(description='New secret returned once in response body'),
-        },
+        parameters=[ACTION_RULE_ID_PATH],
+        request=None,
+        responses={200: ActionRuleSerializer, **_API_ERRORS},
+        **mcp_openapi_fields('api_v1_actions_rules_rotate_secret'),
         **mcp_tool(operation_id='api_v1_actions_rules_rotate_secret', read_only=False, sensitive=True),
     ),
 )
@@ -310,12 +337,11 @@ class ShellUIAdminActionRuleRotateSecretView(APIView):
 @extend_schema_view(
     post=extend_schema(
         tags=['webhooks'],
-        summary='Queue a sample webhook for this rule',
         operation_id='api_v1_actions_rules_send_test',
-        responses={
-            200: OpenApiResponse(description='Sample webhook accepted by the endpoint'),
-            400: OpenApiResponse(description='Delivery failed'),
-        },
+        parameters=[ACTION_RULE_ID_PATH],
+        request=None,
+        responses={200: ActionTestResultSerializer, **_API_ERRORS},
+        **mcp_openapi_fields('api_v1_actions_rules_send_test'),
         **mcp_tool(operation_id='api_v1_actions_rules_send_test', read_only=False, sensitive=True),
     ),
 )
@@ -342,8 +368,8 @@ class ShellUIAdminActionRuleSendTestView(APIView):
 @extend_schema_view(
     get=extend_schema(
         tags=['webhooks'],
-        summary='List recent webhook delivery attempts',
         parameters=[
+            COMPANY_QUERY,
             OpenApiParameter(name='status', type=str, location=OpenApiParameter.QUERY, required=False),
             OpenApiParameter(name='event_type', type=str, location=OpenApiParameter.QUERY, required=False),
             OpenApiParameter(name='action_rule_id', type=int, location=OpenApiParameter.QUERY, required=False),
@@ -359,8 +385,9 @@ class ShellUIAdminActionRuleSendTestView(APIView):
             OpenApiParameter(name='page', type=int, location=OpenApiParameter.QUERY, required=False),
             OpenApiParameter(name='page_size', type=int, location=OpenApiParameter.QUERY, required=False),
         ],
-        responses={200: OpenApiResponse(description='Paginated delivery log')},
+        responses={200: DeliveryListSerializer, **_API_ERRORS},
         operation_id='api_v1_actions_deliveries_list',
+        **mcp_openapi_fields('api_v1_actions_deliveries_list'),
         **mcp_tool(operation_id='api_v1_actions_deliveries_list', read_only=True, sensitive=True),
     ),
 )
@@ -441,8 +468,10 @@ class ShellUIAdminActionDeliveryListView(APIView):
 @extend_schema_view(
     get=extend_schema(
         tags=['webhooks'],
-        summary='Read one delivery with attempts and envelope',
         operation_id='api_v1_actions_deliveries_retrieve',
+        parameters=[DELIVERY_ID_PATH],
+        responses={200: DeliveryDetailSerializer, **_API_ERRORS},
+        **mcp_openapi_fields('api_v1_actions_deliveries_retrieve'),
         **mcp_tool(operation_id='api_v1_actions_deliveries_retrieve', read_only=True, sensitive=True),
     ),
 )
@@ -469,8 +498,11 @@ class ShellUIAdminActionDeliveryDetailView(APIView):
 @extend_schema_view(
     post=extend_schema(
         tags=['webhooks'],
-        summary='Requeue a failed webhook delivery',
         operation_id='api_v1_actions_deliveries_requeue',
+        parameters=[DELIVERY_ID_PATH],
+        request=None,
+        responses={200: DeliverySerializer, **_API_ERRORS},
+        **mcp_openapi_fields('api_v1_actions_deliveries_requeue'),
         **mcp_tool(operation_id='api_v1_actions_deliveries_requeue', read_only=False, sensitive=True),
     ),
 )

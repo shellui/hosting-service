@@ -17,6 +17,15 @@ from rest_framework.views import APIView
 
 from apps.authapi.mcp_openapi import mcp_tool
 from apps.authapi.permissions import IsAuthenticatedPrincipal, IsStaffOrCompanyOwner
+from apps.hosting.openapi_admin import (
+    ADMIN_API_ERRORS,
+    APP_REF_PATH,
+    DEPLOYMENT_ID_PATH,
+    TOKEN_ID_PATH,
+    admin_description,
+    mcp_openapi_fields,
+    EXAMPLE_APP,
+)
 from config.throttling import HostingScopeThrottle
 
 from . import metrics as hosting_metrics
@@ -63,13 +72,7 @@ from .storage import ArtifactTooLarge
 
 logger = logging.getLogger(__name__)
 
-_SCHEMA_ERRORS = {
-    400: ErrorSerializer,
-    401: ErrorSerializer,
-    403: ErrorSerializer,
-    404: ErrorSerializer,
-    409: ErrorSerializer,
-}
+_API_ERRORS = ADMIN_API_ERRORS
 
 
 class OctetStreamParser(BaseParser):
@@ -149,14 +152,25 @@ class HealthView(APIView):
 @extend_schema_view(
     get=extend_schema(
         tags=['access'],
-        summary='Get company hosting access status',
-        responses={200: AccessSerializer, **_SCHEMA_ERRORS},
+        operation_id='hosting_v1_access_retrieve',
+        summary='Read company hosting access status',
+        description=admin_description(
+            lead='Returns waitlist status (`pending`, `approved`, or `denied`) for the target company.',
+            side_effects='Read-only.',
+        ),
+        responses={200: AccessSerializer, **_API_ERRORS},
     ),
     post=extend_schema(
         tags=['access'],
-        summary='Update company hosting access (staff approve/deny; owners cannot self-approve)',
+        operation_id='hosting_v1_access_create',
+        summary='Update hosting access (staff approve or deny)',
+        description=admin_description(
+            lead='Staff set `approved` or `denied`. Company owners may update notes only; they cannot self-approve.',
+            side_effects='Updates hosting access row and reviewer metadata.',
+            notes='Pass `company_id` in the body when staff act on another company.',
+        ),
         request=AccessUpdateSerializer,
-        responses={200: AccessSerializer, **_SCHEMA_ERRORS},
+        responses={200: AccessSerializer, **_API_ERRORS},
     ),
 )
 class AccessView(APIView):
@@ -209,10 +223,9 @@ class AccessRequestView(APIView):
     @extend_schema(
         tags=['access'],
         operation_id='hosting_v1_access_request_create',
-        summary='Request hosting access for your company',
-        description='Join the waitlist. Staff approve access separately; agents cannot self-approve.',
         request=None,
-        responses={201: AccessSerializer, **_SCHEMA_ERRORS},
+        responses={201: AccessSerializer, **_API_ERRORS},
+        **mcp_openapi_fields('hosting_v1_access_request_create'),
         **mcp_tool(operation_id='hosting_v1_access_request_create', read_only=False),
     )
     def post(self, request):
@@ -233,13 +246,9 @@ class PreviewPrepareView(APIView):
     @extend_schema(
         tags=['previews'],
         operation_id='hosting_v1_preview_create',
-        summary='Prepare a preview deploy (7-day TTL)',
-        description=(
-            'Create or refresh a preview site under your company. Preview sites expire after '
-            'HOSTING_PREVIEW_TTL_DAYS (7 days by default). Use renew-expiry on an app to extend.'
-        ),
         request=PreviewPrepareSerializer,
-        responses={201: PreviewPrepareResponseSerializer, **_SCHEMA_ERRORS},
+        responses={201: PreviewPrepareResponseSerializer, **_API_ERRORS},
+        **mcp_openapi_fields('hosting_v1_preview_create'),
         **mcp_tool(operation_id='hosting_v1_preview_create', read_only=False),
     )
     def post(self, request):
@@ -283,18 +292,17 @@ class PreviewPrepareView(APIView):
     get=extend_schema(
         tags=['sites'],
         operation_id='hosting_v1_apps_list',
-        summary='List hosted sites for your company',
-        description='Returns every app (site) in the company, including preview and production slugs.',
-        responses={200: AppSerializer(many=True), **_SCHEMA_ERRORS},
+        responses={200: AppSerializer(many=True), **_API_ERRORS},
+        **mcp_openapi_fields('hosting_v1_apps_list'),
         **mcp_tool(operation_id='hosting_v1_apps_list', read_only=True),
     ),
     post=extend_schema(
         tags=['sites'],
         operation_id='hosting_v1_apps_create',
-        summary='Create a hosted site',
-        description='Register a new app slug. Deploy artifacts with the deployments API.',
         request=AppCreateSerializer,
-        responses={201: AppSerializer, **_SCHEMA_ERRORS},
+        responses={201: AppSerializer, **_API_ERRORS},
+        examples=[EXAMPLE_APP],
+        **mcp_openapi_fields('hosting_v1_apps_create'),
         **mcp_tool(operation_id='hosting_v1_apps_create', read_only=False),
     ),
 )
@@ -349,9 +357,9 @@ class AppDetailView(APIView):
     @extend_schema(
         tags=['sites'],
         operation_id='hosting_v1_apps_retrieve',
-        summary='Read one hosted site',
-        description='Look up a site by slug or UUID. Includes preview expiry when set.',
-        responses={200: AppSerializer, **_SCHEMA_ERRORS},
+        parameters=[APP_REF_PATH],
+        responses={200: AppSerializer, **_API_ERRORS},
+        **mcp_openapi_fields('hosting_v1_apps_retrieve'),
         **mcp_tool(operation_id='hosting_v1_apps_retrieve', read_only=True),
     )
     def get(self, request, app_ref):
@@ -365,9 +373,9 @@ class AppDetailView(APIView):
     @extend_schema(
         tags=['sites'],
         operation_id='hosting_v1_apps_destroy',
-        summary='Delete a hosted site and its deployments',
-        description='Removes the app, deployments, and stored artifacts for your company.',
-        responses={204: None, **_SCHEMA_ERRORS},
+        parameters=[APP_REF_PATH],
+        responses={204: None, **_API_ERRORS},
+        **mcp_openapi_fields('hosting_v1_apps_destroy'),
         **mcp_tool(operation_id='hosting_v1_apps_destroy', read_only=False, destructive=True),
     )
     def delete(self, request, app_ref):
@@ -392,10 +400,10 @@ class AppRenewExpiryView(APIView):
     @extend_schema(
         tags=['previews'],
         operation_id='hosting_v1_apps_renew_expiry_create',
-        summary='Extend preview site expiry',
-        description='Resets the preview TTL to HOSTING_PREVIEW_TTL_DAYS (7 days). Production sites ignore this.',
+        parameters=[APP_REF_PATH],
         request=None,
-        responses={200: AppSerializer, **_SCHEMA_ERRORS},
+        responses={200: AppSerializer, **_API_ERRORS},
+        **mcp_openapi_fields('hosting_v1_apps_renew_expiry_create'),
         **mcp_tool(operation_id='hosting_v1_apps_renew_expiry_create', read_only=False),
     )
     def post(self, request, app_ref):
@@ -412,17 +420,18 @@ class AppRenewExpiryView(APIView):
     get=extend_schema(
         tags=['deployments'],
         operation_id='hosting_v1_apps_deployments_list',
-        summary='List deployments for a site',
-        responses={200: DeploymentSerializer(many=True), **_SCHEMA_ERRORS},
+        parameters=[APP_REF_PATH],
+        responses={200: DeploymentSerializer(many=True), **_API_ERRORS},
+        **mcp_openapi_fields('hosting_v1_apps_deployments_list'),
         **mcp_tool(operation_id='hosting_v1_apps_deployments_list', read_only=True),
     ),
     post=extend_schema(
         tags=['deployments'],
         operation_id='hosting_v1_apps_deployments_create',
-        summary='Create a draft deployment',
-        description='Creates a deployment record. Upload the artifact, then finalize to go live.',
+        parameters=[APP_REF_PATH],
         request=DeploymentCreateSerializer,
-        responses={201: DeploymentSerializer, **_SCHEMA_ERRORS},
+        responses={201: DeploymentSerializer, **_API_ERRORS},
+        **mcp_openapi_fields('hosting_v1_apps_deployments_create'),
         **mcp_tool(operation_id='hosting_v1_apps_deployments_create', read_only=False),
     ),
 )
@@ -472,9 +481,19 @@ class DeploymentUploadView(APIView):
 
     @extend_schema(
         tags=['deployments'],
-        summary='Upload deployment artifact (tar.gz)',
+        operation_id='hosting_v1_apps_deployments_upload_update',
+        summary='Upload deployment artifact',
+        description=admin_description(
+            lead=(
+                'Upload a `.tar.gz` static site archive for a draft deployment. '
+                'Send `Content-Type: application/gzip` with the raw body, or `multipart/form-data` with a `file` field.'
+            ),
+            side_effects='Stores artifact bytes and updates deployment metadata.',
+            notes='Not exposed as a Shellui MCP tool. Deploy tokens may upload for preview sites only.',
+        ),
+        parameters=[APP_REF_PATH, DEPLOYMENT_ID_PATH],
         request={'application/gzip': {'type': 'string', 'format': 'binary'}},
-        responses={200: DeploymentSerializer, **_SCHEMA_ERRORS},
+        responses={200: DeploymentSerializer, 413: ErrorSerializer, **_API_ERRORS},
     )
     def put(self, request, app_ref, deployment_id):
         try:
@@ -535,10 +554,10 @@ class DeploymentFinalizeView(APIView):
     @extend_schema(
         tags=['deployments'],
         operation_id='hosting_v1_apps_deployments_finalize_create',
-        summary='Finalize and activate a deployment',
-        description='Activates a deployment after its artifact upload completed.',
+        parameters=[APP_REF_PATH, DEPLOYMENT_ID_PATH],
         request=None,
-        responses={200: DeploymentSerializer, **_SCHEMA_ERRORS},
+        responses={200: DeploymentSerializer, **_API_ERRORS},
+        **mcp_openapi_fields('hosting_v1_apps_deployments_finalize_create'),
         **mcp_tool(operation_id='hosting_v1_apps_deployments_finalize_create', read_only=False),
     )
     def post(self, request, app_ref, deployment_id):
@@ -572,9 +591,10 @@ class DeploymentRollbackView(APIView):
     @extend_schema(
         tags=['deployments'],
         operation_id='hosting_v1_apps_deployments_rollback_create',
-        summary='Rollback to a previous deployment',
+        parameters=[APP_REF_PATH, DEPLOYMENT_ID_PATH],
         request=None,
-        responses={200: DeploymentSerializer, **_SCHEMA_ERRORS},
+        responses={200: DeploymentSerializer, **_API_ERRORS},
+        **mcp_openapi_fields('hosting_v1_apps_deployments_rollback_create'),
         **mcp_tool(operation_id='hosting_v1_apps_deployments_rollback_create', read_only=False, destructive=True),
     )
     def post(self, request, app_ref, deployment_id):
@@ -595,9 +615,8 @@ class DeployTokenListCreateView(APIView):
     @extend_schema(
         tags=['deploy-tokens'],
         operation_id='hosting_v1_deploy_tokens_retrieve',
-        summary='List company deploy tokens',
-        description='Metadata only. Plaintext tokens are never returned after create.',
-        responses={200: DeployTokenSerializer(many=True), **_SCHEMA_ERRORS},
+        responses={200: DeployTokenSerializer(many=True), **_API_ERRORS},
+        **mcp_openapi_fields('hosting_v1_deploy_tokens_retrieve'),
         **mcp_tool(operation_id='hosting_v1_deploy_tokens_retrieve', read_only=True, sensitive=True),
     )
     def get(self, request):
@@ -611,12 +630,16 @@ class DeployTokenListCreateView(APIView):
         tags=['deploy-tokens'],
         operation_id='hosting_v1_deploy_tokens_create',
         summary='Create a deploy token for preview CI',
-        description=(
-            'Returns the plaintext token once in `token`. It is stored hashed and cannot be read again. '
-            'Not exposed to Shellui MCP agents; create in admin or with a company-owner user JWT only.'
+        description=admin_description(
+            lead=(
+                'Returns the plaintext token once in `token`. It is stored hashed and cannot be read again. '
+                'Optional body fields: `name`, `expires_in_days`.'
+            ),
+            side_effects='Inserts a deploy token row.',
+            notes='Not a Shellui MCP tool. Agent access tokens receive `403 forbidden`.',
         ),
         request=OpenApiTypes.OBJECT,
-        responses={201: DeployTokenCreateResponseSerializer, **_SCHEMA_ERRORS},
+        responses={201: DeployTokenCreateResponseSerializer, **_API_ERRORS},
     )
     def post(self, request):
         if getattr(request.user, 'agent_id', None):
@@ -651,9 +674,10 @@ class DeployTokenRevokeView(APIView):
     @extend_schema(
         tags=['deploy-tokens'],
         operation_id='hosting_v1_deploy_tokens_revoke_create',
-        summary='Revoke a deploy token',
+        parameters=[TOKEN_ID_PATH],
         request=None,
-        responses={200: DeployTokenSerializer, **_SCHEMA_ERRORS},
+        responses={200: DeployTokenSerializer, **_API_ERRORS},
+        **mcp_openapi_fields('hosting_v1_deploy_tokens_revoke_create'),
         **mcp_tool(operation_id='hosting_v1_deploy_tokens_revoke_create', read_only=False, destructive=True),
     )
     def post(self, request, token_id):
@@ -672,8 +696,8 @@ class StatsView(APIView):
     @extend_schema(
         tags=['stats'],
         operation_id='hosting_v1_stats_retrieve',
-        summary='Hosting usage stats for your company',
-        responses={200: OpenApiTypes.OBJECT, **_SCHEMA_ERRORS},
+        responses={200: OpenApiTypes.OBJECT, **_API_ERRORS},
+        **mcp_openapi_fields('hosting_v1_stats_retrieve'),
         **mcp_tool(operation_id='hosting_v1_stats_retrieve', read_only=True),
     )
     def get(self, request):
