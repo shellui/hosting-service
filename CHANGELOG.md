@@ -7,10 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-### ✨ Feature
-
-- Shellui MCP: `POST /mcp`, OAuth protected-resource metadata, OpenAPI `x-mcp` on sites, deployments, previews, and webhooks, shared `shellui_mcp/`, docs, and homepage links.
-
 <!---
 ## [Unreleased] - yyyy-mm-dd
 
@@ -26,6 +22,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 See for sample https://raw.githubusercontent.com/favoloso/conventional-changelog-emoji/master/CHANGELOG.md
 -->
+
+## [0.11.0] - 2026-11-01
+
+### ✨ Feature
+
+- MCP endpoint for agents (`POST /mcp`, OAuth protected-resource metadata, shared `shellui_mcp/`).
+- OpenAPI descriptions for agent-friendly MCP and admin API docs.
 
 ## [0.10.1] - 2026-11-01
 
