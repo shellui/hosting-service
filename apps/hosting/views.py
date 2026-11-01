@@ -15,6 +15,7 @@ from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from apps.authapi.mcp_openapi import mcp_tool
 from apps.authapi.permissions import IsAuthenticatedPrincipal, IsStaffOrCompanyOwner
 from config.throttling import HostingScopeThrottle
 
@@ -28,6 +29,8 @@ from .serializers import (
     AppSerializer,
     DeploymentCreateSerializer,
     DeploymentSerializer,
+    DeployTokenCreateResponseSerializer,
+    DeployTokenSerializer,
     ErrorSerializer,
     HealthSerializer,
     PreviewPrepareResponseSerializer,
@@ -205,9 +208,12 @@ class AccessRequestView(APIView):
 
     @extend_schema(
         tags=['access'],
+        operation_id='hosting_v1_access_request_create',
         summary='Request hosting access for your company',
+        description='Join the waitlist. Staff approve access separately; agents cannot self-approve.',
         request=None,
         responses={201: AccessSerializer, **_SCHEMA_ERRORS},
+        **mcp_tool(operation_id='hosting_v1_access_request_create', read_only=False),
     )
     def post(self, request):
         try:
@@ -225,10 +231,16 @@ class PreviewPrepareView(APIView):
     throttle_classes = [HostingScopeThrottle]
 
     @extend_schema(
-        tags=['preview'],
-        summary='Prepare a preview deploy (new slug or redeploy to an owned slug)',
+        tags=['previews'],
+        operation_id='hosting_v1_preview_create',
+        summary='Prepare a preview deploy (7-day TTL)',
+        description=(
+            'Create or refresh a preview site under your company. Preview sites expire after '
+            'HOSTING_PREVIEW_TTL_DAYS (7 days by default). Use renew-expiry on an app to extend.'
+        ),
         request=PreviewPrepareSerializer,
         responses={201: PreviewPrepareResponseSerializer, **_SCHEMA_ERRORS},
+        **mcp_tool(operation_id='hosting_v1_preview_create', read_only=False),
     )
     def post(self, request):
         try:
@@ -269,15 +281,21 @@ class PreviewPrepareView(APIView):
 
 @extend_schema_view(
     get=extend_schema(
-        tags=['apps'],
-        summary='List hosted apps for your company',
+        tags=['sites'],
+        operation_id='hosting_v1_apps_list',
+        summary='List hosted sites for your company',
+        description='Returns every app (site) in the company, including preview and production slugs.',
         responses={200: AppSerializer(many=True), **_SCHEMA_ERRORS},
+        **mcp_tool(operation_id='hosting_v1_apps_list', read_only=True),
     ),
     post=extend_schema(
-        tags=['apps'],
-        summary='Create a hosted app',
+        tags=['sites'],
+        operation_id='hosting_v1_apps_create',
+        summary='Create a hosted site',
+        description='Register a new app slug. Deploy artifacts with the deployments API.',
         request=AppCreateSerializer,
         responses={201: AppSerializer, **_SCHEMA_ERRORS},
+        **mcp_tool(operation_id='hosting_v1_apps_create', read_only=False),
     ),
 )
 class AppListCreateView(APIView):
@@ -329,9 +347,12 @@ class AppDetailView(APIView):
         return []
 
     @extend_schema(
-        tags=['apps'],
-        summary='Get app by name or UUID',
+        tags=['sites'],
+        operation_id='hosting_v1_apps_retrieve',
+        summary='Read one hosted site',
+        description='Look up a site by slug or UUID. Includes preview expiry when set.',
         responses={200: AppSerializer, **_SCHEMA_ERRORS},
+        **mcp_tool(operation_id='hosting_v1_apps_retrieve', read_only=True),
     )
     def get(self, request, app_ref):
         try:
@@ -342,9 +363,12 @@ class AppDetailView(APIView):
         return Response(serialize_app(app))
 
     @extend_schema(
-        tags=['apps'],
-        summary='Delete a hosted app and its deployments',
+        tags=['sites'],
+        operation_id='hosting_v1_apps_destroy',
+        summary='Delete a hosted site and its deployments',
+        description='Removes the app, deployments, and stored artifacts for your company.',
         responses={204: None, **_SCHEMA_ERRORS},
+        **mcp_tool(operation_id='hosting_v1_apps_destroy', read_only=False, destructive=True),
     )
     def delete(self, request, app_ref):
         try:
@@ -366,10 +390,13 @@ class AppRenewExpiryView(APIView):
     permission_classes = [IsAuthenticatedPrincipal]
 
     @extend_schema(
-        tags=['apps'],
-        summary='Reset preview site expiry (extends TTL by HOSTING_PREVIEW_TTL_DAYS)',
+        tags=['previews'],
+        operation_id='hosting_v1_apps_renew_expiry_create',
+        summary='Extend preview site expiry',
+        description='Resets the preview TTL to HOSTING_PREVIEW_TTL_DAYS (7 days). Production sites ignore this.',
         request=None,
         responses={200: AppSerializer, **_SCHEMA_ERRORS},
+        **mcp_tool(operation_id='hosting_v1_apps_renew_expiry_create', read_only=False),
     )
     def post(self, request, app_ref):
         try:
@@ -384,14 +411,19 @@ class AppRenewExpiryView(APIView):
 @extend_schema_view(
     get=extend_schema(
         tags=['deployments'],
-        summary='List deployments for an app',
+        operation_id='hosting_v1_apps_deployments_list',
+        summary='List deployments for a site',
         responses={200: DeploymentSerializer(many=True), **_SCHEMA_ERRORS},
+        **mcp_tool(operation_id='hosting_v1_apps_deployments_list', read_only=True),
     ),
     post=extend_schema(
         tags=['deployments'],
+        operation_id='hosting_v1_apps_deployments_create',
         summary='Create a draft deployment',
+        description='Creates a deployment record. Upload the artifact, then finalize to go live.',
         request=DeploymentCreateSerializer,
         responses={201: DeploymentSerializer, **_SCHEMA_ERRORS},
+        **mcp_tool(operation_id='hosting_v1_apps_deployments_create', read_only=False),
     ),
 )
 class DeploymentListCreateView(APIView):
@@ -502,9 +534,12 @@ class DeploymentFinalizeView(APIView):
 
     @extend_schema(
         tags=['deployments'],
+        operation_id='hosting_v1_apps_deployments_finalize_create',
         summary='Finalize and activate a deployment',
+        description='Activates a deployment after its artifact upload completed.',
         request=None,
         responses={200: DeploymentSerializer, **_SCHEMA_ERRORS},
+        **mcp_tool(operation_id='hosting_v1_apps_deployments_finalize_create', read_only=False),
     )
     def post(self, request, app_ref, deployment_id):
         try:
@@ -536,9 +571,11 @@ class DeploymentRollbackView(APIView):
 
     @extend_schema(
         tags=['deployments'],
+        operation_id='hosting_v1_apps_deployments_rollback_create',
         summary='Rollback to a previous deployment',
         request=None,
         responses={200: DeploymentSerializer, **_SCHEMA_ERRORS},
+        **mcp_tool(operation_id='hosting_v1_apps_deployments_rollback_create', read_only=False, destructive=True),
     )
     def post(self, request, app_ref, deployment_id):
         try:
@@ -555,7 +592,14 @@ class DeploymentRollbackView(APIView):
 class DeployTokenListCreateView(APIView):
     permission_classes = [IsAuthenticatedPrincipal, IsStaffOrCompanyOwner]
 
-    @extend_schema(tags=['deploy-tokens'], summary='List company deploy tokens', responses={200: OpenApiTypes.OBJECT, **_SCHEMA_ERRORS})
+    @extend_schema(
+        tags=['deploy-tokens'],
+        operation_id='hosting_v1_deploy_tokens_retrieve',
+        summary='List company deploy tokens',
+        description='Metadata only. Plaintext tokens are never returned after create.',
+        responses={200: DeployTokenSerializer(many=True), **_SCHEMA_ERRORS},
+        **mcp_tool(operation_id='hosting_v1_deploy_tokens_retrieve', read_only=True, sensitive=True),
+    )
     def get(self, request):
         try:
             company_id = require_company_id(request.user)
@@ -565,9 +609,12 @@ class DeployTokenListCreateView(APIView):
 
     @extend_schema(
         tags=['deploy-tokens'],
-        summary='Create a company deploy token for preview deploys (the token is returned once)',
+        operation_id='hosting_v1_deploy_tokens_create',
+        summary='Create a deploy token for preview CI',
+        description='Returns the plaintext token once in `token`. It is stored hashed and cannot be read again.',
         request=OpenApiTypes.OBJECT,
-        responses={201: OpenApiTypes.OBJECT, **_SCHEMA_ERRORS},
+        responses={201: DeployTokenCreateResponseSerializer, **_SCHEMA_ERRORS},
+        **mcp_tool(operation_id='hosting_v1_deploy_tokens_create', read_only=False, sensitive=True),
     )
     def post(self, request):
         data = request.data if isinstance(request.data, dict) else {}
@@ -593,7 +640,14 @@ class DeployTokenListCreateView(APIView):
 class DeployTokenRevokeView(APIView):
     permission_classes = [IsAuthenticatedPrincipal, IsStaffOrCompanyOwner]
 
-    @extend_schema(tags=['deploy-tokens'], summary='Revoke a deploy token', request=None, responses={200: OpenApiTypes.OBJECT, **_SCHEMA_ERRORS})
+    @extend_schema(
+        tags=['deploy-tokens'],
+        operation_id='hosting_v1_deploy_tokens_revoke_create',
+        summary='Revoke a deploy token',
+        request=None,
+        responses={200: DeployTokenSerializer, **_SCHEMA_ERRORS},
+        **mcp_tool(operation_id='hosting_v1_deploy_tokens_revoke_create', read_only=False, destructive=True),
+    )
     def post(self, request, token_id):
         try:
             token = DeployToken.objects.get(id=token_id, company_id=require_company_id(request.user))
@@ -607,7 +661,13 @@ class DeployTokenRevokeView(APIView):
 class StatsView(APIView):
     permission_classes = [IsAuthenticatedPrincipal]
 
-    @extend_schema(tags=['stats'], responses={200: OpenApiTypes.OBJECT, **_SCHEMA_ERRORS})
+    @extend_schema(
+        tags=['stats'],
+        operation_id='hosting_v1_stats_retrieve',
+        summary='Hosting usage stats for your company',
+        responses={200: OpenApiTypes.OBJECT, **_SCHEMA_ERRORS},
+        **mcp_tool(operation_id='hosting_v1_stats_retrieve', read_only=True),
+    )
     def get(self, request):
         company_id = None
         if not getattr(request.user, 'is_staff', False):

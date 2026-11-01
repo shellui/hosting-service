@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### ✨ Feature
+
+- Shellui MCP: `POST /mcp`, OAuth protected-resource metadata, OpenAPI `x-mcp` on sites, deployments, previews, and webhooks, shared `shellui_mcp/`, docs, and homepage links.
+
 <!---
 ## [Unreleased] - yyyy-mm-dd
 

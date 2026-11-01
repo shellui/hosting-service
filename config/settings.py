@@ -251,7 +251,7 @@ EMAIL_SERVICE_API_KEY = os.getenv('EMAIL_SERVICE_API_KEY', '').strip()
 EMAIL_SERVICE_ALLOW_PRIVATE = _env_bool('EMAIL_SERVICE_ALLOW_PRIVATE', False)
 
 REST_FRAMEWORK = {
-    'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
+    'DEFAULT_SCHEMA_CLASS': 'apps.authapi.mcp_schema.McpAutoSchema',
     'DEFAULT_AUTHENTICATION_CLASSES': [
         'apps.hosting.deploy_tokens.DeployTokenAuthentication',
         'apps.authapi.authentication.IdentityJWKSAuthentication',
@@ -289,11 +289,22 @@ SPECTACULAR_SETTINGS = {
     'TAGS': [
         {'name': 'health', 'description': 'Service health checks.'},
         {'name': 'access', 'description': 'Company hosting access / waitlist.'},
-        {'name': 'apps', 'description': 'Hosted microfrontend apps.'},
+        {'name': 'sites', 'description': 'Hosted microfrontend apps (company sites).'},
         {'name': 'deployments', 'description': 'App deployment artifacts and lifecycle.'},
+        {'name': 'previews', 'description': 'Preview deploys (7-day TTL).'},
+        {'name': 'deploy-tokens', 'description': 'Company deploy tokens for CI preview deploys.'},
+        {'name': 'webhooks', 'description': 'Shellui Actions webhook rules and deliveries.'},
+        {'name': 'event-log', 'description': 'Company domain event log.'},
         {'name': 'stats', 'description': 'Hosting statistics.'},
-        {'name': 'platform-metrics', 'description': 'Prometheus metrics endpoints.'},
+        {'name': 'platform-metrics', 'description': 'Prometheus metrics endpoints (staff).'},
+        {'name': 'mcp-tools', 'description': 'Operations exposed to Shellui MCP agents.'},
     ],
+    'PREPROCESSING_HOOKS': ['apps.authapi.spectacular_hooks.preprocessing_exclude_internal_endpoints'],
+    'POSTPROCESSING_HOOKS': ['apps.authapi.spectacular_hooks.postprocess_mcp_tool_tags'],
+}
+
+MCP_RATE_LIMITS = {
+    'mcp_agent': {'limit': _env_int('MCP_RATE_LIMIT_AGENT', 120), 'window': 60},
 }
 
 MIDDLEWARE = [
@@ -516,12 +527,21 @@ else:
         )
 IDENTITY_ISSUER = os.getenv('IDENTITY_ISSUER', '').strip() or None
 IDENTITY_AUDIENCE = os.getenv('IDENTITY_AUDIENCE', '').strip() or None
+
 # Base URL for forwarding the caller's JWT to register/remove OAuth redirect origins.
 IDENTITY_SYNC_TIMEOUT = _env_float('IDENTITY_SYNC_TIMEOUT', 10)
 JWKS_CACHE_TTL = _env_int('JWKS_CACHE_TTL', 900)
 JWKS_TIMEOUT = _env_float('JWKS_TIMEOUT', 15)
 JWKS_RETRIES = _env_int('JWKS_RETRIES', 2)
 JWT_HS256_FALLBACK_SECRET = os.getenv('JWT_HS256_FALLBACK_SECRET', '').strip() or None
+
+SIMPLE_JWT = {
+    'ALGORITHM': 'HS256',
+    'SIGNING_KEY': JWT_HS256_FALLBACK_SECRET or SECRET_KEY,
+    'ISSUER': IDENTITY_ISSUER or '',
+    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=15),
+}
+
 ALLOW_JWT_HS256_FALLBACK = os.getenv('ALLOW_JWT_HS256_FALLBACK', '').strip().lower() in {
     '1',
     'true',
@@ -568,6 +588,8 @@ SHELLUI_GITHUB_URL = os.getenv('SHELLUI_GITHUB_URL', 'https://github.com/shellui
 SHELLUI_AI_URL = os.getenv('SHELLUI_AI_URL', 'https://shellui.ai').strip() or 'https://shellui.ai'
 # Region label on the apex landing, for example EU. Empty hides the region line.
 HOSTING_REGION = os.getenv('HOSTING_REGION', '').strip()
+HOSTING_PUBLIC_URL = os.getenv('HOSTING_PUBLIC_URL', '').strip().rstrip('/') or None
+HOSTING_MCP_RESOURCE = os.getenv('HOSTING_MCP_RESOURCE', '').strip().rstrip('/') or None
 
 # Public browsable app URLs ({slug}.{HOSTING_APP_DOMAIN} — domain is canonical for API links only)
 HOSTING_APP_DOMAIN = os.getenv('HOSTING_APP_DOMAIN', '').strip().lstrip('.')

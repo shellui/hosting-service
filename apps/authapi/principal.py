@@ -19,6 +19,7 @@ class HostingPrincipal:
     access_global_metrics: bool = False
     # Set when the request used a company deploy token (preview deploys only).
     deploy_token_id: str | None = None
+    agent_id: str | None = None
     claims: dict[str, Any] = field(default_factory=dict)
 
     @property
@@ -42,6 +43,24 @@ class HostingPrincipal:
 
 
 def principal_from_claims(claims: dict[str, Any]) -> HostingPrincipal:
+    sub = str(claims.get('sub') or '')
+    if sub.startswith('agent:'):
+        agent_id = str(claims.get('agent_id') or sub.split(':', 1)[1])
+        raw_company = claims.get('company_id')
+        if raw_company in (None, ''):
+            raise ValueError('Agent JWT is missing company_id.')
+        try:
+            company_id = int(raw_company)
+        except (TypeError, ValueError) as exc:
+            raise ValueError('Agent JWT company_id must be an integer.') from exc
+        return HostingPrincipal(
+            user_id=0,
+            company_id=company_id,
+            is_company_owner=True,
+            agent_id=agent_id,
+            claims=claims,
+        )
+
     user_metadata = claims.get('user_metadata') or {}
     if not isinstance(user_metadata, dict):
         user_metadata = {}

@@ -51,6 +51,7 @@ const sidebars = {
     ]),
     category('API', [
       doc('api', 'API reference'),
+      doc('mcp', 'Shellui MCP'),
     ]),
   ],
 };
