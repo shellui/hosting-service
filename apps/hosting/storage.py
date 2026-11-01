@@ -2,10 +2,11 @@
 
 from __future__ import annotations
 
+import tempfile
 from typing import BinaryIO
 
 from django.conf import settings
-from django.core.files.base import ContentFile
+from django.core.files.base import ContentFile, File
 from django.core.files.storage import default_storage
 
 
@@ -92,14 +93,27 @@ def extracted_index_exists(deployment) -> bool:
     return default_storage.exists(extracted_file_key(deployment, 'index.html'))
 
 
+class ArtifactTooLarge(ValueError):
+    pass
+
+
 def save_artifact(key: str, fileobj: BinaryIO, *, max_bytes: int) -> int:
-    data = fileobj.read(max_bytes + 1)
-    if len(data) > max_bytes:
-        raise ValueError(f'Artifact exceeds maximum upload size ({max_bytes} bytes).')
-    if default_storage.exists(key):
-        default_storage.delete(key)
-    default_storage.save(key, ContentFile(data))
-    return len(data)
+    """Stream ``fileobj`` to a temp file in chunks, then store it. Stops once over ``max_bytes``."""
+    size = 0
+    with tempfile.SpooledTemporaryFile(max_size=8 * 1024**2) as tmp:
+        while True:
+            chunk = fileobj.read(1024**2)
+            if not chunk:
+                break
+            size += len(chunk)
+            if size > max_bytes:
+                raise ArtifactTooLarge(f'Artifact exceeds maximum upload size ({max_bytes} bytes).')
+            tmp.write(chunk)
+        tmp.seek(0)
+        if default_storage.exists(key):
+            default_storage.delete(key)
+        default_storage.save(key, File(tmp))
+    return size
 
 
 def delete_artifact_prefix(prefix: str) -> None:
