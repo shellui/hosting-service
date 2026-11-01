@@ -17,8 +17,6 @@ from shellui_mcp.internal import (
 )
 from shellui_mcp.masking import redact_mapping
 
-from apps.authapi.jwks_client import get_jwks_client
-
 logger = logging.getLogger(__name__)
 
 APPROVAL_LOOKUP_UNAVAILABLE = '__approval_unavailable__'
@@ -32,47 +30,6 @@ def _identity_origin() -> str:
 
 def _identity_base() -> str:
     return (getattr(settings, 'IDENTITY_SERVICE_URL', None) or _identity_origin()).rstrip('/')
-
-
-def _revocation_list_verify_key(revocation_assertion: str) -> str | bytes | None:
-    client = get_jwks_client()
-    signing = client.get_signing_key(revocation_assertion)
-    if signing is not None:
-        return signing.key
-    secret = getattr(settings, 'JWT_HS256_FALLBACK_SECRET', None)
-    if secret and (settings.DEBUG or getattr(settings, 'ALLOW_JWT_HS256_FALLBACK', False)):
-        return secret
-    return None
-
-
-def _trusted_revocation(revocation_payload: dict[str, Any], *, agent_company_id: int | None) -> tuple[frozenset[str], int] | None:
-    assertion = revocation_payload.get('revocation_assertion') or revocation_payload.get('assertion')
-    if not assertion:
-        return None
-    key = _revocation_list_verify_key(str(assertion))
-    if key is None:
-        return None
-    try:
-        revoked_ids, cache_seconds = parse_trusted_revocation_poll_response(
-            revocation_payload,
-            signing_key=key,
-            expected_issuer=_identity_origin() or None,
-        )
-    except InternalAssertionError as exc:
-        logger.warning('MCP revocation list untrusted: %s', exc.message)
-        return None
-    agents = revocation_payload.get('agents') or []
-    if agent_company_id is not None and isinstance(agents, list):
-        for row in agents:
-            if not isinstance(row, dict):
-                continue
-            try:
-                row_company = int(row.get('company_id'))
-            except (TypeError, ValueError):
-                return None
-            if row_company != int(agent_company_id):
-                return None
-    return revoked_ids, cache_seconds
 
 
 def create_approval_request(payload: dict) -> dict | None:
@@ -249,7 +206,8 @@ def forward_call_log(entry: dict) -> None:
 
 def fetch_revocation_payload(*, company_id: int | None = None) -> dict | None:
     base = _identity_base()
-    if not base:
+    origin = _identity_origin()
+    if not base or not origin:
         return None
     url = f'{base}/api/v1/mcp/internal/mcp-revocations'
     headers: dict[str, str] = {}
@@ -257,7 +215,7 @@ def fetch_revocation_payload(*, company_id: int | None = None) -> dict | None:
     if company_id is not None:
         params['company_id'] = str(int(company_id))
     try:
-        headers['Authorization'] = f'Bearer {build_mcp_revocation_assertion(audience_url=_identity_origin())}'
+        headers['Authorization'] = f'Bearer {build_mcp_revocation_assertion(audience_url=origin)}'
     except Exception as exc:  # noqa: BLE001
         logger.warning('MCP revocation assertion failed: %s', exc)
         return None
@@ -265,13 +223,27 @@ def fetch_revocation_payload(*, company_id: int | None = None) -> dict | None:
         response = requests.get(url, headers=headers, params=params or None, timeout=getattr(settings, 'IDENTITY_SYNC_TIMEOUT', 10))
         response.raise_for_status()
         data = response.json()
-        trusted = _trusted_revocation(data, agent_company_id=company_id)
-        if trusted is None:
+        try:
+            revoked_ids, cache_seconds, agents = parse_trusted_revocation_poll_response(
+                data,
+                expected_issuer=origin,
+            )
+        except InternalAssertionError as exc:
+            logger.warning('MCP revocation list untrusted: %s', exc.message)
             return None
-        revoked_ids, cache_seconds = trusted
+        if company_id is not None:
+            for row in agents:
+                if not isinstance(row, dict):
+                    return None
+                try:
+                    row_company = int(row.get('company_id'))
+                except (TypeError, ValueError):
+                    return None
+                if row_company != int(company_id):
+                    return None
         return {
             'revoked_agent_ids': sorted(revoked_ids),
-            'agents': data.get('agents') or [],
+            'agents': agents,
             'cache_seconds': cache_seconds,
         }
     except Exception as exc:  # noqa: BLE001

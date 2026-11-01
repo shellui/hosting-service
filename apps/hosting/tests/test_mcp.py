@@ -10,6 +10,8 @@ import jwt
 from django.test import Client, TestCase, override_settings
 from django.urls import reverse
 
+from shellui_mcp.internal import InternalAssertionError
+
 from apps.hosting.mcp_revocation import _agents_cache_key, _cache_key, _unavailable_key
 
 
@@ -157,7 +159,7 @@ class McpEndpointTests(TestCase):
 
     @patch('apps.authapi.authentication.get_jwks_client')
     @override_settings(IDENTITY_SERVICE_URL='http://identity.test')
-    @patch('apps.hosting.mcp_identity._trusted_revocation', return_value=None)
+    @patch('apps.hosting.mcp_identity.parse_trusted_revocation_poll_response', side_effect=InternalAssertionError('Invalid'))
     @patch('apps.hosting.mcp_identity.requests.get')
     @patch('apps.hosting.mcp_identity.build_mcp_revocation_assertion', return_value='rev-assertion')
     def test_revocation_list_bad_signature_fail_closed(self, _mock_assert, mock_get, _mock_trusted, mock_jwks):
@@ -192,9 +194,10 @@ class McpEndpointTests(TestCase):
 
     @patch('apps.authapi.authentication.get_jwks_client')
     @override_settings(IDENTITY_SERVICE_URL='http://identity.test')
+    @patch('apps.hosting.mcp_identity.parse_trusted_revocation_poll_response', return_value=(frozenset(), 30, []))
     @patch('apps.hosting.mcp_identity.build_mcp_revocation_assertion', return_value='signed-revocation-assertion')
     @patch('apps.hosting.mcp_identity.requests.get')
-    def test_revocation_poll_sends_signed_assertion(self, mock_get, _mock_assertion, mock_jwks):
+    def test_revocation_poll_sends_signed_assertion(self, mock_get, _mock_assertion, _mock_trusted, mock_jwks):
         mock_jwks.return_value.get_signing_key.return_value = None
         mock_get.return_value.status_code = 200
         mock_get.return_value.json.return_value = {'revoked_agent_ids': []}
