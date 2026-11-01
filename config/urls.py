@@ -15,6 +15,7 @@ from drf_spectacular.views import (
     SpectacularSwaggerView,
 )
 
+from apps.actions.company_deletion_views import CompanyDeletionView
 from apps.actions.scheduled_job_views import (
     ScheduledJobRunDetailView,
     ScheduledJobRunsView,
@@ -32,6 +33,7 @@ if getattr(settings, 'DJANGO_ADMIN_ENABLED', True):
     urlpatterns.append(path('admin/', admin.site.urls))
 urlpatterns.extend([
     path('api/v1/actions/', include('apps.actions.urls')),
+    path('api/v1/internal/company-deletions', CompanyDeletionView.as_view(), name='internal-company-deletions'),
     # Detail before ``<job>/runs`` so ``runs/<id>`` is not parsed as a job name.
     path('api/v1/scheduled-jobs', ScheduledJobsView.as_view(), name='scheduled-jobs'),
     path(
