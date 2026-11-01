@@ -10,7 +10,16 @@ import jwt
 from django.test import Client, TestCase, override_settings
 from django.urls import reverse
 
-from apps.hosting.mcp_revocation import _CACHE_KEY, _UNAVAILABLE_KEY
+from apps.hosting.mcp_revocation import _agents_cache_key, _cache_key, _unavailable_key
+
+
+def _clear_revocation_cache(company_id: int = 42) -> None:
+    from django.core.cache import cache
+
+    for cid in (None, company_id):
+        cache.delete(_cache_key(cid))
+        cache.delete(_unavailable_key(cid))
+        cache.delete(_agents_cache_key(cid))
 
 
 def _agent_token(
@@ -55,10 +64,7 @@ class McpEndpointTests(TestCase):
         self.client = Client()
         self.agent_id = str(uuid.uuid4())
         self.token = _agent_token(agent_id=self.agent_id)
-        from django.core.cache import cache
-
-        cache.delete(_CACHE_KEY)
-        cache.delete(_UNAVAILABLE_KEY)
+        _clear_revocation_cache(42)
         self._revocation_ok = patch(
             'apps.hosting.mcp_revocation.fetch_revocation_payload',
             return_value={'revoked_agent_ids': []},
@@ -151,22 +157,19 @@ class McpEndpointTests(TestCase):
 
     @patch('apps.authapi.authentication.get_jwks_client')
     @override_settings(IDENTITY_SERVICE_URL='http://identity.test')
-    @patch('apps.hosting.mcp_identity._verify_identity_signed_assertion', return_value=False)
+    @patch('apps.hosting.mcp_identity._trusted_revocation', return_value=None)
     @patch('apps.hosting.mcp_identity.requests.get')
     @patch('apps.hosting.mcp_identity.build_mcp_revocation_assertion', return_value='rev-assertion')
-    def test_revocation_list_bad_signature_fail_closed(self, _mock_assert, mock_get, _mock_verify, mock_jwks):
+    def test_revocation_list_bad_signature_fail_closed(self, _mock_assert, mock_get, _mock_trusted, mock_jwks):
         mock_jwks.return_value.get_signing_key.return_value = None
         self._revocation_ok.stop()
         mock_get.return_value.status_code = 200
         mock_get.return_value.json.return_value = {
             'revoked_agent_ids': [],
-            'assertion': 'bad-signature',
+            'revocation_assertion': 'bad-signature',
         }
         mock_get.return_value.raise_for_status = lambda: None
-        from django.core.cache import cache
-
-        cache.delete(_CACHE_KEY)
-        cache.delete(_UNAVAILABLE_KEY)
+        _clear_revocation_cache(42)
         response = self._rpc('tools/list')
         self._revocation_ok.start()
         self.assertEqual(response.status_code, 403)
@@ -208,7 +211,9 @@ class McpEndpointTests(TestCase):
         mock_jwks.return_value.get_signing_key.return_value = None
         from django.core.cache import cache
 
-        cache.set(_CACHE_KEY, [self.agent_id], timeout=60)
+        from django.core.cache import cache
+
+        cache.set(_cache_key(42), [self.agent_id], timeout=60)
         with patch('apps.hosting.mcp_revocation.blocked_agent_ids', return_value={self.agent_id}):
             response = self._rpc('tools/list')
         self.assertEqual(response.status_code, 403)
@@ -232,10 +237,10 @@ class McpEndpointTests(TestCase):
 
     @patch('apps.authapi.authentication.get_jwks_client')
     @override_settings(IDENTITY_SERVICE_URL='http://identity.test')
-    @patch('apps.hosting.mcp_identity.requests.get')
-    def test_approval_identity_failure_fail_closed(self, mock_get, mock_jwks):
+    @patch('apps.hosting.mcp_identity.requests.post')
+    def test_approval_identity_failure_fail_closed(self, mock_post, mock_jwks):
         mock_jwks.return_value.get_signing_key.return_value = None
-        mock_get.return_value.status_code = 404
+        mock_post.return_value.status_code = 404
         token = _agent_token(mcp_access='ask')
         response = self._rpc(
             'tools/call',

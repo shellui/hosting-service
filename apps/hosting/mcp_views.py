@@ -7,9 +7,8 @@ from django.http import HttpRequest, JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from drf_spectacular.generators import SchemaGenerator
 from rest_framework.request import Request
-from shellui_mcp.server import McpServer
-
 from apps.authapi.authentication import IdentityJWKSAuthentication
+from apps.hosting.mcp_context import reset_mcp_agent_claims, set_mcp_agent_claims
 from apps.hosting.mcp_identity import (
     approval_state,
     consume_approval,
@@ -18,8 +17,9 @@ from apps.hosting.mcp_identity import (
 )
 from apps.hosting.mcp_resource import audience_matches, hosting_mcp_resource_url
 from apps.hosting.mcp_revocation import agent_revocation_denied
+from apps.hosting.mcp_server import HostingMcpServer
 
-_server: McpServer | None = None
+_server: HostingMcpServer | None = None
 
 
 def _schema() -> dict:
@@ -27,10 +27,10 @@ def _schema() -> dict:
     return generator.get_schema(request=None, public=True)
 
 
-def _get_server() -> McpServer:
+def _get_server() -> HostingMcpServer:
     global _server
     if _server is None:
-        _server = McpServer(
+        _server = HostingMcpServer(
             schema_provider=_schema,
             urlconf=settings.ROOT_URLCONF,
             service_name='hosting',
@@ -79,7 +79,11 @@ def _agent_claims(request: HttpRequest) -> dict | None:
 @csrf_exempt
 def mcp_endpoint(request: HttpRequest):
     claims = _agent_claims(request)
-    return _get_server().handle(request, agent_claims=claims)
+    token = set_mcp_agent_claims(claims)
+    try:
+        return _get_server().handle(request, agent_claims=claims)
+    finally:
+        reset_mcp_agent_claims(token)
 
 
 def oauth_protected_resource_metadata(request: HttpRequest):
