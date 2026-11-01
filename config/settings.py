@@ -297,6 +297,8 @@ SPECTACULAR_SETTINGS = {
 }
 
 MIDDLEWARE = [
+    # Outermost: every response, including /health/live and redirects, carries X-Request-ID.
+    'config.request_context.RequestIdMiddleware',
     # First: /health/live answers before host checks, https redirect and app serving.
     'config.health.LivenessMiddleware',
     # Next, so a hosted app cannot emit a Domain cookie after inner middleware.
@@ -304,7 +306,6 @@ MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     # Inside SecurityMiddleware so hosted-app COOP is set before its setdefault.
     'apps.hosting.middleware.HostedAppNavigationPolicyMiddleware',
-    'config.request_context.RequestIdMiddleware',
     # App subdomains → hosted site for all paths (before admin/API URLConf).
     'apps.hosting.middleware.HostedAppServeMiddleware',
     'whitenoise.middleware.WhiteNoiseMiddleware',
@@ -820,3 +821,6 @@ if SENTRY_DSN:
 
 # Company deletion (apps/actions/company_deletion.py): removes a deleted company's files first.
 COMPANY_DELETION_BLOB_HOOK = 'apps.hosting.company_deletion.delete_company_artifacts'
+
+# A failing log call must never print its arguments (headers, tokens) to stderr.
+logging.raiseExceptions = False

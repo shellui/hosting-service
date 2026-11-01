@@ -21,10 +21,14 @@ def _response_with_cookies():
 
 class HostedAppCookieScopeTests(SimpleTestCase):
     def test_middleware_is_outermost(self):
-        # Only LivenessMiddleware (no cookies) sits outside it.
+        # Only RequestIdMiddleware and LivenessMiddleware (no cookies) sit outside it.
         self.assertEqual(
-            settings.MIDDLEWARE[:2],
-            ['config.health.LivenessMiddleware', 'apps.hosting.middleware.HostedAppCookieScopeMiddleware'],
+            settings.MIDDLEWARE[:3],
+            [
+                'config.request_context.RequestIdMiddleware',
+                'config.health.LivenessMiddleware',
+                'apps.hosting.middleware.HostedAppCookieScopeMiddleware',
+            ],
         )
 
     def test_app_host_drops_domain_cookies_and_keeps_coop(self):
