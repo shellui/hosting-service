@@ -123,7 +123,54 @@ class IdentityJWKSAuthentication(authentication.BaseAuthentication):
             raw_token = parts[1]
 
         principal = self.authenticate_credentials(raw_token)
-        return (principal, raw_token)
+        token_auth: str | dict = principal.claims if getattr(principal, 'agent_id', None) else raw_token
+        return (principal, token_auth)
+
+    def _decode_agent_token(
+        self, raw_token: str, *, token_meta: dict, errors: list[Exception]
+    ) -> dict | None:
+        """Decode Shellui MCP agent access JWTs (RFC 8707 ``aud`` = this service ``/mcp`` resource)."""
+        from apps.hosting.mcp_resource import agent_token_audiences
+
+        audiences = [aud for aud in agent_token_audiences(None) if aud]
+        if not audiences:
+            return None
+        options = {
+            'require': ['exp', 'sub', 'agent_id'],
+            'verify_aud': True,
+            'verify_iss': bool(settings.IDENTITY_ISSUER),
+        }
+        decode_kwargs: dict = {'algorithms': list(getattr(settings, 'JWT_ALGORITHMS', ['RS256'])), 'options': options}
+        if settings.IDENTITY_ISSUER:
+            decode_kwargs['issuer'] = settings.IDENTITY_ISSUER
+
+        for audience in audiences:
+            try:
+                client = get_jwks_client()
+                signing_key = client.get_signing_key(raw_token)
+                if signing_key is not None:
+                    return jwt.decode(raw_token, key=signing_key.key, audience=audience, **decode_kwargs)
+            except jwt.InvalidTokenError as exc:
+                errors.append(exc)
+
+        secret = getattr(settings, 'JWT_HS256_FALLBACK_SECRET', None)
+        allow_hs256 = bool(secret) and (
+            settings.DEBUG or getattr(settings, 'ALLOW_JWT_HS256_FALLBACK', False)
+        )
+        if allow_hs256:
+            for audience in audiences:
+                try:
+                    return jwt.decode(
+                        raw_token,
+                        key=secret,
+                        algorithms=['HS256'],
+                        audience=audience,
+                        issuer=settings.IDENTITY_ISSUER or None,
+                        options=options,
+                    )
+                except jwt.InvalidTokenError as exc:
+                    errors.append(exc)
+        return None
 
     def authenticate_credentials(self, raw_token: str) -> HostingPrincipal:
         claims = self._decode_token(raw_token)
@@ -219,6 +266,10 @@ class IdentityJWKSAuthentication(authentication.BaseAuthentication):
                 'to identity SECRET_KEY; otherwise issue RS256 tokens. %s',
                 _format_context(token_meta, _jwks_meta()),
             )
+
+        agent_claims = self._decode_agent_token(raw_token, token_meta=token_meta, errors=errors)
+        if agent_claims is not None:
+            return agent_claims
 
         detail = _client_detail(errors)
         logger.warning(

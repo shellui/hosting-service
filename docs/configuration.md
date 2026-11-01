@@ -208,6 +208,16 @@ Set `EMAIL_SERVICE_API_KEY` to forward hosting events to email-service. An empty
 
 `manage.py purge_expired_data` deletes older rows. The container runs it every hour at minute 17. See [Event log](event-log.md) and [Scheduled jobs](maintenance-jobs.md).
 
+## Shellui MCP
+
+Optional tuning for `POST /mcp`. No variables are required for MCP to stay on. See [Shellui MCP](mcp.md).
+
+| Variable | Default | Purpose |
+| --- | --- | --- |
+| `MCP_RATE_LIMIT_AGENT` | `120` | MCP tool calls per minute per agent |
+| `HOSTING_MCP_RESOURCE` | empty | RFC 8707 resource identifier (`aud`). Defaults to `{request origin}/mcp` |
+| `HOSTING_PUBLIC_URL` | empty | Public HTTPS origin when the MCP resource URL cannot be inferred from the request |
+
 ## Apex landing
 
 | Variable | Default | Purpose |

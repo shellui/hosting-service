@@ -2,6 +2,8 @@
 
 from rest_framework import serializers
 
+from apps.authapi.mcp_fields import McpSecretCharField
+
 
 class ErrorSerializer(serializers.Serializer):
     statusCode = serializers.CharField(required=False)
@@ -92,3 +94,21 @@ class PreviewPrepareResponseSerializer(serializers.Serializer):
     oauth_redirect_registered = serializers.BooleanField(required=False)
     oauth_redirect_origin = serializers.CharField(required=False, allow_blank=True)
     oauth_redirect_warning = serializers.CharField(required=False, allow_blank=True)
+
+
+class DeployTokenSerializer(serializers.Serializer):
+    id = serializers.UUIDField()
+    name = serializers.CharField()
+    prefix = serializers.CharField()
+    created_by_id = serializers.IntegerField(allow_null=True)
+    created_at = serializers.DateTimeField()
+    last_used_at = serializers.DateTimeField(allow_null=True)
+    expires_at = serializers.DateTimeField(allow_null=True)
+    revoked_at = serializers.DateTimeField(allow_null=True)
+
+
+class DeployTokenCreateResponseSerializer(DeployTokenSerializer):
+    token = McpSecretCharField(
+        required=False,
+        help_text='Plaintext deploy token. Returned once on create; stored hashed server-side.',
+    )

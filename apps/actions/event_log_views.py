@@ -14,6 +14,7 @@ from apps.actions.models import EventLog
 from apps.actions.permissions import ActionsAdminPermission
 from apps.actions.registry import company_event_types, get_event_type, is_registered_event
 from apps.actions.retention import retention_status
+from apps.authapi.mcp_openapi import mcp_tool
 
 _MAX_PAGE_SIZE = 100
 
@@ -114,6 +115,7 @@ class _EventLogBase(APIView):
             OpenApiParameter(name='page_size', type=int, location=OpenApiParameter.QUERY, required=False),
         ],
         responses={200: OpenApiResponse(description='Paginated event log rows')},
+        **mcp_tool(operation_id='api_v1_actions_event_log_list', read_only=True, sensitive=True),
     ),
 )
 class ShellUIAdminEventLogListView(_EventLogBase):
@@ -147,6 +149,7 @@ class ShellUIAdminEventLogListView(_EventLogBase):
         summary='Retrieve event log row (staff or company owner)',
         operation_id='api_v1_actions_event_log_retrieve',
         responses={200: OpenApiResponse(description='Event log row')},
+        **mcp_tool(operation_id='api_v1_actions_event_log_retrieve', read_only=True, sensitive=True),
     ),
 )
 class ShellUIAdminEventLogDetailView(_EventLogBase):
@@ -165,6 +168,7 @@ class ShellUIAdminEventLogDetailView(_EventLogBase):
         tags=['event-log'],
         summary='List event types recorded in the event log (staff or company owner)',
         operation_id='api_v1_actions_event_log_types_list',
+        **mcp_tool(operation_id='api_v1_actions_event_log_types_list', read_only=True),
     ),
 )
 class ShellUIAdminEventLogTypesView(_EventLogBase):
@@ -193,6 +197,7 @@ class ShellUIAdminEventLogTypesView(_EventLogBase):
             '`purge_expired_data` scheduled job is not running.'
         ),
         operation_id='api_v1_actions_event_log_retention_retrieve',
+        **mcp_tool(operation_id='api_v1_actions_event_log_retention_retrieve', read_only=True),
     ),
 )
 class ShellUIAdminEventLogRetentionView(_EventLogBase):
