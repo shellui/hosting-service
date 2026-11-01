@@ -4,6 +4,9 @@ from __future__ import annotations
 
 from django.conf import settings
 from django.http import HttpRequest
+from shellui_mcp.resources import access_token_audience_matches, mcp_resource_from_origin
+
+_LEGACY_MCP_AUD = 'shellui-mcp'
 
 
 def hosting_mcp_resource_url(request: HttpRequest | None = None) -> str:
@@ -15,27 +18,26 @@ def hosting_mcp_resource_url(request: HttpRequest | None = None) -> str:
         return request.build_absolute_uri('/mcp').rstrip('/')
     public = (getattr(settings, 'HOSTING_PUBLIC_URL', None) or '').strip().rstrip('/')
     if public:
-        return f'{public}/mcp'
+        return mcp_resource_from_origin(public)
     return ''
 
 
 def agent_token_audiences(request: HttpRequest | None = None) -> tuple[str, ...]:
-    """Accepted ``aud`` values for MCP agent JWTs (resource URL plus legacy fallback)."""
-    values = ['shellui-mcp']
+    """Accepted ``aud`` values for MCP agent JWT decode (resource URL plus legacy fallback)."""
+    values = [_LEGACY_MCP_AUD]
     resource = hosting_mcp_resource_url(request)
     if resource:
         values.append(resource)
-    configured = getattr(settings, 'IDENTITY_AUDIENCE', None)
-    if configured and configured not in values:
-        values.append(configured)
     return tuple(dict.fromkeys(values))
 
 
 def audience_matches(claims: dict, request: HttpRequest | None = None) -> bool:
+    resource = hosting_mcp_resource_url(request)
+    if resource and access_token_audience_matches(claims, resource):
+        return True
     aud = claims.get('aud')
-    allowed = set(agent_token_audiences(request))
     if aud is None:
         return False
     if isinstance(aud, (list, tuple)):
-        return bool(allowed.intersection({str(item) for item in aud}))
-    return str(aud) in allowed
+        return _LEGACY_MCP_AUD in {str(item) for item in aud}
+    return str(aud) == _LEGACY_MCP_AUD

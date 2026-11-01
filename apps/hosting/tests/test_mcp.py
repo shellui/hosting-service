@@ -84,9 +84,10 @@ class McpEndpointTests(TestCase):
         self.assertEqual(response.status_code, 403)
 
     @patch('apps.authapi.authentication.get_jwks_client')
+    @override_settings(HOSTING_MCP_RESOURCE='http://127.0.0.1/mcp')
     def test_resource_audience_accepted(self, mock_jwks):
         mock_jwks.return_value.get_signing_key.return_value = None
-        token = _agent_token(aud='http://testserver/mcp')
+        token = _agent_token(aud='http://127.0.0.1/mcp')
         response = self._rpc('tools/list', token=token)
         self.assertEqual(response.status_code, 200)
 

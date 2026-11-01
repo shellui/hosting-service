@@ -12,8 +12,11 @@ from django.conf import settings
 import shellui_mcp.internal as mcp_internal
 from shellui_mcp.internal import (
     InternalAssertionError,
+    REVOCATION_AUDIENCE,
+    REVOCATION_SCOPE,
     build_mcp_approval_assertion,
     build_mcp_call_log_assertion,
+    build_mcp_revocation_assertion,
 )
 from shellui_mcp.masking import redact_mapping
 
@@ -28,12 +31,6 @@ def _identity_origin() -> str:
 
 def _identity_base() -> str:
     return (getattr(settings, 'IDENTITY_SERVICE_URL', None) or _identity_origin()).rstrip('/')
-
-
-def _service_assertion_builder():
-    return getattr(mcp_internal, 'build_mcp_revocation_assertion', None) or getattr(
-        mcp_internal, 'build_mcp_revocation_list_assertion', None
-    )
 
 
 def _verify_identity_signed_assertion(raw: str, *, expected_audience: str, expected_scope: str) -> bool:
@@ -68,9 +65,9 @@ def _revocation_list_trusted(data: dict) -> bool:
     assertion = data.get('assertion') or data.get('revocation_assertion')
     if not assertion:
         return True
-    audience = getattr(mcp_internal, 'REVOCATION_LIST_AUDIENCE', 'shellui-mcp-revocation-list')
-    scope = getattr(mcp_internal, 'REVOCATION_LIST_SCOPE', 'mcp.revocation.list')
-    return _verify_identity_signed_assertion(str(assertion), expected_audience=audience, expected_scope=scope)
+    return _verify_identity_signed_assertion(
+        str(assertion), expected_audience=REVOCATION_AUDIENCE, expected_scope=REVOCATION_SCOPE
+    )
 
 
 def create_approval_request(payload: dict) -> dict | None:
@@ -237,12 +234,11 @@ def fetch_revocation_payload() -> dict | None:
         return None
     url = f'{base}/api/v1/mcp/internal/mcp-revocations'
     headers: dict[str, str] = {}
-    builder = _service_assertion_builder()
-    if builder is not None:
-        try:
-            headers['Authorization'] = f'Bearer {builder(audience_url=_identity_origin())}'
-        except Exception as exc:  # noqa: BLE001
-            logger.warning('MCP revocation assertion failed: %s', exc)
+    try:
+        headers['Authorization'] = f'Bearer {build_mcp_revocation_assertion(audience_url=_identity_origin())}'
+    except Exception as exc:  # noqa: BLE001
+        logger.warning('MCP revocation assertion failed: %s', exc)
+        return None
     try:
         response = requests.get(url, headers=headers, timeout=getattr(settings, 'IDENTITY_SYNC_TIMEOUT', 10))
         response.raise_for_status()
