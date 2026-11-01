@@ -5,6 +5,7 @@ from __future__ import annotations
 import logging
 
 from django.conf import settings
+from django.core.exceptions import RequestDataTooBig
 from django.http import HttpResponse
 from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import OpenApiResponse, extend_schema, extend_schema_view
@@ -55,6 +56,7 @@ from .services import (
     upload_deployment_artifact,
 )
 from .stats import build_hosting_stats
+from .storage import ArtifactTooLarge
 
 logger = logging.getLogger(__name__)
 
@@ -87,6 +89,19 @@ def _error(exc: HostingError) -> Response:
     return Response(
         {'statusCode': str(exc.status), 'error': exc.code, 'message': str(exc)},
         status=exc.status,
+    )
+
+
+def _mb(size: int) -> str:
+    return f'{size / 1024**2:.1f}'.rstrip('0').rstrip('.')
+
+
+def _too_large(size: int | None, max_bytes: int) -> Response:
+    limit = _mb(max_bytes)
+    detail = f'Artifact is {_mb(size)} MB, the limit is {limit} MB.' if size else f'Artifact is over the {limit} MB limit.'
+    return Response(
+        {'statusCode': '413', 'error': 'upload_too_large', 'message': detail, 'detail': detail, 'limit_bytes': max_bytes},
+        status=413,
     )
 
 
@@ -438,18 +453,25 @@ class DeploymentUploadView(APIView):
         except HostingError as exc:
             return _error(exc)
 
+        max_bytes = settings.HOSTING_MAX_UPLOAD_BYTES
+        try:
+            declared = int(request.META.get('CONTENT_LENGTH') or 0)
+        except ValueError:
+            declared = 0
+        if declared > max_bytes:
+            return _too_large(declared, max_bytes)
+
+        # Never touch request.body: it is capped by DATA_UPLOAD_MAX_MEMORY_SIZE.
         fileobj = None
-        if request.FILES:
+        content_type = request.content_type or ''
+        if content_type.startswith('multipart/') and request.FILES:
             fileobj = request.FILES.get('file') or next(iter(request.FILES.values()), None)
         if fileobj is None:
-            if hasattr(request.data, 'read'):
-                fileobj = request.data
-            else:
-                from io import BytesIO
+            fileobj = request.stream
+        if fileobj is None:
+            return _error_message('Upload body is empty.', code='empty_upload')
 
-                fileobj = BytesIO(request.body)
-
-        content_length = getattr(fileobj, 'size', None) or len(getattr(request, 'body', b'') or b'')
+        content_length = getattr(fileobj, 'size', None) or declared or None
         try:
             deployment = upload_deployment_artifact(
                 deployment=deployment,
@@ -457,10 +479,19 @@ class DeploymentUploadView(APIView):
                 content_length=content_length,
             )
         except HostingError as exc:
+            if exc.code == 'upload_too_large':
+                return _too_large(content_length, max_bytes)
             return _error(exc)
+        except ArtifactTooLarge:
+            return _too_large(None, max_bytes)
         except ValueError as exc:
             return _error_message(str(exc))
         return Response(serialize_deployment(deployment))
+
+    def handle_exception(self, exc):
+        if isinstance(exc, RequestDataTooBig):
+            return _too_large(None, settings.HOSTING_MAX_UPLOAD_BYTES)
+        return super().handle_exception(exc)
 
 
 class DeploymentFinalizeView(APIView):
