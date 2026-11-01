@@ -21,6 +21,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 See for sample https://raw.githubusercontent.com/favoloso/conventional-changelog-emoji/master/CHANGELOG.md
 -->
 
+## [Unreleased]
+
+### 🐛 Bug Fixes
+
+- **Artifact upload:** archives over 12 MB are streamed instead of failing with HTTP 400, and an archive over `HOSTING_MAX_UPLOAD_BYTES` gets a 413 with its size and the limit.
+
 ## [0.9.0] - 2026-10-29
 
 ### ✨ Feature

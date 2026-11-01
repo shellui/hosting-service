@@ -43,7 +43,7 @@ The statuses you will see:
 
 ## Upload and finalize
 
-Upload with `PUT /hosting/v1/apps/{app_ref}/deployments/{id}/upload`. The body is the gzip tar archive (`Content-Type: application/gzip`), or a multipart file. The default cap is `100M` (`HOSTING_MAX_UPLOAD_BYTES`). A draft, an in-progress upload, or a failed deployment can accept another upload. An active one cannot.
+Upload with `PUT /hosting/v1/apps/{app_ref}/deployments/{id}/upload`. The body is the gzip tar archive (`Content-Type: application/gzip`), or a multipart file. The default cap is `100M` (`HOSTING_MAX_UPLOAD_BYTES`). The body is streamed to disk, and a larger archive gets a `413` with a `detail` such as `Artifact is 120 MB, the limit is 100 MB.` A draft, an in-progress upload, or a failed deployment can accept another upload. An active one cannot.
 
 `POST /hosting/v1/apps/{app_ref}/deployments/{id}/finalize` extracts the archive and, on success, marks this deployment `active`. The previous active deployment becomes `superseded`. The app's `current_deployment` points at the new row. Preview apps get a new `expires_at` of now plus `HOSTING_PREVIEW_TTL_DAYS` (default 7). The in-process serve cache for that slug is cleared.
 
