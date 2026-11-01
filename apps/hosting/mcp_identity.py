@@ -24,6 +24,8 @@ from apps.authapi.jwks_client import get_jwks_client
 
 logger = logging.getLogger(__name__)
 
+APPROVAL_LOOKUP_UNAVAILABLE = '__approval_unavailable__'
+
 
 def _identity_origin() -> str:
     return (getattr(settings, 'IDENTITY_ISSUER', None) or getattr(settings, 'IDENTITY_SERVICE_URL', None) or '').rstrip('/')
@@ -148,10 +150,8 @@ def lookup_approval_state(payload: dict) -> str | None:
             headers={'Authorization': f'Bearer {assertion}'},
             timeout=getattr(settings, 'IDENTITY_SYNC_TIMEOUT', 10),
         )
-        if response.status_code == 404:
-            return None
-        if response.status_code >= 400:
-            return None
+        if response.status_code == 404 or response.status_code >= 400:
+            return APPROVAL_LOOKUP_UNAVAILABLE
         data = response.json()
         status = str(data.get('status') or '')
         if status == 'approved' and data.get('id'):
@@ -159,11 +159,13 @@ def lookup_approval_state(payload: dict) -> str | None:
         return status or None
     except Exception as exc:  # noqa: BLE001
         logger.debug('MCP approval lookup unavailable: %s', exc)
-        return None
+        return APPROVAL_LOOKUP_UNAVAILABLE
 
 
 def approval_state(payload: dict) -> str | None:
     status = lookup_approval_state(payload)
+    if status == APPROVAL_LOOKUP_UNAVAILABLE:
+        return 'pending'
     if status in {'executed', 'approved', 'pending'}:
         return status
     return None

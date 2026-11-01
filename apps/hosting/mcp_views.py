@@ -17,7 +17,7 @@ from apps.hosting.mcp_identity import (
     forward_call_log,
 )
 from apps.hosting.mcp_resource import audience_matches, hosting_mcp_resource_url
-from apps.hosting.mcp_revocation import blocked_agent_ids
+from apps.hosting.mcp_revocation import agent_revocation_denied
 
 _server: McpServer | None = None
 
@@ -34,7 +34,7 @@ def _get_server() -> McpServer:
             schema_provider=_schema,
             urlconf=settings.ROOT_URLCONF,
             service_name='hosting',
-            identity_revocation_check=lambda agent_id: agent_id in blocked_agent_ids(),
+            identity_revocation_check=agent_revocation_denied,
             on_call=forward_call_log,
             approval_handler=create_approval_request,
             approval_state=approval_state,

@@ -129,10 +129,12 @@ class IdentityJWKSAuthentication(authentication.BaseAuthentication):
     def _decode_agent_token(
         self, raw_token: str, *, token_meta: dict, errors: list[Exception]
     ) -> dict | None:
-        """Decode Shellui MCP agent access JWTs (RFC 8707 resource ``aud`` or legacy ``shellui-mcp``)."""
+        """Decode Shellui MCP agent access JWTs (RFC 8707 ``aud`` = this service ``/mcp`` resource)."""
         from apps.hosting.mcp_resource import agent_token_audiences
 
-        audiences = list(agent_token_audiences(None))
+        audiences = [aud for aud in agent_token_audiences(None) if aud]
+        if not audiences:
+            return None
         options = {
             'require': ['exp', 'sub', 'agent_id'],
             'verify_aud': True,

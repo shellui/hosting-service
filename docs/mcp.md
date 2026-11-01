@@ -44,7 +44,7 @@ Deploy tokens are stored hashed. List and read responses never include plaintext
 | `POST` | `/mcp` | JSON-RPC (`initialize`, `tools/list`, `tools/call`) |
 | `GET` | `/.well-known/oauth-protected-resource` | Points agents at Identity for OAuth |
 
-Use a Bearer agent access token from Identity with the `hosting` service scope and an `aud` claim for this service's MCP resource URL (RFC 8707). Legacy tokens with `aud=shellui-mcp` still work during rollout. Revocation is enforced via Identity `GET /api/v1/mcp/internal/mcp-revocations` (cached 30 seconds on hosting). When Identity signs the revocation list, hosting verifies the response assertion before trusting agent ids.
+Use a Bearer agent access token from Identity with the `hosting` service scope and an `aud` claim that exactly matches this service's MCP resource URL (RFC 8707, `{origin}/mcp`). Revocation is enforced via Identity `GET /api/v1/mcp/internal/mcp-revocations` with a signed service assertion (cached 30 seconds on hosting). If that poll fails, MCP requests are denied until Identity responds again. When Identity signs the revocation list payload, hosting verifies the response assertion before trusting agent ids.
 
 After a company owner approves a pending write in Identity, the agent retries the same tool call; hosting checks approval state with Identity and runs the write once.
 

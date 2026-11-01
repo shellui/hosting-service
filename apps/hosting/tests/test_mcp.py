@@ -10,7 +10,7 @@ import jwt
 from django.test import Client, TestCase, override_settings
 from django.urls import reverse
 
-from apps.hosting.mcp_revocation import _CACHE_KEY
+from apps.hosting.mcp_revocation import _CACHE_KEY, _UNAVAILABLE_KEY
 
 
 def _agent_token(
@@ -21,7 +21,7 @@ def _agent_token(
     mcp_access: str = 'read_only',
     mcp_destructive: bool = False,
     scope: str = 'hosting',
-    aud: str | list[str] = 'shellui-mcp',
+    aud: str | list[str] = 'http://127.0.0.1/mcp',
 ) -> str:
     agent_id = agent_id or str(uuid.uuid4())
     return jwt.encode(
@@ -48,12 +48,28 @@ def _agent_token(
     IDENTITY_AUDIENCE='',
     IDENTITY_ISSUER='',
     IDENTITY_JWKS_URL='http://jwks.test/.well-known/jwks.json',
+    HOSTING_MCP_RESOURCE='http://127.0.0.1/mcp',
 )
 class McpEndpointTests(TestCase):
     def setUp(self):
         self.client = Client()
         self.agent_id = str(uuid.uuid4())
         self.token = _agent_token(agent_id=self.agent_id)
+        from django.core.cache import cache
+
+        cache.delete(_CACHE_KEY)
+        cache.delete(_UNAVAILABLE_KEY)
+        self._revocation_ok = patch(
+            'apps.hosting.mcp_revocation.fetch_revocation_payload',
+            return_value={'revoked_agent_ids': []},
+        )
+        self._revocation_ok.start()
+        from apps.hosting import mcp_views
+
+        mcp_views._server = None
+
+    def tearDown(self):
+        self._revocation_ok.stop()
 
     def _rpc(self, method: str, params: dict | None = None, *, token: str | None = None):
         body = {'jsonrpc': '2.0', 'id': 1, 'method': method, 'params': params or {}}
@@ -84,12 +100,43 @@ class McpEndpointTests(TestCase):
         self.assertEqual(response.status_code, 403)
 
     @patch('apps.authapi.authentication.get_jwks_client')
-    @override_settings(HOSTING_MCP_RESOURCE='http://127.0.0.1/mcp')
     def test_resource_audience_accepted(self, mock_jwks):
         mock_jwks.return_value.get_signing_key.return_value = None
         token = _agent_token(aud='http://127.0.0.1/mcp')
         response = self._rpc('tools/list', token=token)
         self.assertEqual(response.status_code, 200)
+
+    @patch('apps.authapi.authentication.get_jwks_client')
+    def test_legacy_shared_audience_rejected(self, mock_jwks):
+        mock_jwks.return_value.get_signing_key.return_value = None
+        token = _agent_token(aud='shellui-mcp')
+        response = self._rpc('tools/list', token=token)
+        self.assertEqual(response.status_code, 401)
+
+    @patch('apps.authapi.authentication.get_jwks_client')
+    def test_revocation_poll_failure_denies_mcp(self, mock_jwks):
+        mock_jwks.return_value.get_signing_key.return_value = None
+        self._revocation_ok.stop()
+        with patch('apps.hosting.mcp_revocation.fetch_revocation_payload', return_value=None):
+            response = self._rpc('tools/list')
+        self._revocation_ok.start()
+        self.assertEqual(response.status_code, 403)
+
+    @patch('apps.authapi.authentication.get_jwks_client')
+    @override_settings(IDENTITY_SERVICE_URL='http://identity.test')
+    @patch('apps.hosting.mcp_identity.build_mcp_revocation_assertion', return_value='signed-revocation-assertion')
+    @patch('apps.hosting.mcp_identity.requests.get')
+    def test_revocation_poll_sends_signed_assertion(self, mock_get, _mock_assertion, mock_jwks):
+        mock_jwks.return_value.get_signing_key.return_value = None
+        mock_get.return_value.status_code = 200
+        mock_get.return_value.json.return_value = {'revoked_agent_ids': []}
+        mock_get.return_value.raise_for_status = lambda: None
+        from apps.hosting.mcp_identity import fetch_revocation_payload
+
+        fetch_revocation_payload()
+        mock_get.assert_called_once()
+        headers = mock_get.call_args.kwargs.get('headers') or {}
+        self.assertEqual(headers.get('Authorization'), 'Bearer signed-revocation-assertion')
 
     @patch('apps.authapi.authentication.get_jwks_client')
     def test_revoked_agent_refused(self, mock_jwks):
@@ -117,6 +164,28 @@ class McpEndpointTests(TestCase):
         )
         payload = response.json()['result']
         self.assertTrue(payload.get('isError'))
+
+    @patch('apps.authapi.authentication.get_jwks_client')
+    @override_settings(IDENTITY_SERVICE_URL='http://identity.test')
+    @patch('apps.hosting.mcp_identity.requests.get')
+    def test_approval_identity_failure_fail_closed(self, mock_get, mock_jwks):
+        mock_jwks.return_value.get_signing_key.return_value = None
+        mock_get.return_value.status_code = 404
+        token = _agent_token(mcp_access='ask')
+        response = self._rpc(
+            'tools/call',
+            {
+                'name': 'hosting_v1_preview_create',
+                'arguments': {
+                    'path': '/hosting/v1/preview',
+                    'method': 'POST',
+                    'body': {'app_version': '1.0.0', 'shellui_version': '0.2.0'},
+                },
+            },
+            token=token,
+        )
+        meta = response.json()['result'].get('meta') or {}
+        self.assertEqual(meta.get('status'), 'pending')
 
     @patch('apps.authapi.authentication.get_jwks_client')
     def test_ask_mode_requires_approval(self, mock_jwks):
