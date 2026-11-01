@@ -611,12 +611,20 @@ class DeployTokenListCreateView(APIView):
         tags=['deploy-tokens'],
         operation_id='hosting_v1_deploy_tokens_create',
         summary='Create a deploy token for preview CI',
-        description='Returns the plaintext token once in `token`. It is stored hashed and cannot be read again.',
+        description=(
+            'Returns the plaintext token once in `token`. It is stored hashed and cannot be read again. '
+            'Not exposed to Shellui MCP agents; create in admin or with a company-owner user JWT only.'
+        ),
         request=OpenApiTypes.OBJECT,
         responses={201: DeployTokenCreateResponseSerializer, **_SCHEMA_ERRORS},
-        **mcp_tool(operation_id='hosting_v1_deploy_tokens_create', read_only=False, sensitive=True),
     )
     def post(self, request):
+        if getattr(request.user, 'agent_id', None):
+            return _error_message(
+                'Deploy tokens cannot be created with an agent access token. Use admin or a user session.',
+                status_code=403,
+                code='forbidden',
+            )
         data = request.data if isinstance(request.data, dict) else {}
         raw_days = data.get('expires_in_days')
         try:

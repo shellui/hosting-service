@@ -38,7 +38,6 @@ MCP_REQUIRED_OPERATION_IDS: frozenset[str] = frozenset(
         'hosting_v1_apps_deployments_finalize_create',
         'hosting_v1_apps_deployments_rollback_create',
         'hosting_v1_deploy_tokens_retrieve',
-        'hosting_v1_deploy_tokens_create',
         'hosting_v1_deploy_tokens_revoke_create',
         'hosting_v1_stats_retrieve',
         'api_v1_actions_events_list',

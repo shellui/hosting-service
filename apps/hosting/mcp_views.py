@@ -43,6 +43,17 @@ def _get_server() -> McpServer:
     return _server
 
 
+def _staff_refused_for_mcp(principal, claims: dict) -> bool:
+    if getattr(principal, 'is_staff', False):
+        return True
+    user_metadata = claims.get('user_metadata') or {}
+    if isinstance(user_metadata, dict) and user_metadata.get('is_staff'):
+        return True
+    if claims.get('is_staff'):
+        return True
+    return False
+
+
 def _agent_claims(request: HttpRequest) -> dict | None:
     auth = IdentityJWKSAuthentication()
     drf_request = Request(request)
@@ -55,6 +66,8 @@ def _agent_claims(request: HttpRequest) -> dict | None:
     principal, _raw = result
     claims = dict(getattr(principal, 'claims', {}) or {})
     if not claims.get('agent_id'):
+        return None
+    if _staff_refused_for_mcp(principal, claims):
         return None
     if not audience_matches(claims, request):
         return None

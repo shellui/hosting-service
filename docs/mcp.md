@@ -29,13 +29,13 @@ Response fields may use `x-mcp-secret` (never return plaintext to agents) or `x-
 | Sites | `sites` | List, create, read, delete apps |
 | Deployments | `deployments` | List, create, finalize, rollback |
 | Previews | `previews` | Prepare preview deploy, renew 7-day expiry |
-| Deploy tokens | `deploy-tokens` | List metadata, create (token once), revoke |
+| Deploy tokens | `deploy-tokens` | List metadata and revoke (create stays admin or user JWT only) |
 | Webhooks | `webhooks` | Shellui Actions rules and deliveries |
 | Event log | `event-log` | Company domain events |
 
 Preview sites use a **7-day TTL** (`HOSTING_PREVIEW_TTL_DAYS`). Production sites do not expire through this API.
 
-Deploy tokens are stored hashed. List and read responses never include plaintext tokens. Create returns `token` once; MCP redacts secret-shaped fields in tool output.
+Deploy tokens are stored hashed. List and read responses never include plaintext tokens. Create returns `token` once for company-owner user JWTs and admin only; Shellui MCP agents cannot create deploy tokens or read plaintext values.
 
 ## MCP endpoint
 

@@ -88,6 +88,7 @@ class McpEndpointTests(TestCase):
         tools = response.json()['result']['tools']
         names = {t['name'] for t in tools}
         self.assertIn('hosting_v1_apps_list', names)
+        self.assertNotIn('hosting_v1_deploy_tokens_create', names)
         self.assertNotIn('hosting_v1_health_retrieve', names)
         self.assertNotIn('api_v1_internal_company_deletions_create', names)
         self.assertNotIn('hosting_v1_apps_deployments_upload_update', names)
@@ -105,6 +106,70 @@ class McpEndpointTests(TestCase):
         token = _agent_token(aud='http://127.0.0.1/mcp')
         response = self._rpc('tools/list', token=token)
         self.assertEqual(response.status_code, 200)
+
+    @patch('apps.authapi.authentication.get_jwks_client')
+    def test_staff_user_jwt_refused_on_mcp(self, mock_jwks):
+        mock_jwks.return_value.get_signing_key.return_value = None
+        token = jwt.encode(
+            {
+                'sub': '99',
+                'user_id': 99,
+                'company_id': 42,
+                'exp': 2**31 - 1,
+                'user_metadata': {'is_staff': True, 'is_company_owner': False},
+            },
+            'test-secret',
+            algorithm='HS256',
+        )
+        response = self._rpc('tools/list', token=token)
+        self.assertEqual(response.status_code, 401)
+
+    @patch('apps.authapi.authentication.get_jwks_client')
+    @override_settings(
+        HOSTING_MCP_RESOURCE='',
+        HOSTING_PUBLIC_URL='https://hosting.example.com',
+    )
+    def test_public_url_resource_aud_before_request_host(self, mock_jwks):
+        mock_jwks.return_value.get_signing_key.return_value = None
+        token = _agent_token(aud='https://hosting.example.com/mcp')
+        response = self._rpc('tools/list', token=token)
+        self.assertEqual(response.status_code, 200)
+
+    @patch('apps.authapi.authentication.get_jwks_client')
+    def test_agent_cannot_create_deploy_token_via_api(self, mock_jwks):
+        mock_jwks.return_value.get_signing_key.return_value = None
+        token = _agent_token(mcp_access='full')
+        response = self.client.post(
+            '/hosting/v1/deploy-tokens',
+            data={'name': 'ci'},
+            content_type='application/json',
+            HTTP_AUTHORIZATION=f'Bearer {token}',
+        )
+        self.assertEqual(response.status_code, 403)
+        body = response.json()
+        self.assertEqual(body.get('error') or body.get('detail'), 'forbidden')
+
+    @patch('apps.authapi.authentication.get_jwks_client')
+    @override_settings(IDENTITY_SERVICE_URL='http://identity.test')
+    @patch('apps.hosting.mcp_identity._verify_identity_signed_assertion', return_value=False)
+    @patch('apps.hosting.mcp_identity.requests.get')
+    @patch('apps.hosting.mcp_identity.build_mcp_revocation_assertion', return_value='rev-assertion')
+    def test_revocation_list_bad_signature_fail_closed(self, _mock_assert, mock_get, _mock_verify, mock_jwks):
+        mock_jwks.return_value.get_signing_key.return_value = None
+        self._revocation_ok.stop()
+        mock_get.return_value.status_code = 200
+        mock_get.return_value.json.return_value = {
+            'revoked_agent_ids': [],
+            'assertion': 'bad-signature',
+        }
+        mock_get.return_value.raise_for_status = lambda: None
+        from django.core.cache import cache
+
+        cache.delete(_CACHE_KEY)
+        cache.delete(_UNAVAILABLE_KEY)
+        response = self._rpc('tools/list')
+        self._revocation_ok.start()
+        self.assertEqual(response.status_code, 403)
 
     @patch('apps.authapi.authentication.get_jwks_client')
     def test_legacy_shared_audience_rejected(self, mock_jwks):

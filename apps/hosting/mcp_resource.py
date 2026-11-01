@@ -12,11 +12,11 @@ def hosting_mcp_resource_url(request: HttpRequest | None = None) -> str:
     configured = (getattr(settings, 'HOSTING_MCP_RESOURCE', None) or '').strip().rstrip('/')
     if configured:
         return configured
-    if request is not None:
-        return request.build_absolute_uri('/mcp').rstrip('/')
     public = (getattr(settings, 'HOSTING_PUBLIC_URL', None) or '').strip().rstrip('/')
     if public:
         return mcp_resource_from_origin(public)
+    if request is not None:
+        return request.build_absolute_uri('/mcp').rstrip('/')
     return ''
 
 
