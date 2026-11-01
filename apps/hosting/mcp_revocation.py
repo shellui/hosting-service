@@ -37,9 +37,11 @@ def _agent_company_id() -> int | None:
         return None
 
 
-def revocation_poll_unavailable() -> bool:
+def revocation_poll_unavailable(*, company_id: int | None = None) -> bool:
     """True when the latest revocation poll failed (fail closed for MCP)."""
-    return cache.get(_unavailable_key(_agent_company_id())) is True
+    if company_id is None:
+        company_id = _agent_company_id()
+    return cache.get(_unavailable_key(company_id)) is True
 
 
 def _agent_company_binding_ok(agent_id: str, *, company_id: int | None, agents: list) -> bool:
@@ -57,13 +59,14 @@ def _agent_company_binding_ok(agent_id: str, *, company_id: int | None, agents: 
     return True
 
 
-def agent_revocation_denied(agent_id: str) -> bool:
+def agent_revocation_denied(agent_id: str, company_id: int | None = None) -> bool:
     """True when Identity revocation is unavailable (fail closed) or the agent is revoked."""
-    if revocation_poll_unavailable():
+    if company_id is None:
+        company_id = _agent_company_id()
+    if revocation_poll_unavailable(company_id=company_id):
         return True
-    company_id = _agent_company_id()
-    ids = _load_blocked_agent_ids()
-    if revocation_poll_unavailable():
+    ids = _load_blocked_agent_ids(company_id=company_id)
+    if revocation_poll_unavailable(company_id=company_id):
         return True
     if agent_id not in ids:
         return False
@@ -79,8 +82,9 @@ def blocked_agent_ids() -> set[str]:
     return _load_blocked_agent_ids()
 
 
-def _load_blocked_agent_ids() -> set[str]:
-    company_id = _agent_company_id()
+def _load_blocked_agent_ids(*, company_id: int | None = None) -> set[str]:
+    if company_id is None:
+        company_id = _agent_company_id()
     cache_key = _cache_key(company_id)
     unavailable_key = _unavailable_key(company_id)
     cached = cache.get(cache_key)
