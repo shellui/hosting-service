@@ -47,16 +47,52 @@ print("OK")
 
 
 class ProductionSettingsValidationTests(unittest.TestCase):
-    def test_prod_requires_issuer_audience_and_pinned_jwks(self):
+    def test_prod_requires_issuer_audience_and_jwks_source(self):
         result = _settings_import_env(
             DEBUG='false',
             HOSTING_APP_DOMAIN='shellui.app',
+            SECRET_KEY='x7' * 30,
         )
         self.assertNotEqual(result.returncode, 0)
         combined = (result.stdout + result.stderr).lower()
         self.assertIn('identity_issuer', combined)
         self.assertIn('identity_audience', combined)
         self.assertIn('jwks', combined)
+
+    def test_prod_rejects_missing_jwks_config_without_localhost_fallback(self):
+        result = _settings_import_env(
+            DEBUG='false',
+            HOSTING_APP_DOMAIN='shellui.app',
+            IDENTITY_ISSUER='https://id.shellui.com',
+            IDENTITY_AUDIENCE='hosting',
+            SECRET_KEY='x7' * 30,
+        )
+        self.assertNotEqual(result.returncode, 0)
+        combined = result.stdout + result.stderr
+        self.assertIn('IDENTITY_JWKS_FILE', combined)
+        self.assertNotIn('localhost:8000', combined.lower())
+
+    def test_prod_accepts_identity_service_url_for_jwks_fetch(self):
+        result = _settings_import_env(
+            DEBUG='false',
+            HOSTING_APP_DOMAIN='shellui.app',
+            IDENTITY_ISSUER='https://id.shellui.com',
+            IDENTITY_AUDIENCE='hosting',
+            IDENTITY_SERVICE_URL='https://id.shellui.com',
+            SECRET_KEY='x7' * 30,
+        )
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
+    def test_prod_accepts_explicit_jwks_url_for_fetch(self):
+        result = _settings_import_env(
+            DEBUG='false',
+            HOSTING_APP_DOMAIN='shellui.app',
+            IDENTITY_ISSUER='https://id.shellui.com',
+            IDENTITY_AUDIENCE='hosting',
+            IDENTITY_JWKS_URL='https://id.shellui.com/.well-known/jwks.json',
+            SECRET_KEY='x7' * 30,
+        )
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
 
     def test_prod_accepts_pinned_jwks_with_iss_aud(self):
         result = _settings_import_env(

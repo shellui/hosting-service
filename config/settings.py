@@ -515,6 +515,19 @@ def _resolve_identity_jwks_url() -> str:
     return 'http://localhost:8000/.well-known/jwks.json'
 
 
+def _identity_jwks_configured_in_env() -> bool:
+    """True when JWKS is pinned or a non-default fetch URL is configured."""
+    if os.getenv('IDENTITY_JWKS_FILE', '').strip():
+        return True
+    if os.getenv('IDENTITY_JWKS', '').strip():
+        return True
+    if os.getenv('IDENTITY_JWKS_URL', '').strip():
+        return True
+    if os.getenv('IDENTITY_SERVICE_URL', '').strip():
+        return True
+    return False
+
+
 IDENTITY_JWKS_DOCUMENT, IDENTITY_JWKS_SOURCE, IDENTITY_JWKS_FILE = _load_static_jwks()
 IDENTITY_SERVICE_URL = os.getenv('IDENTITY_SERVICE_URL', '').strip().rstrip('/') or None
 if IDENTITY_JWKS_DOCUMENT is not None:
@@ -800,10 +813,12 @@ if not DEBUG:
         _production_config_errors.append('IDENTITY_ISSUER is required when DEBUG=false.')
     if not IDENTITY_AUDIENCE:
         _production_config_errors.append('IDENTITY_AUDIENCE is required when DEBUG=false.')
-    if IDENTITY_JWKS_DOCUMENT is None:
+    if not _identity_jwks_configured_in_env():
         _production_config_errors.append(
-            'Pin JWKS in production with IDENTITY_JWKS_FILE or IDENTITY_JWKS '
-            '(runtime fetch from IDENTITY_JWKS_URL is for local/dev only).'
+            'Set IDENTITY_JWKS_FILE, IDENTITY_JWKS, IDENTITY_JWKS_URL, or IDENTITY_SERVICE_URL '
+            'when DEBUG=false. Pinned IDENTITY_JWKS_FILE or IDENTITY_JWKS is preferred; '
+            'otherwise JWKS is fetched from IDENTITY_JWKS_URL or '
+            '{IDENTITY_SERVICE_URL}/.well-known/jwks.json.'
         )
     if _production_config_errors:
         raise ImproperlyConfigured('\n'.join(_production_config_errors))

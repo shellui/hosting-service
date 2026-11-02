@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 ### 🏗 Chore
 
 - Use the shared shellui-django package for MCP instead of a vendored copy.
+- Production JWKS: allow fetch from `IDENTITY_JWKS_URL` or `{IDENTITY_SERVICE_URL}/.well-known/jwks.json`; pinned `IDENTITY_JWKS_FILE` / `IDENTITY_JWKS` still win when set.
 
 <!---
 ## [Unreleased] - yyyy-mm-dd
