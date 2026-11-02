@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from django.conf import settings
 from django.http import HttpRequest
-from shellui_mcp.resources import access_token_audience_matches, mcp_resource_from_origin
+from shellui_django.mcp.resources import access_token_audience_matches, mcp_resource_from_origin
 
 
 def hosting_mcp_resource_url(request: HttpRequest | None = None) -> str:

@@ -8,14 +8,14 @@ from typing import Any
 import requests
 from django.conf import settings
 
-from shellui_mcp.internal import (
+from shellui_django.mcp.internal import (
     InternalAssertionError,
     build_mcp_approval_assertion,
     build_mcp_call_log_assertion,
     build_mcp_revocation_assertion,
     parse_trusted_revocation_poll_response,
 )
-from shellui_mcp.masking import redact_mapping
+from shellui_django.mcp.masking import redact_mapping
 
 logger = logging.getLogger(__name__)
 

@@ -10,7 +10,7 @@ import jwt
 from django.test import Client, TestCase, override_settings
 from django.urls import reverse
 
-from shellui_mcp.internal import InternalAssertionError
+from shellui_django.mcp.internal import InternalAssertionError
 
 from apps.hosting.mcp_revocation import _agents_cache_key, _cache_key, _unavailable_key
 

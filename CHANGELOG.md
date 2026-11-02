@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### 🏗 Chore
+
+- Use the shared shellui-django package for MCP instead of a vendored copy.
+
 <!---
 ## [Unreleased] - yyyy-mm-dd
 

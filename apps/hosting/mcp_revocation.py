@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from django.core.cache import cache
 
-from shellui_mcp.internal import REVOCATION_CACHE_SECONDS
+from shellui_django.mcp.internal import REVOCATION_CACHE_SECONDS
 
 from apps.hosting.mcp_context import current_mcp_agent_claims
 from apps.hosting.mcp_identity import fetch_revocation_payload
