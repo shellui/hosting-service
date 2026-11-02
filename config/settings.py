@@ -534,14 +534,6 @@ JWKS_CACHE_TTL = _env_int('JWKS_CACHE_TTL', 900)
 JWKS_TIMEOUT = _env_float('JWKS_TIMEOUT', 15)
 JWKS_RETRIES = _env_int('JWKS_RETRIES', 2)
 JWT_HS256_FALLBACK_SECRET = os.getenv('JWT_HS256_FALLBACK_SECRET', '').strip() or None
-
-SIMPLE_JWT = {
-    'ALGORITHM': 'HS256',
-    'SIGNING_KEY': JWT_HS256_FALLBACK_SECRET or SECRET_KEY,
-    'ISSUER': IDENTITY_ISSUER or '',
-    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=15),
-}
-
 ALLOW_JWT_HS256_FALLBACK = os.getenv('ALLOW_JWT_HS256_FALLBACK', '').strip().lower() in {
     '1',
     'true',
