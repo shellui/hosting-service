@@ -18,6 +18,13 @@ from apps.authapi.checks import SECRET_KEY_MIN_LENGTH, secret_key_problem, secre
 
 BASE_DIR = Path(__file__).resolve().parents[2]
 
+_NO_JWKS_ENV = {
+    'IDENTITY_JWKS_FILE': '',
+    'IDENTITY_JWKS': '',
+    'IDENTITY_JWKS_URL': '',
+    'IDENTITY_SERVICE_URL': '',
+}
+
 
 def _settings_import_env(**env: str) -> subprocess.CompletedProcess:
     """Import config.settings in a subprocess with the given env overrides."""
@@ -35,6 +42,7 @@ print("OK")
         str(BASE_DIR),
     )
     merged = os.environ.copy()
+    merged.update(_NO_JWKS_ENV)
     merged.update(env)
     return subprocess.run(
         [sys.executable, '-c', script],
@@ -57,7 +65,16 @@ class ProductionSettingsValidationTests(unittest.TestCase):
         combined = (result.stdout + result.stderr).lower()
         self.assertIn('identity_issuer', combined)
         self.assertIn('identity_audience', combined)
-        self.assertIn('jwks', combined)
+
+        result = _settings_import_env(
+            DEBUG='false',
+            HOSTING_APP_DOMAIN='shellui.app',
+            IDENTITY_ISSUER='https://id.shellui.com',
+            IDENTITY_AUDIENCE='hosting',
+            SECRET_KEY='x7' * 30,
+        )
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn('jwks', (result.stdout + result.stderr).lower())
 
     def test_prod_rejects_missing_jwks_config_without_localhost_fallback(self):
         result = _settings_import_env(
