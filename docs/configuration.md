@@ -28,7 +28,7 @@ The Docker image sets `DEBUG=false`. Startup fails until these are set:
 | --- | --- |
 | `IDENTITY_ISSUER` | JWT `iss` must match this value |
 | `IDENTITY_AUDIENCE` | JWT `aud` must match this value |
-| `IDENTITY_JWKS_FILE` or `IDENTITY_JWKS` | Pinned JSON Web Key Set (JWKS). A URL fetch is refused |
+| `IDENTITY_JWKS_FILE`, `IDENTITY_JWKS`, `IDENTITY_JWKS_URL`, or `IDENTITY_SERVICE_URL` | JWKS for JWT verification. Pin with `IDENTITY_JWKS_FILE` or `IDENTITY_JWKS`, or fetch from `IDENTITY_JWKS_URL` or `{IDENTITY_SERVICE_URL}/.well-known/jwks.json`. At least one must be set; the service does not fall back to localhost when `DEBUG=false` |
 | `HOSTING_APP_DOMAIN` | Apps domain, for example `shellui.app`, or `eu.shellui.app` for a region. Used in browse links, OAuth redirect sync, and `ALLOWED_HOSTS` |
 
 `HOSTING_DEBUG_OPEN=true` is also refused while `DEBUG=false`. `JWT_HS256_FALLBACK_SECRET` is refused unless you also set `ALLOW_JWT_HS256_FALLBACK=true`.
@@ -52,7 +52,7 @@ When `HOSTING_ALLOW_ANY_HOST` is on (the default while `DEBUG=true`), `ALLOWED_H
 | Variable | Default | Purpose |
 | --- | --- | --- |
 | `IDENTITY_SERVICE_URL` | empty | identity-service base URL. OAuth redirect sync uses this. If it is empty and JWKS is pinned (`IDENTITY_JWKS` or `IDENTITY_JWKS_FILE`), sync uses the origin of `IDENTITY_JWKS_URL` when that URL ends in `/.well-known/jwks.json`. `http://localhost:8000` and `http://127.0.0.1:8000` are ignored |
-| `IDENTITY_JWKS_URL` | `{IDENTITY_SERVICE_URL}/.well-known/jwks.json` | JWKS URL when no document is pinned. Local and dev only in production checks |
+| `IDENTITY_JWKS_URL` | `{IDENTITY_SERVICE_URL}/.well-known/jwks.json` when `IDENTITY_SERVICE_URL` is set, else `http://localhost:8000/.well-known/jwks.json` in local dev | JWKS URL when no document is pinned. Used in production when set, or derived from `IDENTITY_SERVICE_URL` |
 | `IDENTITY_JWKS_FILE` | empty | Path to a JWKS file. Relative paths are from the repository root |
 | `IDENTITY_JWKS` | empty | JWKS JSON in the environment, used when no file is set |
 | `IDENTITY_ISSUER` | empty | Expected `iss`. Required when `DEBUG=false` |
