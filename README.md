@@ -38,7 +38,8 @@ For production, `python manage.py generate_env --host hosting.example.com` print
 | --- | --- |
 | `SECRET_KEY` | Django secret, 50+ characters when `DEBUG=false` |
 | `HOSTING_APP_DOMAIN` | Apps domain, for example `shellui.app` or `eu.shellui.app` |
-| `IDENTITY_JWKS` | Pinned identity public keys, required in production |
+| `IDENTITY_SERVICE_URL` or `IDENTITY_JWKS_URL` | identity-service origin; JWKS is fetched at `{url}/.well-known/jwks.json` when not pinned |
+| `IDENTITY_JWKS` / `IDENTITY_JWKS_FILE` | Optional pinned JWKS (wins over URL fetch when set) |
 | `IDENTITY_ISSUER`, `IDENTITY_AUDIENCE` | Must match identity `JWT_ISSUER` and `JWT_AUDIENCE` |
 | `REDIS_URL` | Required when `DEBUG=false`. Rate limits and scheduled jobs |
 

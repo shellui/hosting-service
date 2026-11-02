@@ -10,7 +10,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 ### 🏗 Chore
 
 - Use the shared shellui-django package for MCP instead of a vendored copy.
-- Production JWKS: allow fetch from `IDENTITY_JWKS_URL` or `{IDENTITY_SERVICE_URL}/.well-known/jwks.json`; pinned `IDENTITY_JWKS_FILE` / `IDENTITY_JWKS` still win when set.
 
 <!---
 ## [Unreleased] - yyyy-mm-dd
@@ -34,6 +33,10 @@ See for sample https://raw.githubusercontent.com/favoloso/conventional-changelog
 
 - MCP endpoint for agents (`POST /mcp`, OAuth protected-resource metadata, shared `shellui_mcp/`).
 - OpenAPI descriptions for agent-friendly MCP and admin API docs.
+
+### 🚨 Changed
+
+- Production JWKS: allow fetch from `IDENTITY_JWKS_URL` or `{IDENTITY_SERVICE_URL}/.well-known/jwks.json`; pinned `IDENTITY_JWKS_FILE` / `IDENTITY_JWKS` still win when set.
 
 ## [0.10.1] - 2026-11-01
 

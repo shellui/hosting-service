@@ -105,7 +105,7 @@ Omit `hosting.slug` to create a new preview. To publish again to the same site, 
 
 ## Run it in production
 
-The image defaults to `DEBUG=false`. It will not start until `IDENTITY_ISSUER`, `IDENTITY_AUDIENCE`, a pinned JWKS document, and `HOSTING_APP_DOMAIN` are set. `SECRET_KEY` must be a generated value: `manage.py check --deploy` errors when it is empty, a known placeholder, or shorter than 50 characters. Use a pinned tag of `shellui/hosting-service`.
+The image defaults to `DEBUG=false`. It will not start until `IDENTITY_ISSUER`, `IDENTITY_AUDIENCE`, a JWKS source (`IDENTITY_JWKS_FILE`, `IDENTITY_JWKS`, `IDENTITY_JWKS_URL`, or `IDENTITY_SERVICE_URL`), and `HOSTING_APP_DOMAIN` are set. `SECRET_KEY` must be a generated value: `manage.py check --deploy` errors when it is empty, a known placeholder, or shorter than 50 characters. Use a pinned tag of `shellui/hosting-service`.
 
 Before the first request, finish these steps:
 
