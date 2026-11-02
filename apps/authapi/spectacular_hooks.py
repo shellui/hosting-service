@@ -16,7 +16,7 @@ def preprocessing_exclude_internal_endpoints(endpoints):
 
 
 def postprocess_mcp_tool_tags(result, generator, request, public):
-    """Bridge ``x-mcp`` markers to ``mcp-tools`` tags consumed by ``shellui_mcp``."""
+    """Bridge ``x-mcp`` markers to ``mcp-tools`` tags consumed by ``shellui_django.mcp``."""
     for path_item in (result.get('paths') or {}).values():
         if not isinstance(path_item, dict):
             continue

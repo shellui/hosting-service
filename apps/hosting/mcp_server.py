@@ -5,7 +5,7 @@ from __future__ import annotations
 from typing import Any
 
 from django.http import HttpRequest
-from shellui_mcp.server import McpServer
+from shellui_django.mcp.server import McpServer
 
 
 def _strip_agent_company_overrides(arguments: dict[str, Any]) -> dict[str, Any]:
