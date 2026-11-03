@@ -33,10 +33,12 @@ REQUIRED = (
     Required('ALLOWED_HOSTS', 'Public host names, comma-separated, no scheme.'),
     Required('CSRF_TRUSTED_ORIGINS', 'Full HTTPS origin of this service.'),
     Required('HOSTING_APP_DOMAIN', 'Domain for hosted apps, for example shellui.app.'),
-    Required('IDENTITY_SERVICE_URL', 'identity-service origin (OAuth redirect sync).'),
+    Required(
+        'IDENTITY_SERVICE_URL',
+        'identity-service origin (OAuth redirect sync and JWKS at {url}/.well-known/jwks.json).',
+    ),
     Required('IDENTITY_ISSUER', 'JWT iss claim, the identity-service URL.'),
     Required('IDENTITY_AUDIENCE', 'JWT aud claim.'),
-    Required('IDENTITY_JWKS', 'Pinned JWKS JSON from {IDENTITY_SERVICE_URL}/.well-known/jwks.json.'),
     Required('REDIS_URL', 'Shared cache and job broker.'),
     Required('POSTGRES_DATABASE_URL', 'PostgreSQL DSN. Leave empty to use SQLite.'),
 )
@@ -48,7 +50,12 @@ OPTIONAL = (
     Var('HOSTING_SERVICE_PORT', '8002'),
     Var('SQLITE_PATH', 'db.sqlite3', 'Database: SQLite unless POSTGRES_DATABASE_URL is set'),
     Var('POSTGRES_SSL_REQUIRE', 'true'),
-    Var('IDENTITY_JWKS_FILE', '', 'Identity and JWT'),
+    Var(
+        'IDENTITY_JWKS_FILE',
+        '',
+        'Identity and JWT. Pin JWKS in production (optional if IDENTITY_SERVICE_URL is set).',
+    ),
+    Var('IDENTITY_JWKS', ''),
     Var('IDENTITY_JWKS_URL', ''),
     Var('IDENTITY_SYNC_TIMEOUT', '10'),
     Var('JWKS_CACHE_TTL', '900'),
@@ -110,6 +117,9 @@ OPTIONAL = (
     Var('EMAIL_SERVICE_API_KEY', '', 'Email notifications: off while EMAIL_SERVICE_API_KEY is empty'),
     Var('EMAIL_SERVICE_URL', 'https://email.shellui.com'),
     Var('EMAIL_SERVICE_ALLOW_PRIVATE', 'false'),
+    Var('MCP_RATE_LIMIT_AGENT', '120', 'Shellui MCP (optional)'),
+    Var('HOSTING_MCP_RESOURCE', '', 'RFC 8707 MCP resource aud; default is {public origin}/mcp'),
+    Var('HOSTING_PUBLIC_URL', '', 'Public origin when MCP resource aud cannot use request host'),
     Var('ROOT_REDIRECT_URL', '', 'Apex landing'),
     Var('SHELLUI_WEBSITE_URL', 'https://shellui.com'),
     Var('SHELLUI_DOCS_URL', 'https://docs.shellui.com'),
@@ -165,7 +175,6 @@ CSRF_TRUSTED_ORIGINS=
 HOSTING_APP_DOMAIN=
 IDENTITY_ISSUER=
 IDENTITY_AUDIENCE=
-IDENTITY_JWKS=
 REDIS_URL=
 POSTGRES_DATABASE_URL=
 

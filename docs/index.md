@@ -12,7 +12,7 @@ hosting-service stores Shellui app builds and serves each one on a public URL. Y
 
 hosting-service is the Shellui backend that hosts microfrontend apps. It accepts a gzip tar archive, extracts the files, and serves that build as a static site. The same process serves the API, Django admin, and OpenAPI on the apex host.
 
-It is a Django app, published as the `shellui/hosting-service` Docker image. It checks JSON Web Tokens (JWTs) issued by identity-service. It does not sign people in itself.
+It is a Django app, published as the `shellui/hosting-service` Docker image. It checks JSON Web Tokens (JWTs) issued by identity-service. It does not sign people in itself. Company-owner routes marked with OpenAPI `x-mcp` are available to [Shellui MCP](mcp.md) agents at `POST /mcp`.
 
 ## Who it is for
 

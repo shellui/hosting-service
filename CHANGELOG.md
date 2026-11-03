@@ -21,6 +21,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 See for sample https://raw.githubusercontent.com/favoloso/conventional-changelog-emoji/master/CHANGELOG.md
 -->
 
+## [0.11.0] - 2026-11-01
+
+### ✨ Feature
+
+- MCP endpoint for agents (`POST /mcp`, OAuth protected-resource metadata, shared `shellui_mcp/`).
+- OpenAPI descriptions for agent-friendly MCP and admin API docs.
+
+### 🚨 Changed
+
+- Production JWKS: allow fetch from `IDENTITY_JWKS_URL` or `{IDENTITY_SERVICE_URL}/.well-known/jwks.json`; pinned `IDENTITY_JWKS_FILE` / `IDENTITY_JWKS` still win when set.
+
+### 🏗 Chore
+
+- Use the shared shellui-django package for MCP instead of a vendored copy.
+
 ## [0.10.1] - 2026-11-01
 
 ### 🐛 Bug Fixes
