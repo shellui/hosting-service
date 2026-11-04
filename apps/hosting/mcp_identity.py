@@ -17,6 +17,8 @@ from shellui_django.mcp.internal import (
 )
 from shellui_django.mcp.masking import redact_mapping
 
+from config.service_signing import signing_kwargs
+
 logger = logging.getLogger(__name__)
 
 APPROVAL_LOOKUP_UNAVAILABLE = '__approval_unavailable__'
@@ -48,6 +50,7 @@ def create_approval_request(payload: dict) -> dict | None:
             action=str(payload.get('action') or ''),
             arguments_hash=str(payload.get('arguments_hash') or ''),
             audience_url=_identity_origin(),
+            **signing_kwargs(),
         )
     except Exception as exc:  # noqa: BLE001
         logger.warning('MCP approval assertion failed: %s', exc)
@@ -87,6 +90,7 @@ def _approval_route_assertion(payload: dict) -> str | None:
             action=str(payload.get('action') or ''),
             arguments_hash=args_hash,
             audience_url=_identity_origin(),
+            **signing_kwargs(),
         )
     except Exception as exc:  # noqa: BLE001
         logger.warning('MCP approval assertion failed: %s', exc)
@@ -178,7 +182,7 @@ def forward_call_log(entry: dict) -> None:
     if not base:
         return
     try:
-        assertion = build_mcp_call_log_assertion(audience_url=_identity_origin())
+        assertion = build_mcp_call_log_assertion(audience_url=_identity_origin(), **signing_kwargs())
     except Exception as exc:  # noqa: BLE001
         logger.warning('MCP call log assertion failed: %s', exc)
         return
@@ -215,7 +219,7 @@ def fetch_revocation_payload(*, company_id: int | None = None) -> dict | None:
     if company_id is not None:
         params['company_id'] = str(int(company_id))
     try:
-        headers['Authorization'] = f'Bearer {build_mcp_revocation_assertion(audience_url=origin)}'
+        headers['Authorization'] = f'Bearer {build_mcp_revocation_assertion(audience_url=origin, **signing_kwargs())}'
     except Exception as exc:  # noqa: BLE001
         logger.warning('MCP revocation assertion failed: %s', exc)
         return None

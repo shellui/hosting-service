@@ -62,6 +62,9 @@ When `HOSTING_ALLOW_ANY_HOST` is on (the default while `DEBUG=true`), `ALLOWED_H
 | `JWKS_CACHE_TTL` | `900` | Seconds to cache a fetched JWKS document |
 | `JWKS_TIMEOUT` | `15` | Seconds for one JWKS HTTP call |
 | `JWKS_RETRIES` | `2` | Retries when fetching JWKS |
+| `HOSTING_SERVICE_ISSUER` | empty | Public origin of this service, the `iss` of its internal MCP assertions to Identity. Set the same `HOSTING_SERVICE_ISSUER` on Identity. Unset: MCP calls to Identity fail closed |
+| `HOSTING_SERVICE_SIGNING_KEY` | empty | RSA private key (PEM, 2048 bits or more) that signs internal MCP assertions (RS256). Public key served at `/.well-known/jwks.json`. Never log or commit it |
+| `HOSTING_SERVICE_SIGNING_KEY_FILE` | empty | Path to that PEM instead of the variable. Relative paths are from the repository root. Wins over `HOSTING_SERVICE_SIGNING_KEY` |
 | `JWT_ALGORITHMS` | `RS256` | Comma-separated algorithms accepted for RS256 verification |
 | `JWT_HS256_FALLBACK_SECRET` | empty | HS256 secret for local identity debug tokens. Set it to the identity `SECRET_KEY` |
 | `ALLOW_JWT_HS256_FALLBACK` | `false` | Allow the HS256 secret when `DEBUG=false` |
