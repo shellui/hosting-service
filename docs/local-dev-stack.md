@@ -7,10 +7,11 @@ description: Run hosting-service in the Shellui local dev stack (shellui/shellui
 The shared compose file lives in [shellui/shellui](https://github.com/shellui/shellui) at `dev/docker-compose.yml`. Clone this repository next to the other Shellui repos, then start the stack from `shellui/dev`:
 
 ```bash
-cd shellui/shellui/dev
-cp .env.local.example .env.local
-docker compose --env-file .env.local up
+cd shellui/dev
+./start.sh
 ```
+
+Clone layout, URLs, common commands and troubleshooting are in the [Shellui dev stack guide](https://github.com/shellui/shellui/blob/develop/docs/dev-stack.md). This page only covers what is specific to this service.
 
 hosting-service is built with `target: dev` from this repository's [Dockerfile](../Dockerfile). Python dependencies live in `/opt/venv` inside the image; your checkout is bind-mounted at `/app`. The container runs migrations, then `python manage.py runserver 0.0.0.0:8000` with autoreload.
 
