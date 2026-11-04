@@ -12,6 +12,7 @@ from django.urls import reverse
 
 from shellui_django.mcp.internal import InternalAssertionError
 
+from apps.hosting.tests.signing_helpers import MCP_SIGNING_TEST_SETTINGS
 from apps.hosting.mcp_revocation import _agents_cache_key, _cache_key, _unavailable_key
 
 
@@ -53,6 +54,7 @@ def _agent_token(
 
 
 @override_settings(
+    **MCP_SIGNING_TEST_SETTINGS,
     DEBUG=True,
     JWT_HS256_FALLBACK_SECRET='test-secret',
     ALLOW_JWT_HS256_FALLBACK=True,

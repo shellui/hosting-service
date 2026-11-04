@@ -25,10 +25,12 @@ from apps.hosting.mcp_views import mcp_endpoint, oauth_protected_resource_metada
 from apps.hosting.serve import AppServeView
 
 from . import views
+from .service_signing import jwks_view
 
 urlpatterns = [
     path('', views.root, name='root'),
     path('llms.txt', views.llms_txt, name='llms_txt'),
+    path('.well-known/jwks.json', jwks_view, name='jwks'),
     path(
         '.well-known/oauth-protected-resource',
         oauth_protected_resource_metadata,
