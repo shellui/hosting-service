@@ -208,6 +208,19 @@ def forward_call_log(entry: dict) -> None:
         logger.warning('MCP call log forward error: %s', exc)
 
 
+def _revocation_verify_kwargs(origin: str) -> dict[str, Any]:
+    """Verify with the pinned JWKS, else IDENTITY_JWKS_URL, never a URL guessed from the public issuer."""
+    kwargs: dict[str, Any] = {'expected_issuer': origin}
+    document = getattr(settings, 'IDENTITY_JWKS_DOCUMENT', None)
+    if document is not None:
+        kwargs['jwks'] = document
+    else:
+        jwks_url = getattr(settings, 'IDENTITY_JWKS_URL', None)
+        if jwks_url:
+            kwargs['identity_jwks_url'] = jwks_url
+    return kwargs
+
+
 def fetch_revocation_payload(*, company_id: int | None = None) -> dict | None:
     base = _identity_base()
     origin = _identity_origin()
@@ -230,7 +243,7 @@ def fetch_revocation_payload(*, company_id: int | None = None) -> dict | None:
         try:
             revoked_ids, cache_seconds, agents = parse_trusted_revocation_poll_response(
                 data,
-                expected_issuer=origin,
+                **_revocation_verify_kwargs(origin),
             )
         except InternalAssertionError as exc:
             logger.warning('MCP revocation list untrusted: %s', exc.message)
