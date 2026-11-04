@@ -6,6 +6,8 @@ description: Environment variables for hosting-service, grouped by topic, with t
 
 hosting-service reads configuration from environment variables. Copy [`.env.example`](../.env.example) to `.env` for local runs. Pass the same keys to Docker, Coolify, or your orchestrator in production.
 
+For the shared Shellui compose stack (`shellui/shellui/dev`), see [Local dev stack](local-dev-stack.md) for port **8003**, internal identity URLs, and the `HOSTING_*` keys in `dev/.env.local`.
+
 An empty boolean uses the default. `1`, `true`, `yes`, and `on` are true. Any other value, including `false`, is false. Byte sizes accept a bare integer or a `K`, `M`, `G`, or `T` suffix. Each suffix is a multiple of 1024, so `100M` is 104857600 bytes.
 
 ## Generate the env
@@ -40,7 +42,7 @@ The Docker image sets `DEBUG=false`. Startup fails until these are set:
 | `DEBUG` | `false` | Local mode. The image sets `false`. Never enable it in production |
 | `LOG_LEVEL` | `INFO`, or `DEBUG` when `DEBUG=true` | Python log level |
 | `SETUP_TOKEN` | empty | One-time token for the web form that creates the first superuser when `DEBUG=false` |
-| `HOSTING_SERVICE_PORT` | `8002` | Host port published by Docker Compose. Gunicorn inside the image listens on 8000 |
+| `HOSTING_SERVICE_PORT` | `8003` | Host port published by Docker Compose. Gunicorn inside the image listens on 8000 |
 | `ALLOWED_HOSTS` | `localhost`, `127.0.0.1` | Comma-separated hostnames, no scheme |
 | `CSRF_TRUSTED_ORIGINS` | local dev origins and `https://admin.shellui.com` | Full origins for Django admin form posts |
 | `DJANGO_ADMIN_ENABLED` | `true` | `false` removes `/admin/` routes |
@@ -51,8 +53,8 @@ When `HOSTING_ALLOW_ANY_HOST` is on (the default while `DEBUG=true`), `ALLOWED_H
 
 | Variable | Default | Purpose |
 | --- | --- | --- |
-| `IDENTITY_SERVICE_URL` | empty | identity-service base URL. OAuth redirect sync uses this. If it is empty and JWKS is pinned (`IDENTITY_JWKS` or `IDENTITY_JWKS_FILE`), sync uses the origin of `IDENTITY_JWKS_URL` when that URL ends in `/.well-known/jwks.json`. `http://localhost:8000` and `http://127.0.0.1:8000` are ignored |
-| `IDENTITY_JWKS_URL` | `{IDENTITY_SERVICE_URL}/.well-known/jwks.json` when `IDENTITY_SERVICE_URL` is set, else `http://localhost:8000/.well-known/jwks.json` in local dev | JWKS URL when no document is pinned. Used in production when set, or derived from `IDENTITY_SERVICE_URL` |
+| `IDENTITY_SERVICE_URL` | empty | identity-service base URL for server-to-server OAuth redirect sync. In the local dev stack, set this to `http://identity:8000` while `IDENTITY_ISSUER` stays `http://localhost:8001`. If it is empty and JWKS is pinned (`IDENTITY_JWKS` or `IDENTITY_JWKS_FILE`), sync uses the origin of `IDENTITY_JWKS_URL` when that URL ends in `/.well-known/jwks.json`. `http://localhost:8000` and `http://127.0.0.1:8000` are ignored |
+| `IDENTITY_JWKS_URL` | `{IDENTITY_SERVICE_URL}/.well-known/jwks.json` when `IDENTITY_SERVICE_URL` is set, else `http://localhost:8000/.well-known/jwks.json` in local dev | JWKS fetch URL when no document is pinned. Set explicitly (for example `http://identity:8000/.well-known/jwks.json`) when the issuer is public but JWKS must be fetched on the internal network |
 | `IDENTITY_JWKS_FILE` | empty | Path to a JWKS file. Relative paths are from the repository root |
 | `IDENTITY_JWKS` | empty | JWKS JSON in the environment, used when no file is set |
 | `IDENTITY_ISSUER` | empty | Expected `iss`. Required when `DEBUG=false` |

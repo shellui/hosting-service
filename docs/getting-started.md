@@ -6,11 +6,13 @@ description: Run hosting-service locally with Docker Compose or uv, approve a co
 
 This page takes you from a clone to a browsable preview. You start hosting-service, point it at identity-service, approve your company, then run `shellui deploy`.
 
-Run identity-service first, on port 8000. hosting-service checks the JWTs identity-service issues. Start with the [identity-service docs](https://docs.shellui.com/identity/).
+Run identity-service first (port **8001** in the [local dev stack](local-dev-stack.md), or port 8000 for a standalone identity checkout). hosting-service checks the JWTs identity-service issues. Start with the [identity-service docs](https://docs.shellui.com/identity/).
+
+For all Shellui services together, use the shared stack in [Local dev stack](local-dev-stack.md).
 
 ## Start with Docker Compose
 
-Docker Compose builds the image, maps port 8002 to Gunicorn on port 8000, and stores SQLite plus artifacts in the `hosting-service-data` volume. You need Docker and Git:
+Docker Compose builds the **dev** image target, maps port **8003** to Django on port 8000, and stores SQLite plus artifacts in the `hosting-service-data` volume. You need Docker and Git:
 
 ```bash
 git clone https://github.com/shellui/hosting-service.git
@@ -18,7 +20,7 @@ cd hosting-service
 cp .env.example .env
 ```
 
-`.env.example` sets `IDENTITY_SERVICE_URL=http://localhost:8000` and `HOSTING_DEBUG_OPEN=true` for local runs. `SECRET_KEY` is empty. Paste a generated value into `.env` before you start Compose. This command does not need Django:
+`.env.example` sets `IDENTITY_SERVICE_URL=http://localhost:8001`, `HOSTING_DEBUG_OPEN=true`, and documents `IDENTITY_JWKS_URL` for the full dev stack. Paste a generated value into `SECRET_KEY` in `.env` before you start Compose. This command does not need Django:
 
 ```bash
 python3 -c "import secrets; print(secrets.token_urlsafe(64))"
@@ -28,7 +30,7 @@ python3 -c "import secrets; print(secrets.token_urlsafe(64))"
 docker compose up --build
 ```
 
-The API is at [http://localhost:8002/hosting/v1/health](http://localhost:8002/hosting/v1/health). Stop the stack with `docker compose down`. The named volume keeps the database and uploaded files.
+The API is at [http://localhost:8003/hosting/v1/health](http://localhost:8003/hosting/v1/health). Stop the stack with `docker compose down`. The named volume keeps the database and uploaded files.
 
 ## Start from a checkout
 
@@ -40,14 +42,14 @@ cp .env.example .env
 npm ci
 npm run build:css
 uv run python manage.py migrate
-uv run python manage.py runserver 8002
+uv run python manage.py runserver 8003
 ```
 
 `SECRET_KEY` is empty after you copy `.env.example`. Generate it with the command in that file before `migrate`. `npm run build:css` writes the apex landing stylesheet. When you edit `templates/` or `assets/css/`, run `npm run watch:css` in a second terminal. Django reloads templates while `DEBUG=true`. New Tailwind class names appear after that CSS rebuild.
 
 ## Create the first admin user
 
-With `DEBUG=true` and an empty user table, [http://localhost:8002/](http://localhost:8002/) shows a one-time form for the first Django superuser. After that, the same URL is the apex landing page, with links to Swagger, ReDoc, and Django admin.
+With `DEBUG=true` and an empty user table, [http://localhost:8003/](http://localhost:8003/) shows a one-time form for the first Django superuser. After that, the same URL is the apex landing page, with links to Swagger, ReDoc, and Django admin.
 
 In production (`DEBUG=false`), create the superuser from the shell:
 
@@ -77,7 +79,7 @@ Hosted apps are served on a subdomain, not under a path prefix. For local links,
 127.0.0.1  vpzzsxvzsmp7.shellui.local
 ```
 
-Open `http://vpzzsxvzsmp7.shellui.local:8002/`. With `DEBUG=true`, `HOSTING_ALLOW_ANY_HOST` defaults to on, so Django accepts that `Host` header. [Preview sites and public URLs](preview-and-serving.md) explains which hostnames map to a slug.
+Open `http://vpzzsxvzsmp7.shellui.local:8003/`. With `DEBUG=true`, `HOSTING_ALLOW_ANY_HOST` defaults to on, so Django accepts that `Host` header. [Preview sites and public URLs](preview-and-serving.md) explains which hostnames map to a slug.
 
 ## Deploy from a Shellui project
 
@@ -95,7 +97,7 @@ Omit `hosting.slug` to create a new preview. To publish again to the same site, 
 ```json
 {
   "hosting": {
-    "url": "http://localhost:8002",
+    "url": "http://localhost:8003",
     "slug": "vpzzsxvzsmp7"
   }
 }

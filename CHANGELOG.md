@@ -25,6 +25,8 @@ See for sample https://raw.githubusercontent.com/favoloso/conventional-changelog
 
 ### ✨ Feature
 
+- Dockerfile **`dev`** target for the Shellui local dev stack (bind-mounted source, `/opt/venv` deps, `runserver` on port 8000).
+- [Local dev stack](docs/local-dev-stack.md) documents env vars for `shellui/shellui` compose (public issuer, internal JWKS and identity API URLs).
 - MCP endpoint for agents (`POST /mcp`, OAuth protected-resource metadata, shared `shellui_mcp/`).
 - OpenAPI descriptions for agent-friendly MCP and admin API docs.
 

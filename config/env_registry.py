@@ -47,7 +47,7 @@ OPTIONAL = (
     Var('LOG_LEVEL', 'INFO', 'Runtime'),
     Var('SETUP_TOKEN', ''),
     Var('DJANGO_ADMIN_ENABLED', 'true'),
-    Var('HOSTING_SERVICE_PORT', '8002'),
+    Var('HOSTING_SERVICE_PORT', '8003'),
     Var('SQLITE_PATH', 'db.sqlite3', 'Database: SQLite unless POSTGRES_DATABASE_URL is set'),
     Var('POSTGRES_SSL_REQUIRE', 'true'),
     Var(
@@ -164,8 +164,11 @@ _EXAMPLE_HEADER = """\
 SECRET_KEY=django-insecure-local-development-only-0123456789abcdef
 # Local development only. Unset means false (production).
 DEBUG=true
-# Local identity-service. JWKS is fetched from {url}/.well-known/jwks.json in DEBUG.
-IDENTITY_SERVICE_URL=http://localhost:8000
+# Local identity-service (standalone). In the Shellui dev stack use internal
+# http://identity:8000 plus IDENTITY_JWKS_URL; see docs/local-dev-stack.md.
+IDENTITY_SERVICE_URL=http://localhost:8001
+# Internal JWKS fetch when issuer stays public (dev stack):
+# IDENTITY_JWKS_URL=http://identity:8000/.well-known/jwks.json
 # Local dev: skip the company waitlist (refused when DEBUG=false).
 HOSTING_DEBUG_OPEN=true
 

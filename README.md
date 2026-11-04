@@ -10,7 +10,7 @@ hosting-service is what `shellui deploy` talks to. It takes a build of your shel
 
 ## Get started
 
-You need Docker and Git, and an [identity-service](https://github.com/shellui/identity-service) running on port 8000.
+You need Docker and Git, and an [identity-service](https://github.com/shellui/identity-service) instance (see [Local dev stack](docs/local-dev-stack.md) for the shared compose layout).
 
 ```bash
 git clone https://github.com/shellui/hosting-service.git
@@ -19,9 +19,9 @@ cp .env.example .env   # then set SECRET_KEY
 docker compose up --build
 ```
 
-The API runs on [http://localhost:8002](http://localhost:8002). `/api/docs/` is the OpenAPI reference and `/admin/` is Django admin.
+The API runs on [http://localhost:8003](http://localhost:8003). `/api/docs/` is the OpenAPI reference and `/admin/` is Django admin.
 
-Then deploy from any Shellui project with `hosting.url` set to `http://localhost:8002`:
+Then deploy from any Shellui project with `hosting.url` set to `http://localhost:8003`:
 
 ```bash
 shellui login
@@ -38,7 +38,7 @@ For production, `python manage.py generate_env --host hosting.example.com` print
 | --- | --- |
 | `SECRET_KEY` | Django secret, 50+ characters when `DEBUG=false` |
 | `HOSTING_APP_DOMAIN` | Apps domain, for example `shellui.app` or `eu.shellui.app` |
-| `IDENTITY_SERVICE_URL` or `IDENTITY_JWKS_URL` | identity-service origin; JWKS is fetched at `{url}/.well-known/jwks.json` when not pinned |
+| `IDENTITY_SERVICE_URL` / `IDENTITY_JWKS_URL` | OAuth sync and JWKS fetch (use internal `http://identity:8000` URLs in the dev stack; keep `IDENTITY_ISSUER` on the public localhost port) |
 | `IDENTITY_JWKS` / `IDENTITY_JWKS_FILE` | Optional pinned JWKS (wins over URL fetch when set) |
 | `IDENTITY_ISSUER`, `IDENTITY_AUDIENCE` | Must match identity `JWT_ISSUER` and `JWT_AUDIENCE` |
 | `REDIS_URL` | Required when `DEBUG=false`. Rate limits and scheduled jobs |
@@ -59,7 +59,7 @@ The handbook lives in [`docs/`](docs/index.md) and is published at [docs.shellui
 ```bash
 uv sync
 uv run python manage.py migrate
-uv run python manage.py runserver 8002
+uv run python manage.py runserver 8003
 uv run python manage.py test
 ```
 

@@ -2,6 +2,7 @@
 # Container entrypoint.
 #
 # Modes (first argument, default "web"):
+#   dev     migrate, then Django runserver on 0.0.0.0:8000 (local dev stack bind mount)
 #   web     migrate, then gunicorn plus the scheduler (Celery worker with embedded beat)
 #   worker  only the scheduler; for a dedicated worker container from the same image
 #   other   run the given command as appuser, for example: python manage.py shell
@@ -159,6 +160,11 @@ supervise() {
 }
 
 case "${MODE}" in
+  dev)
+    prepare_data_dir
+    "${AS_APP[@]}" python manage.py migrate --noinput
+    exec "${AS_APP[@]}" python manage.py runserver 0.0.0.0:8000
+    ;;
   web)
     require_redis_in_production
     prepare_data_dir
