@@ -21,6 +21,8 @@
     <script type="module">
       import { init, shellui } from "{% static 'vendor/shellui-sdk/0.2.0/sdk.mjs' %}";
 
+      const SHELLUI_INIT_TIMEOUT_MS = 5000;
+
       const REDOC_LIGHT_THEME = {
         typography: {
           fontFamily: "Roboto, sans-serif",
@@ -75,10 +77,30 @@
         renderRedoc(message?.payload?.settings?.appearance ?? null);
       };
 
-      await init();
-      renderRedoc(shellui.initialSettings?.appearance ?? null);
-      shellui.addMessageListener("SHELLUI_SETTINGS", handleSettingsMessage);
-      shellui.addMessageListener("SHELLUI_SETTINGS_UPDATED", handleSettingsMessage);
+      renderRedoc(null);
+
+      const attachShellui = async () => {
+        try {
+          await Promise.race([
+            init(),
+            new Promise((_, reject) => {
+              setTimeout(
+                () => reject(new Error("Shellui SDK init timed out")),
+                SHELLUI_INIT_TIMEOUT_MS,
+              );
+            }),
+          ]);
+          renderRedoc(shellui.initialSettings?.appearance ?? null);
+          shellui.addMessageListener("SHELLUI_SETTINGS", handleSettingsMessage);
+          shellui.addMessageListener("SHELLUI_SETTINGS_UPDATED", handleSettingsMessage);
+        } catch (error) {
+          console.warn(
+            "Shellui SDK init failed; API docs stay on the default theme.",
+            error,
+          );
+        }
+      };
+      attachShellui();
     </script>
     {% endblock body %}
   </body>
