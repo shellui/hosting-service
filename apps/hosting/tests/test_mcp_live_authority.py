@@ -48,6 +48,10 @@ def _delegated_claims(**kwargs):
         "global_agent_id": _GAID,
         "grant_version": 1,
         "company_binding_version": 0,
+        "mcp_access": "full",
+        "mcp_read": "safe",
+        "mcp_destructive": False,
+        "scope": "hosting storage",
     }
     base.update(kwargs)
     return base
@@ -171,3 +175,44 @@ class DelegatedLiveAuthorityTests(SimpleTestCase):
     def test_403_stale_binding_denies(self, _assert, mock_post):
         mock_post.return_value = MagicMock(status_code=403, json=lambda: {"authorized": False})
         self.assertFalse(delegated_live_authority_ok(_delegated_claims()))
+
+    @patch("apps.hosting.mcp_live_authority.requests.post")
+    @patch("apps.hosting.mcp_live_authority.build_mcp_delegated_agent_authority_assertion", return_value="assertion")
+    def test_capability_mismatch_denies(self, _assert, mock_post):
+        aid = "aabbccdd-eeff-0011-aabb-ccddeeff0011"
+        body = _ok_identity_body(agent_id=aid)
+        body["access_mode"] = "read_only"
+        mock_resp = MagicMock()
+        mock_resp.status_code = 200
+        mock_resp.json.return_value = body
+        mock_post.return_value = mock_resp
+        self.assertFalse(delegated_live_authority_ok(_delegated_claims(agent_id=aid)))
+
+    @patch("apps.hosting.mcp_live_authority.requests.post")
+    @patch("apps.hosting.mcp_live_authority.build_mcp_delegated_agent_authority_assertion", return_value="assertion")
+    def test_services_allowed_must_cover_scope_and_hosting(self, _assert, mock_post):
+        aid = "aabbccdd-eeff-0011-aabb-ccddeeff0011"
+        body = _ok_identity_body(agent_id=aid)
+        body["services_allowed"] = ["hosting"]
+        body["global_allowed_services"] = ["hosting"]
+        mock_resp = MagicMock()
+        mock_resp.status_code = 200
+        mock_resp.json.return_value = body
+        mock_post.return_value = mock_resp
+        self.assertFalse(
+            delegated_live_authority_ok(
+                _delegated_claims(agent_id=aid, scope="hosting storage")
+            )
+        )
+
+    @patch("apps.hosting.mcp_live_authority.requests.post")
+    @patch("apps.hosting.mcp_live_authority.build_mcp_delegated_agent_authority_assertion", return_value="assertion")
+    def test_extra_top_level_field_in_200_denies(self, _assert, mock_post):
+        aid = "aabbccdd-eeff-0011-aabb-ccddeeff0011"
+        body = _ok_identity_body(agent_id=aid)
+        body["unexpected"] = True
+        mock_resp = MagicMock()
+        mock_resp.status_code = 200
+        mock_resp.json.return_value = body
+        mock_post.return_value = mock_resp
+        self.assertFalse(delegated_live_authority_ok(_delegated_claims(agent_id=aid)))
