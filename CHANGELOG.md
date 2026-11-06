@@ -23,6 +23,12 @@ See for sample https://raw.githubusercontent.com/favoloso/conventional-changelog
 
 ## [Unreleased]
 
+### 🐛 Bug Fixes
+
+- MCP approval consume: treat success only when Identity returns JSON `{"consumed": true}` on 2xx, not when the status code alone is success.
+- MCP approval forward errors and Identity OAuth redirect deletes: log structured detail without raw upstream response text in hosting logs.
+- MCP approval assertions: forward optional identity-bound JWT fields into `build_mcp_approval_assertion` when `shellui-django` adds matching parameters (django-commons#14), validating `global_company_id` as a UUID.
+
 ### ✨ Feature
 
 - Company-owner REST and Shellui MCP tools for custom domains (honest `verified` and `serving` flags), app environment variables (values never returned, `x-mcp-secret` on writes), bounded request logs for app subdomains, and an explicit empty runtime log contract for static hosting.

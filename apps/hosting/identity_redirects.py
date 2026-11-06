@@ -196,10 +196,9 @@ def delete_hosting_oauth_redirect_origin(
         return False
     if response.status_code >= 400:
         logger.warning(
-            'Identity oauth redirect delete failed for %s: %s %s',
+            'Identity oauth redirect delete failed for %s: %s',
             origin,
-            response.status_code,
-            (response.text or '')[:300],
+            _identity_error_detail(response),
         )
         return False
     logger.info('Removed hosting oauth redirect %s', origin)

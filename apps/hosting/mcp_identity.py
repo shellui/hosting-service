@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
+import inspect
 import logging
 from typing import Any
+from uuid import UUID
 
 import requests
 from django.conf import settings
@@ -17,6 +19,7 @@ from shellui_django.mcp.internal import (
 )
 from shellui_django.mcp.masking import redact_mapping
 
+from apps.hosting.mcp_context import current_mcp_agent_claims
 from config.service_signing import signing_kwargs
 
 logger = logging.getLogger(__name__)
@@ -24,6 +27,66 @@ logger = logging.getLogger(__name__)
 APPROVAL_LOOKUP_UNAVAILABLE = '__approval_unavailable__'
 
 _APPROVAL_ROUTE_CONTEXT: dict[str, dict[str, Any]] = {}
+
+_APPROVAL_ASSERTION_KWARG_NAMES: frozenset[str] | None = None
+
+
+def _approval_assertion_extra_kwargs() -> dict[str, Any]:
+    """Forward optional identity-bound fields from the live agent JWT into approval assertions.
+
+    shellui-django may add parameters (for example ``global_company_id``, ``grant_version``, ``agent_binding``)
+    after django-commons#14; only pass keys the installed library accepts.
+    """
+    global _APPROVAL_ASSERTION_KWARG_NAMES
+    if _APPROVAL_ASSERTION_KWARG_NAMES is None:
+        try:
+            params = inspect.signature(build_mcp_approval_assertion).parameters
+        except (TypeError, ValueError):
+            _APPROVAL_ASSERTION_KWARG_NAMES = frozenset()
+        else:
+            reserved = frozenset(
+                {
+                    'company_id',
+                    'agent_id',
+                    'service',
+                    'action',
+                    'arguments_hash',
+                    'audience_url',
+                    'lifetime_seconds',
+                    'private_key_pem',
+                    'kid',
+                    'issuer',
+                }
+            )
+            _APPROVAL_ASSERTION_KWARG_NAMES = frozenset(p for p in params if p not in reserved)
+
+    if not _APPROVAL_ASSERTION_KWARG_NAMES:
+        return {}
+
+    claims = current_mcp_agent_claims() or {}
+    if not isinstance(claims, dict):
+        return {}
+
+    out: dict[str, Any] = {}
+    if 'global_company_id' in _APPROVAL_ASSERTION_KWARG_NAMES:
+        raw = claims.get('global_company_id')
+        if raw not in (None, ''):
+            gid = str(raw).strip()
+            try:
+                out['global_company_id'] = str(UUID(gid))
+            except ValueError:
+                logger.warning('Agent JWT global_company_id is not a valid UUID; omitting from MCP approval assertion.')
+
+    if 'grant_version' in _APPROVAL_ASSERTION_KWARG_NAMES and claims.get('grant_version') is not None:
+        try:
+            out['grant_version'] = int(claims['grant_version'])
+        except (TypeError, ValueError):
+            logger.warning('Agent JWT grant_version is not an integer; omitting from MCP approval assertion.')
+
+    if 'agent_binding' in _APPROVAL_ASSERTION_KWARG_NAMES and claims.get('agent_binding') not in (None, ''):
+        out['agent_binding'] = str(claims['agent_binding'])
+
+    return out
 
 
 def _identity_origin() -> str:
@@ -50,6 +113,7 @@ def create_approval_request(payload: dict) -> dict | None:
             action=str(payload.get('action') or ''),
             arguments_hash=str(payload.get('arguments_hash') or ''),
             audience_url=_identity_origin(),
+            **_approval_assertion_extra_kwargs(),
             **signing_kwargs(),
         )
     except Exception as exc:  # noqa: BLE001
@@ -67,7 +131,7 @@ def create_approval_request(payload: dict) -> dict | None:
             timeout=getattr(settings, 'IDENTITY_SYNC_TIMEOUT', 10),
         )
         if response.status_code >= 400:
-            logger.warning('MCP approval forward failed: %s %s', response.status_code, response.text[:200])
+            logger.warning('MCP approval forward failed: HTTP %s', response.status_code)
             return None
         data = response.json()
         return {'id': data.get('id'), 'status': data.get('status')}
@@ -90,6 +154,7 @@ def _approval_route_assertion(payload: dict) -> str | None:
             action=str(payload.get('action') or ''),
             arguments_hash=args_hash,
             audience_url=_identity_origin(),
+            **_approval_assertion_extra_kwargs(),
             **signing_kwargs(),
         )
     except Exception as exc:  # noqa: BLE001
@@ -171,7 +236,15 @@ def consume_approval(approval_id: str, route_payload: dict | None = None) -> boo
             headers={'Authorization': f'Bearer {assertion}'},
             timeout=getattr(settings, 'IDENTITY_SYNC_TIMEOUT', 10),
         )
-        return response.status_code < 400
+        if response.status_code < 200 or response.status_code > 299:
+            return False
+        try:
+            body = response.json()
+        except ValueError:
+            return False
+        if not isinstance(body, dict):
+            return False
+        return body.get('consumed') is True
     except Exception as exc:  # noqa: BLE001
         logger.debug('MCP approval consume unavailable: %s', exc)
         return False
