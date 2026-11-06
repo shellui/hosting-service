@@ -59,14 +59,14 @@ def principal_from_claims(claims: dict[str, Any]) -> HostingPrincipal:
         if raw_global not in (None, ''):
             gid = global_company_id_in_claims(claims)
             if gid is None:
-                raise ValueError('Agent JWT global_company_id must be a canonical UUID when set.')
-            raise ValueError('Globally delegated agent tokens cannot call hosting directly.')
+                raise ValueError('mcp_authority_global_company_id_invalid')
+            raise ValueError('mcp_authority_delegated_on_direct_resource')
         if claims.get('company_binding_version') not in (None, ''):
-            raise ValueError('Agent JWT must not set company_binding_version for regional hosting access.')
+            raise ValueError('mcp_authority_binding_without_global')
         try:
             parse_personal_grant_version(claims)
         except ValueError as exc:
-            raise ValueError('Agent JWT grant_version must be a non-negative integer when set.') from exc
+            raise ValueError('mcp_authority_grant_version_invalid') from exc
         return HostingPrincipal(
             user_id=0,
             company_id=company_id,

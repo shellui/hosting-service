@@ -18,6 +18,7 @@ from shellui_django.mcp.internal import (
 from shellui_django.mcp.masking import redact_mapping
 
 from apps.authapi.mcp_authority import approval_assertion_grant_kwarg, mcp_personal_agent_rejected
+from apps.hosting.mcp_call_log_body import build_identity_call_log_body
 from apps.hosting.mcp_context import current_mcp_agent_claims
 from config.service_signing import signing_kwargs
 
@@ -214,23 +215,19 @@ def forward_call_log(entry: dict) -> None:
         logger.warning('MCP call log assertion failed: mcp_assertion_error')
         return
     url = f'{base}/api/v1/mcp/internal/mcp-call-logs'
-    body = {
-        'agent_id': entry.get('agent_id'),
-        'company_id': entry.get('company_id'),
-        'service': entry.get('service') or 'hosting',
-        'tool': entry.get('tool') or '',
-        'method': entry.get('method') or '',
-        'path': entry.get('path') or '',
-        'status': entry.get('status') or 0,
-        'arguments': redact_mapping(entry.get('arguments') or {}, read_sensitive=False),
-    }
+    body = build_identity_call_log_body(entry if isinstance(entry, dict) else {})
+    if not body:
+        logger.warning('MCP call log skipped: audit_fields_incomplete')
+        return
     try:
-        requests.post(
+        response = requests.post(
             url,
             json=body,
             headers={'Authorization': f'Bearer {assertion}'},
             timeout=getattr(settings, 'IDENTITY_SYNC_TIMEOUT', 10),
         )
+        if response.status_code >= 400:
+            logger.warning('MCP call log forward failed: HTTP %s', response.status_code)
     except Exception as exc:  # noqa: BLE001
         logger.warning('MCP call log forward error: identity_request_failed')
 

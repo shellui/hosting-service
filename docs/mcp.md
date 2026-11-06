@@ -91,10 +91,20 @@ The legacy `PUT /hosting/v1/apps/{app_ref}/deployments/{id}/upload` route remain
 
 Agent JWT claims mirror Identity: `mcp_access` (`read_only`, `ask`, `full`), `mcp_read` (`safe`, `sensitive`), and `mcp_destructive`. Read-only agents cannot call write routes. Ask mode creates an approval request in Identity before mutating data.
 
+The shared `shellui-django` write gate treats **every destructive operation as approval-gated**, even when `mcp_access` is `full`. The `mcp_destructive` claim does not skip approval for destructive tools. Non-destructive writes in `full` mode run without a pending approval.
+
 ## Internal assertions to Identity
 
-Revocation polling, approvals and call logs send Identity a short-lived RS256 assertion signed with this service's own key (`HOSTING_SERVICE_SIGNING_KEY`, issuer `HOSTING_SERVICE_ISSUER`). Hosting pins `shellui-django` to the matching django-commons source revision (see `pyproject.toml`). Internal assertions use a 60 second lifetime by default (the library `INTERNAL_ASSERTION_MAX_LIFETIME_SECONDS` cap). The public key is served at `GET /.well-known/jwks.json`. Identity trusts it only when its own `HOSTING_SERVICE_ISSUER` matches, and reads the key from `HOSTING_SERVICE_JWKS_URL` or a pinned `HOSTING_SERVICE_JWKS`. Without a key, MCP fails closed: agents are refused and call logs are skipped.
+Revocation polling, approvals and call logs send Identity a short-lived RS256 assertion signed with this service's own key (`HOSTING_SERVICE_SIGNING_KEY`, issuer `HOSTING_SERVICE_ISSUER`). Hosting pins `shellui-django` to the matching django-commons source revision (see `pyproject.toml`, merge `1f0754b421688ed26b7eb2e76b25b6fa3eea2a37`). Internal assertions use a 60 second lifetime by default (the library `INTERNAL_ASSERTION_MAX_LIFETIME_SECONDS` cap). The public key is served at `GET /.well-known/jwks.json`. Identity trusts it only when its own `HOSTING_SERVICE_ISSUER` matches, and reads the key from `HOSTING_SERVICE_JWKS_URL` or a pinned `HOSTING_SERVICE_JWKS`. Without a key, MCP fails closed: agents are refused and call logs are skipped.
 
-MCP call log payloads redact tool arguments the same way as MCP responses. Logs about failed Identity HTTP calls use fixed reason codes (`identity_request_failed`, `mcp_assertion_error`) plus `InternalAssertionError.message` where the library returns one, not raw upstream response bodies.
+### Tool dispatch and call activity (`mcp-call-logs`)
+
+Each MCP tool maps to one OpenAPI operation (`operationId` becomes the tool name). Hosting resolves the HTTP route with Django `resolve()` on the **materialized path template** (path parameters substituted from validated `path_params`), so `resource_path` in call logs is the internal route path without `?query` or `#fragment`. `operation_title` comes from the same OpenAPI operation (`summary`, else `operationId`). Identity receives **no** forwarded tool `query`/`body`; hosting sends only fixed audit fields (`tool`, `operation_title`, `resource_path`, `http_method`, `http_status`, `access_kind`, `outcome`, `error_code`, `duration_ms`, `request_id` from `X-Request-ID` when present, `mcp_jsonrpc_id`).
+
+Logs about failed Identity HTTP calls use fixed reason codes (`identity_request_failed`, `mcp_assertion_rule`, `mcp_assertion_error`, `audit_fields_incomplete`), not raw upstream response bodies.
+
+### Globally delegated agents and the AI gateway
+
+Direct hosting agent tokens must use an `aud` value that matches this service `{origin}/mcp` only. A canonical `global_company_id` on that token is rejected (`mcp_authority_delegated_on_direct_resource`). Globally delegated flows use the Shellui MCP gateway: the gateway exchanges or scopes tokens for the correct service audience and carries global proof on **signed service assertions** to Identity, not on the raw browser-facing JWT.
 
 Generate a key with `openssl genrsa 3072` and keep it in a secret store or a mounted file (`HOSTING_SERVICE_SIGNING_KEY_FILE`).

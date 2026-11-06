@@ -18,7 +18,7 @@ class AgentPrincipalAuthorityTests(SimpleTestCase):
                     'global_company_id': '01234567-89ab-cdef-0123-456789abcdef',
                 }
             )
-        self.assertIn('Globally delegated', str(ctx.exception))
+        self.assertIn('mcp_authority_delegated_on_direct_resource', str(ctx.exception))
 
     def test_rejects_invalid_grant_version_string(self):
         with self.assertRaises(ValueError) as ctx:
@@ -30,4 +30,4 @@ class AgentPrincipalAuthorityTests(SimpleTestCase):
                     'grant_version': 'not-a-digit',
                 }
             )
-        self.assertIn('grant_version', str(ctx.exception))
+        self.assertIn('mcp_authority_grant_version_invalid', str(ctx.exception))

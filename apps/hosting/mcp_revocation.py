@@ -63,11 +63,11 @@ def _revoke_applies_to_current_token(
         return True
     if company_id is None:
         return True
-    for row in agents:
-        if not isinstance(row, dict):
-            continue
-        if str(row.get('agent_id')) != str(agent_id):
-            continue
+    rows = [row for row in agents if isinstance(row, dict) and str(row.get('agent_id')) == str(agent_id)]
+    if not rows:
+        # Revoked id with no matching agent row: trust the revoked list.
+        return True
+    for row in rows:
         if row.get('mcp_authority_snapshot_rejected'):
             return True
         if row.get('global_company_id'):
@@ -90,7 +90,7 @@ def _revoke_applies_to_current_token(
             if rgv is not None:
                 return True
         return True
-    return True
+    return False
 
 
 def agent_revocation_denied(agent_id: str, company_id: int | None = None) -> bool:

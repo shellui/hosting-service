@@ -30,8 +30,7 @@ def global_company_id_in_claims(claims: dict[str, Any] | None) -> str | None:
 def mcp_personal_agent_rejected(claims: dict[str, Any] | None) -> bool:
     """True when this agent must not use hosting MCP (fail closed).
 
-    Globally delegated agents (valid ``global_company_id`` on the JWT) never call hosting
-    directly; reject even if a gateway bug forwards the token.
+    Malformed global delegation hints on a direct regional token fail closed.
 
     Personal regional agents: reject malformed authority hints (binding version without a global id,
     or invalid ``grant_version``). Optional ``grant_version`` must be a non-negative int when
@@ -40,8 +39,6 @@ def mcp_personal_agent_rejected(claims: dict[str, Any] | None) -> bool:
     if not isinstance(claims, dict):
         return True
     gid = global_company_id_in_claims(claims)
-    if gid is not None:
-        return True
     raw_g = claims.get('global_company_id')
     if raw_g not in _GLOBAL_SENTINELS and gid is None:
         return True
@@ -88,12 +85,16 @@ def parse_personal_grant_version(claims: dict[str, Any] | None) -> int | None:
 
 
 def approval_assertion_grant_kwarg(claims: dict[str, Any] | None) -> dict[str, Any]:
-    """Keyword args for ``build_mcp_approval_assertion`` for personal regional agents only."""
-    try:
-        grant_version = parse_personal_grant_version(claims)
-    except ValueError:
-        grant_version = None
+    """Keyword args for ``build_mcp_approval_assertion`` for personal regional agents only.
+
+    If ``grant_version`` is present on the JWT it must parse; do not silently drop it.
+    """
+    if not isinstance(claims, dict):
+        return {}
     out: dict[str, Any] = {}
+    if 'grant_version' not in claims:
+        return out
+    grant_version = parse_personal_grant_version(claims)
     if grant_version is not None:
         out['grant_version'] = grant_version
     return out
