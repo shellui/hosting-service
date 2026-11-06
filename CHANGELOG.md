@@ -35,7 +35,7 @@ See for sample https://raw.githubusercontent.com/favoloso/conventional-changelog
 
 ### 🚨 Changed
 
-- Depend on `shellui-django[mcp]==0.5.0` from PyPI. Docker images install `git`.
+- Depend on `shellui-django[mcp]==0.5.0` from PyPI.
 
 ### ✨ Feature
 
