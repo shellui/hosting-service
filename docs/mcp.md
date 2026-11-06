@@ -72,7 +72,7 @@ A successful consume step is not inferred from HTTP status alone. Identity must 
 
 **Personal regional agents** (direct `aud` for this service): signed approvals use the regional numeric `company_id`, `agent_id`, `service`, `action`, `arguments_hash`, and `target` (identity origin). When Identity issues `grant_version` on the agent JWT, hosting passes the same non-negative integer into create, state, and consume assertions (`0` is valid). When the claim is absent, the assertion omits `grant_version` (legacy personal tokens).
 
-**Globally delegated agents** must not call hosting MCP directly. If a JWT carries a canonical `global_company_id` (UUID), decoding fails before any tool runs. Delegation flows use the Shellui MCP gateway so regional and global tokens are joined through the gateway token exchange or scoping step, then the gateway calls hosting with the correct service `aud` and signed service assertions to Identity where needed.
+**Profiles:** Identity marks agent access tokens with `mcp_authority`. The SaaS **global** profile (`mcp_authority` = `global_delegated`) must not call hosting MCP directly. A **regional exchanged** token (`mcp_authority` = `delegated`) may carry a full strict triplet: canonical `global_company_id`, non-negative `grant_version` (`0` is valid), and non-negative `company_binding_version`, with `aud` still the hosting MCP resource URL. Personal regional agents omit the global triplet; optional `grant_version` only stays legacy-safe. A raw `global_company_id` without the delegated profile and full triplet is rejected (`mcp_authority_delegated_on_direct_resource`).
 
 ## Deploy a site end to end
 
@@ -105,6 +105,6 @@ Logs about failed Identity HTTP calls use fixed reason codes (`identity_request_
 
 ### Globally delegated agents and the AI gateway
 
-Direct hosting agent tokens must use an `aud` value that matches this service `{origin}/mcp` only. A canonical `global_company_id` on that token is rejected (`mcp_authority_delegated_on_direct_resource`). Globally delegated flows use the Shellui MCP gateway: the gateway exchanges or scopes tokens for the correct regional service audience and carries global proof on **signed service assertions** to Identity, not on the raw browser-facing JWT.
+Direct hosting agent tokens must use an `aud` value that matches this service `{origin}/mcp` only. The SaaS `global_delegated` profile is refused at decode. Regional `delegated` tokens include the triplet in signed service assertions to Identity (matching `build_mcp_approval_assertion` in shellui-django). Gateway-only global flows still rely on exchange plus service-signed proof, not on forging headers at the hosting edge.
 
 Generate a key with `openssl genrsa 3072` and keep it in a secret store or a mounted file (`HOSTING_SERVICE_SIGNING_KEY_FILE`).

@@ -5,11 +5,12 @@ from __future__ import annotations
 from typing import Any
 
 from django.core.cache import cache
-
 from shellui_django.mcp.internal import REVOCATION_CACHE_SECONDS
 
 from apps.authapi.mcp_authority import (
+    MCP_AUTHORITY_DELEGATED,
     global_company_id_in_claims,
+    mcp_authority_mode,
     parse_company_binding_version_claim,
     parse_personal_grant_version,
     strict_non_negative_int_optional,
@@ -21,7 +22,7 @@ _INVALID = object()
 
 
 def _row_non_negative(raw: Any, *, field: str) -> int | None | object:
-    if raw in (None, ''):
+    if raw in (None, ""):
         return None
     try:
         return strict_non_negative_int_optional(raw, field=field)
@@ -31,27 +32,27 @@ def _row_non_negative(raw: Any, *, field: str) -> int | None | object:
 
 def _cache_key(company_id: int | None) -> str:
     if company_id is None:
-        return 'hosting:mcp:revoked_agent_ids:all'
-    return f'hosting:mcp:revoked_agent_ids:{int(company_id)}'
+        return "hosting:mcp:revoked_agent_ids:all"
+    return f"hosting:mcp:revoked_agent_ids:{int(company_id)}"
 
 
 def _agents_cache_key(company_id: int | None) -> str:
-    return f'{_cache_key(company_id)}:agents'
+    return f"{_cache_key(company_id)}:agents"
 
 
 def _unavailable_key(company_id: int | None) -> str:
     if company_id is None:
-        return 'hosting:mcp:revocation_unavailable:all'
-    return f'hosting:mcp:revocation_unavailable:{int(company_id)}'
+        return "hosting:mcp:revocation_unavailable:all"
+    return f"hosting:mcp:revocation_unavailable:{int(company_id)}"
 
 
 def _agent_company_id() -> int | None:
     claims = current_mcp_agent_claims() or {}
-    raw = claims.get('company_id')
-    if raw in (None, ''):
+    raw = claims.get("company_id")
+    if raw in (None, ""):
         return None
     try:
-        v = strict_non_negative_int_optional(raw, field='company_id')
+        v = strict_non_negative_int_optional(raw, field="company_id")
     except ValueError:
         return None
     return v
@@ -65,7 +66,9 @@ def revocation_poll_unavailable(*, company_id: int | None = None) -> bool:
 
 
 def _row_global_uuid(row: dict[str, Any]) -> str | None:
-    return global_company_id_in_claims({'global_company_id': row.get('global_company_id')})
+    return global_company_id_in_claims(
+        {"global_company_id": row.get("global_company_id")}
+    )
 
 
 def _matching_revocation_rows(
@@ -91,19 +94,21 @@ def _matching_revocation_rows(
     for row in rows:
         if not isinstance(row, dict):
             continue
-        if str(row.get('agent_id')) != str(agent_id):
+        if str(row.get("agent_id")) != str(agent_id):
             continue
-        rc = _row_non_negative(row.get('company_id'), field='company_id')
+        rc = _row_non_negative(row.get("company_id"), field="company_id")
         if rc is _INVALID or rc != company_id:
             continue
-        rgv = _row_non_negative(row.get('grant_version'), field='grant_version')
+        rgv = _row_non_negative(row.get("grant_version"), field="grant_version")
         if rgv is _INVALID:
             continue
-        rcbv = _row_non_negative(row.get('company_binding_version'), field='company_binding_version')
+        rcbv = _row_non_negative(
+            row.get("company_binding_version"), field="company_binding_version"
+        )
         if rcbv is _INVALID:
             continue
         row_global = _row_global_uuid(row)
-        if row_global is None and (row.get('global_company_id') not in (None, '')):
+        if row_global is None and (row.get("global_company_id") not in (None, "")):
             # Malformed global hint on row
             continue
 
@@ -152,25 +157,26 @@ def _revoke_applies_to_current_token(
 ) -> bool:
     """True when a revocation list entry applies to this MCP token (deny the request)."""
     claims = claims if isinstance(claims, dict) else {}
-    if global_company_id_in_claims(claims):
-        # Direct hosting tokens must not carry delegated global proof (principal should reject).
+    jwt_gid = global_company_id_in_claims(claims)
+    if jwt_gid is not None and mcp_authority_mode(claims) != MCP_AUTHORITY_DELEGATED:
+        # Global-only profile or unmarked global hint: deny even if the id is listed.
         return True
     if company_id is None:
         return True
     rows = [row for row in agents if isinstance(row, dict)]
-    id_rows = [row for row in rows if str(row.get('agent_id')) == str(agent_id)]
+    id_rows = [row for row in rows if str(row.get("agent_id")) == str(agent_id)]
     if not id_rows:
         # Id listed but no per-agent rows: treat as revoked (fail closed).
         return True
-    matching = _matching_revocation_rows(agent_id, company_id=company_id, claims=claims, rows=id_rows)
+    matching = _matching_revocation_rows(
+        agent_id, company_id=company_id, claims=claims, rows=id_rows
+    )
     if len(matching) != 1:
         # Absent or ambiguous match for this token vs live rows: fail closed.
         return True
     row = matching[0]
-    if row.get('mcp_authority_snapshot_rejected'):
-        return True
-    # Listed id does not apply to this token snapshot (for example a different grant generation).
-    return False
+    # True when Identity marks this snapshot rejected; otherwise the listed id does not revoke this token.
+    return bool(row.get("mcp_authority_snapshot_rejected"))
 
 
 def agent_revocation_denied(agent_id: str, company_id: int | None = None) -> bool:
@@ -186,7 +192,9 @@ def agent_revocation_denied(agent_id: str, company_id: int | None = None) -> boo
     if agent_id not in ids:
         return False
     agents = cache.get(_agents_cache_key(company_id)) or []
-    return _revoke_applies_to_current_token(agent_id, company_id=company_id, agents=agents, claims=claims)
+    return _revoke_applies_to_current_token(
+        agent_id, company_id=company_id, agents=agents, claims=claims
+    )
 
 
 def blocked_agent_ids() -> set[str]:
@@ -208,8 +216,8 @@ def _load_revocation_agent_ids(*, company_id: int | None = None) -> set[str]:
         cache.set(unavailable_key, True, timeout=REVOCATION_CACHE_SECONDS)
         return set()
     cache.set(unavailable_key, False, timeout=REVOCATION_CACHE_SECONDS)
-    ids = payload.get('revoked_agent_ids') or []
-    agents = payload.get('agents') or []
+    ids = payload.get("revoked_agent_ids") or []
+    agents = payload.get("agents") or []
     cache.set(cache_key, list(ids), timeout=REVOCATION_CACHE_SECONDS)
     cache.set(_agents_cache_key(company_id), agents, timeout=REVOCATION_CACHE_SECONDS)
     return {str(item) for item in ids}
