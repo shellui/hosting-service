@@ -5,7 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any
 
-from apps.authapi.mcp_authority import global_company_id_in_claims, parse_personal_grant_version
+from apps.authapi.mcp_authority import global_company_id_in_claims, parse_agent_regional_company_id, parse_personal_grant_version
 
 
 @dataclass
@@ -52,9 +52,9 @@ def principal_from_claims(claims: dict[str, Any]) -> HostingPrincipal:
         if raw_company in (None, ''):
             raise ValueError('Agent JWT is missing company_id.')
         try:
-            company_id = int(raw_company)
-        except (TypeError, ValueError) as exc:
-            raise ValueError('Agent JWT company_id must be an integer.') from exc
+            company_id = parse_agent_regional_company_id(raw_company)
+        except ValueError as exc:
+            raise ValueError('Agent JWT company_id must be a non-negative integer.') from exc
         raw_global = claims.get('global_company_id')
         if raw_global not in (None, ''):
             gid = global_company_id_in_claims(claims)

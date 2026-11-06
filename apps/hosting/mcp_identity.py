@@ -150,10 +150,15 @@ def lookup_approval_state(payload: dict) -> str | None:
         return APPROVAL_LOOKUP_UNAVAILABLE
 
 
-def approval_state(payload: dict) -> str | None:
+def approval_state(payload: dict, *, use_mcp_approval_protocol: bool = True) -> str | None:
+    """Return Identity approval status, or ``APPROVAL_LOOKUP_UNAVAILABLE`` when Identity did not return a definite state.
+
+    When ``use_mcp_approval_protocol`` is true (JSON-RPC MCP ``tools/call``), an unavailable lookup is not folded into
+    ``pending`` so the caller avoids creating a duplicate approval in the same request.
+    """
     status = lookup_approval_state(payload)
     if status == APPROVAL_LOOKUP_UNAVAILABLE:
-        return 'pending'
+        return APPROVAL_LOOKUP_UNAVAILABLE if use_mcp_approval_protocol else 'pending'
     if status in {'executed', 'approved', 'pending'}:
         return status
     return None

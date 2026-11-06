@@ -2,13 +2,31 @@
 
 from __future__ import annotations
 
+from typing import Any
+
 from django.core.cache import cache
 
 from shellui_django.mcp.internal import REVOCATION_CACHE_SECONDS
 
-from apps.authapi.mcp_authority import global_company_id_in_claims, parse_personal_grant_version
+from apps.authapi.mcp_authority import (
+    global_company_id_in_claims,
+    parse_company_binding_version_claim,
+    parse_personal_grant_version,
+    strict_non_negative_int_optional,
+)
 from apps.hosting.mcp_context import current_mcp_agent_claims
 from apps.hosting.mcp_identity import fetch_revocation_payload
+
+_INVALID = object()
+
+
+def _row_non_negative(raw: Any, *, field: str) -> int | None | object:
+    if raw in (None, ''):
+        return None
+    try:
+        return strict_non_negative_int_optional(raw, field=field)
+    except ValueError:
+        return _INVALID
 
 
 def _cache_key(company_id: int | None) -> str:
@@ -33,9 +51,10 @@ def _agent_company_id() -> int | None:
     if raw in (None, ''):
         return None
     try:
-        return int(raw)
-    except (TypeError, ValueError):
+        v = strict_non_negative_int_optional(raw, field='company_id')
+    except ValueError:
         return None
+    return v
 
 
 def revocation_poll_unavailable(*, company_id: int | None = None) -> bool:
@@ -43,6 +62,85 @@ def revocation_poll_unavailable(*, company_id: int | None = None) -> bool:
     if company_id is None:
         company_id = _agent_company_id()
     return cache.get(_unavailable_key(company_id)) is True
+
+
+def _row_global_uuid(row: dict[str, Any]) -> str | None:
+    return global_company_id_in_claims({'global_company_id': row.get('global_company_id')})
+
+
+def _matching_revocation_rows(
+    agent_id: str,
+    *,
+    company_id: int,
+    claims: dict[str, Any],
+    rows: list,
+) -> list[dict[str, Any]]:
+    """Rows that exactly match this token's agent, regional company, and authority snapshot (no ``[0]`` fallback)."""
+    try:
+        jwt_grant = parse_personal_grant_version(claims)
+    except ValueError:
+        return []
+    try:
+        jwt_cbv = parse_company_binding_version_claim(claims)
+    except ValueError:
+        return []
+
+    jwt_gid = global_company_id_in_claims(claims)
+
+    matches: list[dict[str, Any]] = []
+    for row in rows:
+        if not isinstance(row, dict):
+            continue
+        if str(row.get('agent_id')) != str(agent_id):
+            continue
+        rc = _row_non_negative(row.get('company_id'), field='company_id')
+        if rc is _INVALID or rc != company_id:
+            continue
+        rgv = _row_non_negative(row.get('grant_version'), field='grant_version')
+        if rgv is _INVALID:
+            continue
+        rcbv = _row_non_negative(row.get('company_binding_version'), field='company_binding_version')
+        if rcbv is _INVALID:
+            continue
+        row_global = _row_global_uuid(row)
+        if row_global is None and (row.get('global_company_id') not in (None, '')):
+            # Malformed global hint on row
+            continue
+
+        if jwt_gid is None:
+            # Personal regional: row must not assert global delegation.
+            if row_global is not None:
+                continue
+            if jwt_grant is None:
+                if rgv is not None:
+                    continue
+            else:
+                if rgv != jwt_grant:
+                    continue
+            if jwt_cbv is None:
+                if rcbv is not None:
+                    continue
+            else:
+                if rcbv != jwt_cbv:
+                    continue
+        else:
+            # Delegated: require full match including canonical global UUID.
+            if row_global != jwt_gid:
+                continue
+            if jwt_grant is None:
+                if rgv is not None:
+                    continue
+            else:
+                if rgv != jwt_grant:
+                    continue
+            if jwt_cbv is None:
+                if rcbv is not None:
+                    continue
+            else:
+                if rcbv != jwt_cbv:
+                    continue
+        matches.append(row)
+    return matches
 
 
 def _revoke_applies_to_current_token(
@@ -55,41 +153,23 @@ def _revoke_applies_to_current_token(
     """True when a revocation list entry applies to this MCP token (deny the request)."""
     claims = claims if isinstance(claims, dict) else {}
     if global_company_id_in_claims(claims):
-        # Direct hosting tokens cannot carry delegated global proof; treat as deny.
-        return True
-    try:
-        jwt_grant = parse_personal_grant_version(claims)
-    except ValueError:
+        # Direct hosting tokens must not carry delegated global proof (principal should reject).
         return True
     if company_id is None:
         return True
-    rows = [row for row in agents if isinstance(row, dict) and str(row.get('agent_id')) == str(agent_id)]
-    if not rows:
-        # Revoked id with no matching agent row: trust the revoked list.
+    rows = [row for row in agents if isinstance(row, dict)]
+    id_rows = [row for row in rows if str(row.get('agent_id')) == str(agent_id)]
+    if not id_rows:
+        # Id listed but no per-agent rows: treat as revoked (fail closed).
         return True
-    for row in rows:
-        if row.get('mcp_authority_snapshot_rejected'):
-            return True
-        if row.get('global_company_id'):
-            continue
-        try:
-            if int(row.get('company_id')) != int(company_id):
-                continue
-        except (TypeError, ValueError):
-            return True
-        rgv = row.get('grant_version')
-        if jwt_grant is not None:
-            if rgv is None:
-                return True
-            try:
-                if int(rgv) != int(jwt_grant):
-                    continue
-            except (TypeError, ValueError):
-                return True
-        else:
-            if rgv is not None:
-                return True
+    matching = _matching_revocation_rows(agent_id, company_id=company_id, claims=claims, rows=id_rows)
+    if len(matching) != 1:
+        # Absent or ambiguous match for this token vs live rows: fail closed.
         return True
+    row = matching[0]
+    if row.get('mcp_authority_snapshot_rejected'):
+        return True
+    # Listed id does not apply to this token snapshot (for example a different grant generation).
     return False
 
 

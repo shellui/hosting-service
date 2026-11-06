@@ -20,19 +20,92 @@ class CallLogBodyTests(SimpleTestCase):
                 'http_method': 'GET',
                 'http_status': 200,
                 'access_kind': 'read',
-                'outcome': 'success',
-                'error_code': 'ok',
+                'outcome': 'allowed',
                 'duration_ms': 12,
-                'request_id': 'r1',
-                'mcp_jsonrpc_id': 7,
+                'grant_version': 0,
             }
         )
         self.assertIsNotNone(body)
         assert body is not None
         self.assertEqual(body['tool'], 'hosting_v1_apps_list')
         self.assertEqual(body['resource_path'], '/hosting/v1/apps')
-        self.assertEqual(body['request_id'], 'r1')
+        self.assertNotIn('request_id', body)
+        self.assertNotIn('mcp_jsonrpc_id', body)
+        self.assertNotIn('error_code', body)
         self.assertNotIn('arguments', body)
+
+    def test_success_omits_empty_error_code(self):
+        body = build_identity_call_log_body(
+            {
+                'agent_id': 'a',
+                'company_id': 0,
+                'tool': 't',
+                'operation_title': 'T',
+                'resource_path': '/p',
+                'http_method': 'GET',
+                'access_kind': 'read',
+                'outcome': 'allowed',
+                'error_code': '',
+                'http_status': 200,
+            }
+        )
+        self.assertIsNotNone(body)
+        assert body is not None
+        self.assertNotIn('error_code', body)
+
+    def test_failed_includes_error_code(self):
+        body = build_identity_call_log_body(
+            {
+                'agent_id': 'a',
+                'company_id': 1,
+                'tool': 't',
+                'operation_title': 'T',
+                'resource_path': '/p',
+                'http_method': 'GET',
+                'access_kind': 'read',
+                'outcome': 'failed',
+                'error_code': 'not_found',
+                'http_status': 404,
+            }
+        )
+        self.assertIsNotNone(body)
+        assert body is not None
+        self.assertEqual(body['error_code'], 'not_found')
+
+    def test_rejects_noncanonical_outcome(self):
+        self.assertIsNone(
+            build_identity_call_log_body(
+                {
+                    'agent_id': 'a',
+                    'company_id': 1,
+                    'tool': 't',
+                    'operation_title': 'T',
+                    'resource_path': '/p',
+                    'http_method': 'GET',
+                    'access_kind': 'read',
+                    'outcome': 'success',
+                    'http_status': 200,
+                }
+            )
+        )
+
+    def test_rejects_float_grant_version(self):
+        self.assertIsNone(
+            build_identity_call_log_body(
+                {
+                    'agent_id': 'a',
+                    'company_id': 1,
+                    'tool': 't',
+                    'operation_title': 'T',
+                    'resource_path': '/p',
+                    'http_method': 'GET',
+                    'access_kind': 'read',
+                    'outcome': 'allowed',
+                    'grant_version': 1.0,
+                    'http_status': 200,
+                }
+            )
+        )
 
     def test_rejects_incomplete(self):
         self.assertIsNone(build_identity_call_log_body({'agent_id': 'x'}))

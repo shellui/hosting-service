@@ -48,40 +48,76 @@ def mcp_personal_agent_rejected(claims: dict[str, Any] | None) -> bool:
     if has_bind:
         return True
 
-    gv = claims.get('grant_version')
-    if gv is None:
+    if claims.get('grant_version') in (None, ''):
         return False
-    if isinstance(gv, bool):
+    try:
+        parse_personal_grant_version(claims)
+    except ValueError:
         return True
-    if isinstance(gv, int):
-        return gv < 0
-    if isinstance(gv, str):
-        s = gv.strip()
+    return False
+
+
+def strict_non_negative_int_optional(raw: Any, *, field: str) -> int | None:
+    """JSON-style non-negative int only: int (not bool), or decimal digit string. Rejects float and ``True``/``False``."""
+    if raw is None or raw == '':
+        return None
+    if isinstance(raw, bool):
+        raise ValueError(f'{field} must be a non-negative integer.')
+    if isinstance(raw, int):
+        if raw < 0:
+            raise ValueError(f'{field} must be non-negative.')
+        return raw
+    if isinstance(raw, str):
+        s = raw.strip()
         if not s.isdigit():
-            return True
-        return int(s) < 0
-    return True
+            raise ValueError(f'{field} must be a non-negative integer.')
+        return int(s)
+    raise ValueError(f'{field} must be a non-negative integer.')
 
 
 def parse_personal_grant_version(claims: dict[str, Any] | None) -> int | None:
     """Non-negative int for approval assertions, or None when absent. Raises ValueError if invalid."""
     if not isinstance(claims, dict):
         return None
-    gv = claims.get('grant_version')
-    if gv is None:
+    return strict_non_negative_int_optional(claims.get('grant_version'), field='grant_version')
+
+
+def parse_company_binding_version_claim(claims: dict[str, Any] | None) -> int | None:
+    """Non-negative int from ``company_binding_version``, or None when absent."""
+    if not isinstance(claims, dict):
         return None
-    if isinstance(gv, bool):
-        raise ValueError('grant_version must be a non-negative integer.')
-    if isinstance(gv, int):
-        if gv < 0:
-            raise ValueError('grant_version must be non-negative.')
-        return gv
-    if isinstance(gv, str):
-        s = gv.strip()
-        if not s.isdigit():
-            raise ValueError('grant_version must be a non-negative integer.')
-        return int(s)
-    raise ValueError('grant_version must be a non-negative integer.')
+    return strict_non_negative_int_optional(claims.get('company_binding_version'), field='company_binding_version')
+
+
+def parse_agent_regional_company_id(raw: Any) -> int:
+    """Regional ``company_id`` for agents: required strict non-negative int."""
+    val = strict_non_negative_int_optional(raw, field='company_id')
+    if val is None:
+        raise ValueError('company_id must be a non-negative integer.')
+    return val
+
+
+def authority_context_for_call_log(claims: dict[str, Any] | None) -> dict[str, Any]:
+    """Actor-derived grant or binding context for Identity call logs (no client-supplied text)."""
+    if not isinstance(claims, dict):
+        return {}
+    out: dict[str, Any] = {}
+    try:
+        gv = parse_personal_grant_version(claims)
+        if gv is not None:
+            out['grant_version'] = gv
+    except ValueError:
+        pass
+    try:
+        cbv = parse_company_binding_version_claim(claims)
+        if cbv is not None:
+            out['company_binding_version'] = cbv
+    except ValueError:
+        pass
+    gid = global_company_id_in_claims(claims)
+    if gid is not None:
+        out['global_company_id'] = gid
+    return out
 
 
 def approval_assertion_grant_kwarg(claims: dict[str, Any] | None) -> dict[str, Any]:

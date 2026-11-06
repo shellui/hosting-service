@@ -1,11 +1,17 @@
-"""Safe MCP tool call audit fields for Identity call-log forwarding (identity #135)."""
+"""Safe MCP tool call audit fields for Identity call-log forwarding."""
 
 from __future__ import annotations
 
-import time
 from typing import Any
 
 READ_METHODS = frozenset({'GET', 'HEAD', 'OPTIONS'})
+
+# Canonical activity outcomes (Shellui shared contract).
+OUTCOME_PENDING_APPROVAL = 'pending_approval'
+OUTCOME_ALLOWED = 'allowed'
+OUTCOME_DENIED = 'denied'
+OUTCOME_FAILED = 'failed'
+OUTCOME_SESSION_USED = 'session_used'
 
 ERROR_CODE_BY_STATUS: dict[int, str] = {
     400: 'bad_request',
@@ -24,29 +30,28 @@ ERROR_CODE_BY_STATUS: dict[int, str] = {
 }
 
 
-def call_log_error_code(status_code: int | None) -> str:
-    """Fixed allowlist error_code for Identity; avoids raw HTTP text."""
+def call_log_error_code_for_http(status_code: int | None) -> str | None:
+    """Fixed allowlist for failed HTTP; None when unknown low status (never guess success)."""
     code = int(status_code or 0)
+    if code < 400:
+        return None
     if code in ERROR_CODE_BY_STATUS:
         return ERROR_CODE_BY_STATUS[code]
     if 400 <= code <= 499:
         return 'client_error'
     if 500 <= code <= 599:
         return 'server_error'
-    return 'ok'
+    return 'failed'
 
 
-def call_log_outcome(status_code: int | None) -> str:
+def outcome_and_error_for_http(status_code: int | None) -> tuple[str, str | None]:
+    """Map HTTP status to canonical outcome and optional error_code."""
     code = int(status_code or 0)
-    if code < 200:
-        return 'invalid'
-    if code < 300:
-        return 'success'
+    if code < 100:
+        return OUTCOME_FAILED, 'invalid_status'
     if code < 400:
-        return 'redirect'
-    if code < 500:
-        return 'client_error'
-    return 'server_error'
+        return OUTCOME_ALLOWED, None
+    return OUTCOME_FAILED, call_log_error_code_for_http(code)
 
 
 def call_log_access_kind(*, method: str, tool_read_only: bool) -> str:
@@ -56,8 +61,8 @@ def call_log_access_kind(*, method: str, tool_read_only: bool) -> str:
     return 'write'
 
 
-def operation_title_from_schema(schema: dict[str, Any], *, tool_name: str, path_template: str, method: str) -> str:
-    """Trusted OpenAPI summary or neutral operationId (internal schema only)."""
+def operation_summary_or_id(schema: dict[str, Any], *, tool_name: str, path_template: str, method: str) -> str:
+    """OpenAPI ``summary`` else ``operationId`` from this repo schema only (not client text)."""
     op = (schema.get('paths') or {}).get(path_template) or {}
     op_body = op.get((method or 'GET').lower()) or {}
     if not isinstance(op_body, dict):
@@ -71,9 +76,9 @@ def operation_title_from_schema(schema: dict[str, Any], *, tool_name: str, path_
     return tool_name[:500]
 
 
-def safe_resource_path(path: str) -> str:
-    """Strip query and fragment from resolved internal route path."""
-    raw = str(path or '').strip()
+def safe_path_template(path_template: str) -> str:
+    """OpenAPI path template without query or fragment."""
+    raw = str(path_template or '').strip()
     if not raw:
         return ''
     for sep in '?#':

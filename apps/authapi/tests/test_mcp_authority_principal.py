@@ -31,3 +31,14 @@ class AgentPrincipalAuthorityTests(SimpleTestCase):
                 }
             )
         self.assertIn('mcp_authority_grant_version_invalid', str(ctx.exception))
+
+    def test_rejects_float_company_id(self):
+        with self.assertRaises(ValueError) as ctx:
+            principal_from_claims(
+                {
+                    'sub': 'agent:x',
+                    'agent_id': 'x',
+                    'company_id': 42.0,
+                }
+            )
+        self.assertIn('company_id', str(ctx.exception))

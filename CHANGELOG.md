@@ -28,8 +28,9 @@ See for sample https://raw.githubusercontent.com/favoloso/conventional-changelog
 - MCP approval consume: treat success only when Identity returns JSON `{"consumed": true}` on 2xx, not when the status code alone is success.
 - MCP approval forward errors and Identity OAuth redirect deletes: log structured detail without raw upstream response text in hosting logs.
 - MCP agent JWTs: reject malformed delegation hints and invalid `grant_version` at authentication (`mcp_authority_*` error keys); canonical `global_company_id` on a direct hosting `aud` token fails with `mcp_authority_delegated_on_direct_resource`.
-- MCP revocation: after a trusted poll, enforce a revoke only when an agent row matches the current personal regional token (`company_id` and optional `grant_version`), including empty `agents` when the id is still in `revoked_agent_ids`.
-- MCP call logs: forward Identity only an allowlisted audit body (`tool`, `operation_title`, `resource_path`, `http_method`, `http_status`, `access_kind`, `outcome`, `error_code`, `duration_ms`, `request_id`, `mcp_jsonrpc_id`); never arbitrary tool `query`/`body`.
+- MCP revocation: after a trusted poll, deny only when there is exactly one unambiguous `agents` row for the revoked id that matches the active token (`company_id`, optional strict non-negative `grant_version` and `company_binding_version`, canonical `global_company_id` when the token carries delegated proof). Mismatch, absence, or multiple rows fail closed; a listed id with no matching row still denies.
+- MCP call logs: forward Identity only an allowlisted audit body with canonical `outcome` values (`pending_approval`, `allowed`, `denied`, `failed`, `session_used`), OpenAPI path template (no query) and operation text from this repo's schema (`summary` else `operationId`), optional `error_code` on success, actor-derived authority context (`grant_version`, `company_binding_version`, `global_company_id` when present), and `approval_request_id` when hosting creates an approval; never arbitrary tool `query`/`body`, JSON-RPC `id`, or `X-Request-ID`.
+- MCP approvals: when Identity state lookup is unavailable under the JSON-RPC tools protocol, hosting does not synthesize `pending` or create a duplicate approval in the same request.
 
 ### 🚨 Changed
 

@@ -220,8 +220,6 @@ class McpEndpointTests(TestCase):
         mock_jwks.return_value.get_signing_key.return_value = None
         from django.core.cache import cache
 
-        from django.core.cache import cache
-
         cache.set(_cache_key(42), [self.agent_id], timeout=60)
         with patch('apps.hosting.mcp_revocation.blocked_agent_ids', return_value={self.agent_id}):
             response = self._rpc('tools/list')
@@ -263,14 +261,18 @@ class McpEndpointTests(TestCase):
             },
             token=token,
         )
-        meta = response.json()['result'].get('meta') or {}
-        self.assertEqual(meta.get('status'), 'pending')
+        payload = response.json()['result']
+        self.assertTrue(payload.get('isError'))
+        self.assertNotIn('meta', payload)
 
     @patch('apps.authapi.authentication.get_jwks_client')
     def test_ask_mode_requires_approval(self, mock_jwks):
         mock_jwks.return_value.get_signing_key.return_value = None
         token = _agent_token(mcp_access='ask')
-        with patch('apps.hosting.mcp_views.create_approval_request', return_value={'id': 'abc'}):
+        with (
+            patch('apps.hosting.mcp_identity.lookup_approval_state', return_value=None),
+            patch('apps.hosting.mcp_views.create_approval_request', return_value={'id': 'abc'}),
+        ):
             response = self._rpc(
                 'tools/call',
                 {
