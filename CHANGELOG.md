@@ -35,7 +35,7 @@ See for sample https://raw.githubusercontent.com/favoloso/conventional-changelog
 
 ### 🚨 Changed
 
-- Pin `shellui-django[mcp]` to django-commons git SHA `1f0754b421688ed26b7eb2e76b25b6fa3eea2a37` (django-commons#14 merge); Docker images install `git` for `uv` git sources.
+- Depend on `shellui-django[mcp]==0.5.0` from PyPI.
 
 ### ✨ Feature
 
