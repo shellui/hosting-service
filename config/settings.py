@@ -300,6 +300,7 @@ SPECTACULAR_SETTINGS = {
         {'name': 'webhooks', 'description': 'Shellui Actions webhook rules and deliveries.'},
         {'name': 'event-log', 'description': 'Company domain event log.'},
         {'name': 'stats', 'description': 'Hosting statistics.'},
+        {'name': 'operations', 'description': 'Custom domains, environment variables, and operational logs.'},
         {'name': 'platform-metrics', 'description': 'Prometheus metrics endpoints (staff).'},
         {'name': 'mcp-tools', 'description': 'Operations exposed to Shellui MCP agents.'},
     ],
@@ -323,6 +324,8 @@ MIDDLEWARE = [
     'apps.hosting.middleware.HostedAppNavigationPolicyMiddleware',
     # App subdomains → hosted site for all paths (before admin/API URLConf).
     'apps.hosting.middleware.HostedAppServeMiddleware',
+    # After the response is built on app hosts, record a bounded access log row.
+    'apps.hosting.middleware.HostedAppRequestLogMiddleware',
     'whitenoise.middleware.WhiteNoiseMiddleware',
     'corsheaders.middleware.CorsMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
@@ -582,6 +585,12 @@ HOSTING_PREVIEW_TTL_DAYS = _env_int('HOSTING_PREVIEW_TTL_DAYS', 7)
 # In-process cache for hosted-app slug → App lookups (no Redis). 0 disables.
 # Invalidated automatically on deploy finalize. Safe default for local + prod.
 HOSTING_SERVE_CACHE_TTL_SECONDS = _env_int('HOSTING_SERVE_CACHE_TTL_SECONDS', 45)
+
+# Bounded access logs for app subdomains (operations APIs).
+HOSTING_REQUEST_LOG_ENABLED = _env_bool('HOSTING_REQUEST_LOG_ENABLED', True)
+HOSTING_REQUEST_LOG_MAX_PER_APP = _env_int('HOSTING_REQUEST_LOG_MAX_PER_APP', 5000)
+HOSTING_REQUEST_LOG_PAGE_MAX = _env_int('HOSTING_REQUEST_LOG_PAGE_MAX', 200)
+HOSTING_RUNTIME_LOG_MAX_LINES = _env_int('HOSTING_RUNTIME_LOG_MAX_LINES', 500)
 
 # Optional 301 target for the apex landing page (`/`). Unset → render home.html.
 # Does not affect hosted-app subdomain serving (e.g. `{slug}.shellui.app`).

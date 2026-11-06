@@ -108,6 +108,74 @@ MCP_SPECS: dict[str, _McpSpec] = {
         'Returns aggregate counts for apps and deployments in the company scope carried by the token.',
         'Read-only metrics.',
     ),
+    'hosting_v1_apps_domains_list': _McpSpec(
+        'List custom hostnames for a site',
+        'Returns hostnames your company attached to the app. `verified` and `serving` stay false until the platform confirms DNS and edge routing.',
+        'Read-only.',
+        notes='Company scope is enforced from the JWT only.',
+    ),
+    'hosting_v1_apps_domains_create': _McpSpec(
+        'Register a custom hostname',
+        'Creates a row and returns DNS instructions plus a deterministic TXT token. '
+        'Does not verify DNS and does not provision TLS in this release.',
+        'Inserts `AppCustomDomain`. Emits `hosting.custom_domain.created`.',
+        notes='Call `.../refresh` after DNS changes; status advances to `awaiting_platform` only. Never treat `verified` as true from this API.',
+    ),
+    'hosting_v1_apps_domains_retrieve': _McpSpec(
+        'Read one custom hostname',
+        'Same fields as list, including `dns` and `instructions`.',
+        'Read-only.',
+    ),
+    'hosting_v1_apps_domains_destroy': _McpSpec(
+        'Remove a custom hostname',
+        'Deletes the custom hostname row for the app.',
+        'Deletes `AppCustomDomain`. Emits `hosting.custom_domain.deleted`.', destructive=True,
+    ),
+    'hosting_v1_apps_domains_refresh_create': _McpSpec(
+        'Refresh custom domain status',
+        'Moves `pending_dns` to `awaiting_platform` when platform edge integration is still pending. '
+        'Does not flip `verified` or `serving` without a real backend check.',
+        'Updates `AppCustomDomain.status`. Emits `hosting.custom_domain.updated`.',
+    ),
+    'hosting_v1_apps_environment_list': _McpSpec(
+        'List app environment variables (names only)',
+        'Returns keys and `value_present`. Values are never returned in list, get, or logs.',
+        'Read-only.',
+        notes='Tagged sensitive because key names can be secret-bearing.',
+    ),
+    'hosting_v1_apps_environment_create': _McpSpec(
+        'Create or replace an environment variable',
+        'Body: `key` and `value`. The value is encrypted at rest and is never echoed back.',
+        'Upserts `AppEnvironmentVariable`. Emits `hosting.environment_variable.created` or `.updated`.',
+        notes='Use PUT on `.../environment/{key}` to update by path.',
+    ),
+    'hosting_v1_apps_environment_retrieve': _McpSpec(
+        'Read one environment variable (metadata only)',
+        'Returns `key`, `value_present`, and `updated_at` only.',
+        'Read-only.',
+    ),
+    'hosting_v1_apps_environment_update': _McpSpec(
+        'Update an environment variable value',
+        'Body: `value` only. Same encryption rules as create.',
+        'Updates ciphertext. Emits `hosting.environment_variable.updated`.',
+    ),
+    'hosting_v1_apps_environment_destroy': _McpSpec(
+        'Delete an environment variable',
+        'Removes the stored key and ciphertext.',
+        'Deletes row. Emits `hosting.environment_variable.deleted`.', destructive=True,
+    ),
+    'hosting_v1_apps_runtime_logs_list': _McpSpec(
+        'Read runtime logs (availability contract)',
+        'Static hosting does not collect process stdout. Response explains `unavailable_reason` with an empty `lines` list.',
+        'Read-only.',
+    ),
+    'hosting_v1_apps_request_logs_list': _McpSpec(
+        'List recent HTTP requests for the site',
+        'Returns anonymized rows from app-host traffic (method, path, status, optional request id). '
+        '`cursor` pages backward by id; `limit` is capped server-side.',
+        'Read-only.',
+        notes='Recorded only for traffic on `{slug}.{HOSTING_APP_DOMAIN}` style hosts when `HOSTING_REQUEST_LOG_ENABLED` is true.',
+    ),
     'api_v1_actions_events_list': _McpSpec(
         'List Shellui Actions event types',
         'Returns domain event ids, labels, and payload field docs you can subscribe to with webhook rules.',

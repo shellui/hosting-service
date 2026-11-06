@@ -66,6 +66,68 @@ register_event(
     )
 )
 
+_DOMAIN = _APP + (
+    EventFieldDoc('domain_id', 'Custom domain UUID', '770e8400-e29b-41d4-a716-446655440002'),
+    EventFieldDoc('hostname', 'Requested hostname', 'app.example.com'),
+    EventFieldDoc('status', 'Workflow status on hosting-service', 'pending_dns'),
+)
+
+register_event(
+    DomainEventType(
+        id='hosting.custom_domain.created',
+        label='Custom domain registered',
+        description='A custom hostname row was created for the app. DNS is not verified until the platform confirms.',
+        payload_fields=_DOMAIN,
+    )
+)
+
+register_event(
+    DomainEventType(
+        id='hosting.custom_domain.updated',
+        label='Custom domain status refreshed',
+        description='Hosting-service re-evaluated DNS or refresh metadata for a custom hostname.',
+        payload_fields=_DOMAIN,
+    )
+)
+
+register_event(
+    DomainEventType(
+        id='hosting.custom_domain.deleted',
+        label='Custom domain removed',
+        description='A custom hostname row was deleted for the app.',
+        payload_fields=_DOMAIN,
+    )
+)
+
+_ENV = _APP + (EventFieldDoc('key', 'Environment variable name', 'BUILD_ID'),)
+
+register_event(
+    DomainEventType(
+        id='hosting.environment_variable.created',
+        label='App environment variable created',
+        description='A new app-scoped environment variable was stored (value never appears in APIs).',
+        payload_fields=_ENV,
+    )
+)
+
+register_event(
+    DomainEventType(
+        id='hosting.environment_variable.updated',
+        label='App environment variable updated',
+        description='An app-scoped environment variable value was replaced.',
+        payload_fields=_ENV,
+    )
+)
+
+register_event(
+    DomainEventType(
+        id='hosting.environment_variable.deleted',
+        label='App environment variable deleted',
+        description='An app-scoped environment variable was removed.',
+        payload_fields=_ENV,
+    )
+)
+
 # Platform events: one per finished scheduled job run. No company, staff only, never sent
 # to webhooks or email-service. See docs/maintenance-jobs.md.
 _SCHEDULED_JOB = (
