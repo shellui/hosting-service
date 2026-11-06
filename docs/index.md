@@ -14,7 +14,7 @@ hosting-service is the Shellui backend that hosts microfrontend apps. It accepts
 
 It is a Django app, published as the `shellui/hosting-service` Docker image. It checks JSON Web Tokens (JWTs) issued by identity-service. It does not sign people in itself. Company-owner routes marked with OpenAPI `x-mcp` are available to [Shellui MCP](mcp.md) agents at `POST /mcp`.
 
-**Related handbooks (source):** [identity-service MCP and agents](https://github.com/shellui/identity-service/blob/17f09487115e45d38b3ccda6d3696220e7a0ef16/docs/mcp-and-agents.md) documents OAuth, internal assertions, live delegated authority, approvals, revocation, and call logs; [hosting MCP in this repo](mcp.md) covers `POST /mcp`, tools, and hosting-specific notes.
+**Related handbooks (source):** [identity-service MCP and agents](https://github.com/shellui/identity-service/blob/d79d433278ac18695a6165448bf0b8cfe56c88a5/docs/mcp-and-agents.md) documents OAuth, internal assertions, live delegated authority, approvals, revocation, and call logs; [hosting MCP in this repo](mcp.md) covers `POST /mcp`, tools, and hosting-specific notes.
 
 ## Who it is for
 

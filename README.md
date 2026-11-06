@@ -49,7 +49,7 @@ Every setting is in [Configuration](docs/configuration.md).
 
 The handbook lives in [`docs/`](docs/index.md) and is published at [docs.shellui.com/hosting](https://docs.shellui.com/hosting).
 
-Source-backed product references for MCP behavior also live in [identity-service `docs/mcp-and-agents.md`](https://github.com/shellui/identity-service/blob/17f09487115e45d38b3ccda6d3696220e7a0ef16/docs/mcp-and-agents.md) (canonical internal routes and assertion audiences). This repo’s [`docs/mcp.md`](docs/mcp.md) summarizes hosting’s consumption of those contracts.
+Source-backed product references for MCP behavior also live in [identity-service `docs/mcp-and-agents.md`](https://github.com/shellui/identity-service/blob/d79d433278ac18695a6165448bf0b8cfe56c88a5/docs/mcp-and-agents.md) (canonical internal routes and assertion audiences). This repo’s [`docs/mcp.md`](docs/mcp.md) summarizes hosting’s consumption of those contracts.
 
 - [Apps and deployments](docs/apps-and-deployments.md) and [preview URLs and serving](docs/preview-and-serving.md)
 - [Company access](docs/company-access.md) and [JWT claim trust](docs/claim-trust.md)

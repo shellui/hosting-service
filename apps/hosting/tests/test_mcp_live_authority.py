@@ -32,11 +32,6 @@ def _ok_identity_body(*, agent_id: str, company_id: int = 42) -> dict:
         "global_company_id": _GID,
         "grant_version": 1,
         "company_binding_version": 0,
-        "services_allowed": ["hosting", "storage"],
-        "global_allowed_services": ["hosting", "storage"],
-        "access_mode": "full",
-        "read_level": "safe",
-        "allow_destructive_without_asking": False,
     }
 
 
@@ -190,32 +185,14 @@ class DelegatedLiveAuthorityTests(SimpleTestCase):
 
     @patch("apps.hosting.mcp_live_authority.requests.post")
     @patch("apps.hosting.mcp_live_authority.build_mcp_delegated_agent_authority_assertion", return_value="assertion")
-    def test_capability_mismatch_denies(self, _assert, mock_post):
+    def test_token_without_hosting_scope_denies(self, _assert, mock_post):
+        """Regional delegated tokens must list ``hosting`` in ``scope``; Identity does not echo services on 200."""
         aid = "aabbccdd-eeff-0011-aabb-ccddeeff0011"
-        body = _ok_identity_body(agent_id=aid)
-        body["access_mode"] = "read_only"
         mock_resp = MagicMock()
         mock_resp.status_code = 200
-        mock_resp.json.return_value = body
+        mock_resp.json.return_value = _ok_identity_body(agent_id=aid)
         mock_post.return_value = mock_resp
-        self.assertFalse(delegated_live_authority_ok(_delegated_claims(agent_id=aid)))
-
-    @patch("apps.hosting.mcp_live_authority.requests.post")
-    @patch("apps.hosting.mcp_live_authority.build_mcp_delegated_agent_authority_assertion", return_value="assertion")
-    def test_services_allowed_must_cover_scope_and_hosting(self, _assert, mock_post):
-        aid = "aabbccdd-eeff-0011-aabb-ccddeeff0011"
-        body = _ok_identity_body(agent_id=aid)
-        body["services_allowed"] = ["hosting"]
-        body["global_allowed_services"] = ["hosting"]
-        mock_resp = MagicMock()
-        mock_resp.status_code = 200
-        mock_resp.json.return_value = body
-        mock_post.return_value = mock_resp
-        self.assertFalse(
-            delegated_live_authority_ok(
-                _delegated_claims(agent_id=aid, scope="hosting storage")
-            )
-        )
+        self.assertFalse(delegated_live_authority_ok(_delegated_claims(agent_id=aid, scope="storage")))
 
     @patch("apps.hosting.mcp_live_authority.requests.post")
     @patch("apps.hosting.mcp_live_authority.build_mcp_delegated_agent_authority_assertion", return_value="assertion")

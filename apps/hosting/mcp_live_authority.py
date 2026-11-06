@@ -16,7 +16,6 @@ from apps.authapi.mcp_authority import (
     global_agent_id_in_claims,
     global_company_id_in_claims,
     mcp_authority_mode,
-    parse_agent_regional_company_id,
     parse_company_binding_version_claim,
     parse_delegated_live_authority_company_id,
     parse_json_integer_non_negative,
@@ -112,17 +111,18 @@ _REQUIRED_DELEGATED_AUTH_OK_KEYS = frozenset(
         "global_company_id",
         "grant_version",
         "company_binding_version",
-        "services_allowed",
-        "global_allowed_services",
-        "access_mode",
-        "read_level",
-        "allow_destructive_without_asking",
     }
 )
 
 
 def _delegated_success_response_ok(data: dict[str, Any], claims: dict[str, Any]) -> bool:
-    """Validate Identity 200 JSON (see identity-service ``McpInternalDelegatedAgentAuthorityView``)."""
+    """Validate Identity 200 JSON (see identity-service ``McpInternalDelegatedAgentAuthorityView``).
+
+    Identity PR #135 returns a binding snapshot only (no capability echo). The view loads ``Agent`` by
+    ``pk`` and ``company_id``, checks SaaS binding and versions, then returns fixed ``revoked``/``paused``
+    false plus echo fields. Capability and service scope stay on the JWT; hosting requires ``hosting`` in
+    the token ``scope`` so the regional agent cannot widen access here.
+    """
     if set(data.keys()) != _REQUIRED_DELEGATED_AUTH_OK_KEYS:
         return False
 
@@ -151,9 +151,9 @@ def _delegated_success_response_ok(data: dict[str, Any], claims: dict[str, Any])
     if gv is None or cbv is None or gid is None or gaid is None:
         return False
 
-    token_access = str(claims.get("mcp_access") or "read_only").strip().lower()
-    token_read = str(claims.get("mcp_read") or "safe").strip().lower()
-    token_destructive = bool(claims.get("mcp_destructive"))
+    scope_ids = _scope_service_ids(claims)
+    if not scope_ids or "hosting" not in scope_ids:
+        return False
 
     try:
         if str(data.get("agent_id") or "").strip() != agent_id:
@@ -167,27 +167,6 @@ def _delegated_success_response_ok(data: dict[str, Any], claims: dict[str, Any])
         if parse_json_integer_non_negative(data.get("grant_version"), field="grant_version") != gv:
             return False
         if parse_json_integer_non_negative(data.get("company_binding_version"), field="company_binding_version") != cbv:
-            return False
-
-        row_access = str(data.get("access_mode") or "").strip().lower()
-        row_read = str(data.get("read_level") or "").strip().lower()
-        if row_access != token_access or row_read != token_read:
-            return False
-        if _strict_bool(data.get("allow_destructive_without_asking"), field="allow_destructive_without_asking") != token_destructive:
-            return False
-
-        svc = data.get("services_allowed")
-        gsvc = data.get("global_allowed_services")
-        if not isinstance(svc, list) or not isinstance(gsvc, list):
-            return False
-        allowed = {str(x).strip() for x in svc if str(x).strip()}
-        global_allowed = {str(x).strip() for x in gsvc if str(x).strip()}
-        scope_ids = _scope_service_ids(claims)
-        if not scope_ids:
-            return False
-        if "hosting" not in allowed:
-            return False
-        if not scope_ids.issubset(allowed) or not scope_ids.issubset(global_allowed):
             return False
     except (TypeError, ValueError):
         return False
