@@ -7,7 +7,7 @@ from typing import Any, Final
 READ_METHODS = frozenset({'GET', 'HEAD', 'OPTIONS'})
 
 # Canonical activity outcomes (Shellui shared contract).
-OUTCOME_PENDING_APPROVAL = 'pending_approval'
+OUTCOME_WAITING_APPROVAL = 'waiting_approval'
 OUTCOME_ALLOWED = 'allowed'
 OUTCOME_DENIED = 'denied'
 OUTCOME_FAILED = 'failed'

@@ -38,7 +38,7 @@ def _agent_token(
     mcp_authority: str | None = None,
     global_company_id: str | None = None,
     global_agent_id: str | None = None,
-    grant_version: int | None = None,
+    grant_version: int | None = 0,
     company_binding_version: int | None = None,
 ) -> str:
     agent_id = agent_id or str(uuid.uuid4())

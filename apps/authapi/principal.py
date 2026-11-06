@@ -88,6 +88,8 @@ def principal_from_claims(claims: dict[str, Any]) -> HostingPrincipal:
                 raise ValueError("mcp_authority_delegated_on_direct_resource")
         elif claims.get("company_binding_version") not in (None, ""):
             raise ValueError("mcp_authority_binding_without_global")
+        if raw_global in (None, "") and claims.get("grant_version") in (None, ""):
+            raise ValueError("mcp_authority_grant_version_required")
         try:
             parse_personal_grant_version(claims)
         except ValueError as exc:

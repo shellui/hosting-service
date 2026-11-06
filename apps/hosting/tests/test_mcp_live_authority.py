@@ -21,9 +21,10 @@ _GAID = "fedcba98-7654-3210-fedc-ba9876543210"
 
 
 def _ok_identity_body(*, agent_id: str, company_id: int = 42) -> dict:
-    """Shape from Identity ``McpInternalDelegatedAgentAuthorityView.post`` success."""
+    """Fixed 15 keys from Identity ``_delegated_authority_fixed_payload`` (PR #135 head)."""
     return {
         "authorized": True,
+        "active": True,
         "revoked": False,
         "paused": False,
         "agent_id": agent_id,
@@ -32,6 +33,11 @@ def _ok_identity_body(*, agent_id: str, company_id: int = 42) -> dict:
         "global_company_id": _GID,
         "grant_version": 1,
         "company_binding_version": 0,
+        "access_mode": "full",
+        "read_level": "safe",
+        "allow_destructive": False,
+        "services_allowed": ["hosting", "storage"],
+        "revoked_at": None,
     }
 
 
@@ -186,13 +192,49 @@ class DelegatedLiveAuthorityTests(SimpleTestCase):
     @patch("apps.hosting.mcp_live_authority.requests.post")
     @patch("apps.hosting.mcp_live_authority.build_mcp_delegated_agent_authority_assertion", return_value="assertion")
     def test_token_without_hosting_scope_denies(self, _assert, mock_post):
-        """Regional delegated tokens must list ``hosting`` in ``scope``; Identity does not echo services on 200."""
+        """JWT ``scope`` must be a subset of Identity ``services_allowed`` (must include ``hosting`` here)."""
         aid = "aabbccdd-eeff-0011-aabb-ccddeeff0011"
         mock_resp = MagicMock()
         mock_resp.status_code = 200
         mock_resp.json.return_value = _ok_identity_body(agent_id=aid)
         mock_post.return_value = mock_resp
         self.assertFalse(delegated_live_authority_ok(_delegated_claims(agent_id=aid, scope="storage")))
+
+    @patch("apps.hosting.mcp_live_authority.requests.post")
+    @patch("apps.hosting.mcp_live_authority.build_mcp_delegated_agent_authority_assertion", return_value="assertion")
+    def test_services_allowed_must_cover_jwt_scope(self, _assert, mock_post):
+        aid = "aabbccdd-eeff-0011-aabb-ccddeeff0011"
+        body = _ok_identity_body(agent_id=aid)
+        body["services_allowed"] = ["hosting"]
+        mock_resp = MagicMock()
+        mock_resp.status_code = 200
+        mock_resp.json.return_value = body
+        mock_post.return_value = mock_resp
+        self.assertFalse(delegated_live_authority_ok(_delegated_claims(agent_id=aid, scope="hosting storage")))
+
+    @patch("apps.hosting.mcp_live_authority.requests.post")
+    @patch("apps.hosting.mcp_live_authority.build_mcp_delegated_agent_authority_assertion", return_value="assertion")
+    def test_access_mode_read_level_must_match_token(self, _assert, mock_post):
+        aid = "aabbccdd-eeff-0011-aabb-ccddeeff0011"
+        body = _ok_identity_body(agent_id=aid)
+        body["access_mode"] = "read_only"
+        mock_resp = MagicMock()
+        mock_resp.status_code = 200
+        mock_resp.json.return_value = body
+        mock_post.return_value = mock_resp
+        self.assertFalse(delegated_live_authority_ok(_delegated_claims(agent_id=aid)))
+
+    @patch("apps.hosting.mcp_live_authority.requests.post")
+    @patch("apps.hosting.mcp_live_authority.build_mcp_delegated_agent_authority_assertion", return_value="assertion")
+    def test_revoked_at_optional_on_live_payload(self, _assert, mock_post):
+        aid = "aabbccdd-eeff-0011-aabb-ccddeeff0011"
+        body = _ok_identity_body(agent_id=aid)
+        body["revoked_at"] = 1700000000
+        mock_resp = MagicMock()
+        mock_resp.status_code = 200
+        mock_resp.json.return_value = body
+        mock_post.return_value = mock_resp
+        self.assertTrue(delegated_live_authority_ok(_delegated_claims(agent_id=aid)))
 
     @patch("apps.hosting.mcp_live_authority.requests.post")
     @patch("apps.hosting.mcp_live_authority.build_mcp_delegated_agent_authority_assertion", return_value="assertion")
@@ -205,3 +247,31 @@ class DelegatedLiveAuthorityTests(SimpleTestCase):
         mock_resp.json.return_value = body
         mock_post.return_value = mock_resp
         self.assertFalse(delegated_live_authority_ok(_delegated_claims(agent_id=aid)))
+
+    @patch("apps.hosting.mcp_live_authority.requests.post")
+    @patch("apps.hosting.mcp_live_authority.build_mcp_delegated_agent_authority_assertion", return_value="assertion")
+    def test_binding_mismatch_200_denies(self, _assert, mock_post):
+        """Binding triple mismatch: same 15 keys as live; ``authorized`` false."""
+        aid = "aabbccdd-eeff-0011-aabb-ccddeeff0011"
+        claims = _delegated_claims(agent_id=aid)
+        mock_resp = MagicMock()
+        mock_resp.status_code = 200
+        mock_resp.json.return_value = {
+            "authorized": False,
+            "active": False,
+            "revoked": False,
+            "paused": False,
+            "agent_id": aid,
+            "company_id": 42,
+            "global_agent_id": _GAID,
+            "global_company_id": _GID,
+            "grant_version": 1,
+            "company_binding_version": 0,
+            "access_mode": "full",
+            "read_level": "safe",
+            "allow_destructive": False,
+            "services_allowed": ["hosting", "storage"],
+            "revoked_at": None,
+        }
+        mock_post.return_value = mock_resp
+        self.assertFalse(delegated_live_authority_ok(claims))

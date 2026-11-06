@@ -100,9 +100,11 @@ def _scope_service_ids(claims: dict[str, Any]) -> frozenset[str]:
     return frozenset()
 
 
-_REQUIRED_DELEGATED_AUTH_OK_KEYS = frozenset(
+# Identity ``_delegated_authority_fixed_payload`` (see identity-service ``internal_views.py``): fixed 15 keys; ``revoked_at`` may be null.
+_FIXED_DELEGATED_AUTHORITY_200_KEYS = frozenset(
     {
         "authorized",
+        "active",
         "revoked",
         "paused",
         "agent_id",
@@ -111,35 +113,55 @@ _REQUIRED_DELEGATED_AUTH_OK_KEYS = frozenset(
         "global_company_id",
         "grant_version",
         "company_binding_version",
+        "access_mode",
+        "read_level",
+        "allow_destructive",
+        "services_allowed",
+        "revoked_at",
     }
 )
 
 
-def _delegated_success_response_ok(data: dict[str, Any], claims: dict[str, Any]) -> bool:
-    """Validate Identity 200 JSON (see identity-service ``McpInternalDelegatedAgentAuthorityView``).
+def _jwt_access_mode(claims: dict[str, Any]) -> str:
+    return str(claims.get("mcp_access") or "read_only").strip().lower() or "read_only"
 
-    Identity PR #135 returns a binding snapshot only (no capability echo). The view loads ``Agent`` by
-    ``pk`` and ``company_id``, checks SaaS binding and versions, then returns fixed ``revoked``/``paused``
-    false plus echo fields. Capability and service scope stay on the JWT; hosting requires ``hosting`` in
-    the token ``scope`` so the regional agent cannot widen access here.
-    """
-    if set(data.keys()) != _REQUIRED_DELEGATED_AUTH_OK_KEYS:
+
+def _jwt_read_level(claims: dict[str, Any]) -> str:
+    return str(claims.get("mcp_read") or "safe").strip().lower() or "safe"
+
+
+def _jwt_allow_destructive(claims: dict[str, Any]) -> bool:
+    return claims.get("mcp_destructive") is True
+
+
+def _identity_services_allowed_list(raw: Any) -> list[str] | None:
+    if not isinstance(raw, list):
+        return None
+    out: list[str] = []
+    for item in raw:
+        if not isinstance(item, str):
+            return None
+        s = item.strip()
+        if s:
+            out.append(s)
+    return sorted(out)
+
+
+def _delegated_identity_200_ok(data: dict[str, Any], claims: dict[str, Any]) -> bool:
+    """Validate Identity fixed-shape **200** for ``mcp-agent-delegated-authority`` (live or binding mismatch)."""
+    if set(data.keys()) != _FIXED_DELEGATED_AUTHORITY_200_KEYS:
         return False
 
     try:
         authorized = _strict_bool(data.get("authorized"), field="authorized")
+        active = _strict_bool(data.get("active"), field="active")
         revoked = _strict_bool(data.get("revoked"), field="revoked")
         paused = _strict_bool(data.get("paused"), field="paused")
+        allow_dest = _strict_bool(data.get("allow_destructive"), field="allow_destructive")
     except ValueError:
         return False
 
-    if not authorized or revoked or paused:
-        logger.info(
-            "Delegated agent authority denied by Identity snapshot: authorized=%s revoked=%s paused=%s",
-            authorized,
-            revoked,
-            paused,
-        )
+    if allow_dest is not False:
         return False
 
     agent_id = str(claims.get("agent_id") or "").strip()
@@ -155,6 +177,27 @@ def _delegated_success_response_ok(data: dict[str, Any], claims: dict[str, Any])
     if not scope_ids or "hosting" not in scope_ids:
         return False
 
+    rat = data.get("revoked_at")
+    if rat is not None:
+        try:
+            parse_json_integer_non_negative(rat, field="revoked_at")
+        except (TypeError, ValueError):
+            return False
+
+    access_mode_row = str(data.get("access_mode") or "").strip().lower()
+    read_level_row = str(data.get("read_level") or "").strip().lower()
+    if access_mode_row != _jwt_access_mode(claims) or read_level_row != _jwt_read_level(claims):
+        return False
+    if _jwt_allow_destructive(claims):
+        return False
+
+    sv_row = _identity_services_allowed_list(data.get("services_allowed"))
+    if sv_row is None:
+        return False
+    for svc in scope_ids:
+        if svc not in sv_row:
+            return False
+
     try:
         if str(data.get("agent_id") or "").strip() != agent_id:
             return False
@@ -169,6 +212,19 @@ def _delegated_success_response_ok(data: dict[str, Any], claims: dict[str, Any])
         if parse_json_integer_non_negative(data.get("company_binding_version"), field="company_binding_version") != cbv:
             return False
     except (TypeError, ValueError):
+        return False
+
+    if not authorized:
+        return False
+
+    if not active or revoked or paused:
+        logger.info(
+            "Delegated agent authority denied by Identity snapshot: authorized=%s active=%s revoked=%s paused=%s",
+            authorized,
+            active,
+            revoked,
+            paused,
+        )
         return False
 
     return True
@@ -287,7 +343,7 @@ def delegated_live_authority_state(claims: dict[str, Any] | None) -> tuple[str, 
         bump_delegated_authority_cache_on_identity_failure()
         return DELEGATED_AUTH_REASON_UNAVAILABLE, False
 
-    if not _delegated_success_response_ok(data, claims):
+    if not _delegated_identity_200_ok(data, claims):
         cache.set(cache_key, False, timeout=_cache_ttl_seconds())
         return DELEGATED_AUTH_REASON_DENY, False
 

@@ -27,7 +27,7 @@ from apps.hosting.mcp_call_audit import (
     OUTCOME_ALLOWED,
     OUTCOME_DENIED,
     OUTCOME_FAILED,
-    OUTCOME_PENDING_APPROVAL,
+    OUTCOME_WAITING_APPROVAL,
     call_log_access_kind,
     openapi_path_for_operation_id,
     outcome_and_error_for_http,
@@ -288,7 +288,7 @@ class HostingMcpServer(McpServer):
                         destructive=destructive,
                         duration_ms=max(0, int((time.perf_counter() - approval_started) * 1000)),
                         http_status=0,
-                        outcome=OUTCOME_PENDING_APPROVAL,
+                        outcome=OUTCOME_WAITING_APPROVAL,
                         error_code='approval_pending',
                     )
                     return JsonResponse(
@@ -346,7 +346,7 @@ class HostingMcpServer(McpServer):
                             destructive=destructive,
                             duration_ms=max(0, int((time.perf_counter() - approval_started) * 1000)),
                             http_status=0,
-                            outcome=OUTCOME_PENDING_APPROVAL,
+                            outcome=OUTCOME_WAITING_APPROVAL,
                             error_code='approval_pending',
                             approval_request_id=str(appr_id) if appr_id else None,
                         )

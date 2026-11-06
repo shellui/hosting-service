@@ -68,14 +68,14 @@ class CallLogBodyTests(SimpleTestCase):
         assert body is not None
         self.assertEqual(body['error_code'], 'not_found')
 
-    def test_pending_approval_requires_enum_error_code(self):
+    def test_waiting_approval_requires_enum_error_code(self):
         body = build_identity_call_log_body(
             _base(
                 agent_id='a',
                 company_id=1,
                 tool='t',
                 access_kind='write',
-                outcome='pending_approval',
+                outcome='waiting_approval',
                 error_code='approval_pending',
                 status=0,
             )
@@ -83,6 +83,16 @@ class CallLogBodyTests(SimpleTestCase):
         self.assertIsNotNone(body)
         assert body is not None
         self.assertEqual(body['error_code'], 'approval_pending')
+
+    def test_rejects_binding_version_without_global_company_id(self):
+        self.assertIsNone(
+            build_identity_call_log_body(
+                _base(company_binding_version=0, global_company_id=None)
+            )
+        )
+
+    def test_requires_grant_version(self):
+        self.assertIsNone(build_identity_call_log_body(_base(grant_version=None)))
 
     def test_rejects_allowed_with_error_code(self):
         self.assertIsNone(

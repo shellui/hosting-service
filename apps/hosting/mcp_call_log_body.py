@@ -6,12 +6,12 @@ from typing import Any
 from uuid import UUID
 
 from apps.authapi.mcp_authority import parse_agent_regional_company_id, strict_non_negative_int_optional
-from apps.hosting.mcp_call_audit import ALL_CALL_LOG_ERROR_CODES, OUTCOME_ALLOWED
+from apps.hosting.mcp_call_audit import ALL_CALL_LOG_ERROR_CODES, OUTCOME_ALLOWED, OUTCOME_WAITING_APPROVAL
 
 # Canonical outcomes (Shellui shared contract); must match ``mcp_call_audit``.
 CANONICAL_OUTCOMES = frozenset(
     {
-        'pending_approval',
+        OUTCOME_WAITING_APPROVAL,
         OUTCOME_ALLOWED,
         'denied',
         'failed',
@@ -109,14 +109,13 @@ def build_identity_call_log_body(entry: dict[str, Any]) -> dict[str, Any] | None
     if error_code:
         body['error_code'] = error_code
 
-    gv = entry.get('grant_version')
-    if gv is not None and gv != '':
-        try:
-            gvi = strict_non_negative_int_optional(gv, field='grant_version')
-        except ValueError:
-            return None
-        if gvi is not None:
-            body['grant_version'] = gvi
+    try:
+        gvi = strict_non_negative_int_optional(entry.get('grant_version'), field='grant_version')
+    except ValueError:
+        return None
+    if gvi is None:
+        return None
+    body['grant_version'] = gvi
 
     cbv = entry.get('company_binding_version')
     if cbv is not None and cbv != '':
@@ -133,6 +132,9 @@ def build_identity_call_log_body(entry: dict[str, Any]) -> dict[str, Any] | None
         if u is None:
             return None
         body['global_company_id'] = u
+    elif 'company_binding_version' in body:
+        # Delegated agents require both binding fields; personal agents omit both.
+        return None
 
     appr_id = _optional_uuid(entry.get('approval_id') or entry.get('approval_request_id'))
     if appr_id:

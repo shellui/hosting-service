@@ -96,9 +96,9 @@ class McpIdentityApprovalAssertionTests(SimpleTestCase):
 
     @patch(
         "apps.hosting.mcp_identity.current_mcp_agent_claims",
-        return_value={"company_id": 1},
+        return_value={"company_id": 1, "grant_version": 0},
     )
-    def test_personal_agent_without_grant_omits_grant_claim(self, _claims, _live_ok):
+    def test_personal_agent_includes_grant_in_assertion(self, _claims, _live_ok):
         t = mcp_identity._approval_route_assertion(
             {
                 "agent_id": "a",
@@ -146,6 +146,28 @@ class McpIdentityApprovalAssertionTests(SimpleTestCase):
         },
     )
     def test_exchange_delegated_create_approval_returns_none(self, _claims, _live_ok):
+        self.assertIsNone(
+            mcp_identity.create_approval_request(
+                {
+                    "agent_id": "a",
+                    "company_id": 1,
+                    "service": "hosting",
+                    "action": "t",
+                    "arguments_hash": "h",
+                }
+            )
+        )
+
+    @patch(
+        "apps.hosting.mcp_identity.current_mcp_agent_claims",
+        return_value={"company_id": 1, "grant_version": 0},
+    )
+    @patch("apps.hosting.mcp_identity.requests.post")
+    def test_create_approval_logs_out_of_sync_on_409(self, mock_post, _claims, _live_ok):
+        mock_resp = MagicMock()
+        mock_resp.status_code = 409
+        mock_resp.json.return_value = {"error": "x", "error_code": "out_of_sync"}
+        mock_post.return_value = mock_resp
         self.assertIsNone(
             mcp_identity.create_approval_request(
                 {

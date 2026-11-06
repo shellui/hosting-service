@@ -100,6 +100,14 @@ def create_approval_request(payload: dict) -> dict | None:
             headers={'Authorization': f'Bearer {assertion}'},
             timeout=getattr(settings, 'IDENTITY_SYNC_TIMEOUT', 10),
         )
+        if response.status_code == 409:
+            try:
+                err = response.json()
+            except ValueError:
+                err = {}
+            err_code = err.get('error_code') if isinstance(err, dict) else None
+            logger.warning('MCP approval forward failed: HTTP %s out_of_sync=%s', response.status_code, err_code)
+            return None
         if response.status_code >= 400:
             logger.warning('MCP approval forward failed: HTTP %s', response.status_code)
             return None

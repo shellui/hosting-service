@@ -151,7 +151,7 @@ def mcp_personal_agent_rejected(claims: dict[str, Any] | None) -> bool:
         return True
 
     if claims.get("grant_version") in (None, ""):
-        return False
+        return True
     try:
         parse_personal_grant_version(claims)
     except ValueError:
@@ -215,13 +215,13 @@ def authority_context_for_call_log(claims: dict[str, Any] | None) -> dict[str, A
             out["grant_version"] = gv
     except ValueError:
         pass
-    try:
-        cbv = parse_company_binding_version_claim(claims)
-        if cbv is not None:
-            out["company_binding_version"] = cbv
-    except ValueError:
-        pass
     gid = global_company_id_in_claims(claims)
     if gid is not None:
+        try:
+            cbv = parse_company_binding_version_claim(claims)
+            if cbv is not None:
+                out["company_binding_version"] = cbv
+        except ValueError:
+            pass
         out["global_company_id"] = gid
     return out
