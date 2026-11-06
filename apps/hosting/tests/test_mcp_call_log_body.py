@@ -84,12 +84,40 @@ class CallLogBodyTests(SimpleTestCase):
         assert body is not None
         self.assertEqual(body['error_code'], 'approval_pending')
 
-    def test_rejects_binding_version_without_global_company_id(self):
-        self.assertIsNone(
-            build_identity_call_log_body(
-                _base(company_binding_version=0, global_company_id=None)
+    def test_omits_binding_version_without_global_company_id(self):
+        body = build_identity_call_log_body(
+            _base(company_binding_version=0, global_company_id=None)
+        )
+        self.assertIsNotNone(body)
+        assert body is not None
+        self.assertNotIn('company_binding_version', body)
+        self.assertNotIn('global_company_id', body)
+
+    def test_omits_global_company_id_without_binding_version(self):
+        body = build_identity_call_log_body(
+            _base(
+                grant_version=0,
+                global_company_id='01234567-89ab-cdef-0123-456789abcdef',
+                company_binding_version=None,
             )
         )
+        self.assertIsNotNone(body)
+        assert body is not None
+        self.assertNotIn('company_binding_version', body)
+        self.assertNotIn('global_company_id', body)
+
+    def test_pending_approval_normalizes_to_waiting_approval(self):
+        body = build_identity_call_log_body(
+            _base(
+                outcome='pending_approval',
+                error_code='approval_pending',
+                access_kind='write',
+                status=0,
+            )
+        )
+        self.assertIsNotNone(body)
+        assert body is not None
+        self.assertEqual(body['outcome'], 'waiting_approval')
 
     def test_requires_grant_version(self):
         self.assertIsNone(build_identity_call_log_body(_base(grant_version=None)))

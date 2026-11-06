@@ -140,3 +140,19 @@ class AuthorityContextForCallLogTests(SimpleTestCase):
         self.assertEqual(
             ctx["global_company_id"], "01234567-89ab-cdef-0123-456789abcdef"
         )
+
+    def test_incomplete_binding_pair_omits_global_and_binding(self):
+        """Send neither field unless both ``global_company_id`` and ``company_binding_version`` parse."""
+        self.assertEqual(
+            authority_context_for_call_log(
+                {
+                    "grant_version": 0,
+                    "global_company_id": "01234567-89ab-cdef-0123-456789abcdef",
+                }
+            ),
+            {"grant_version": 0},
+        )
+        self.assertEqual(
+            authority_context_for_call_log({"grant_version": 0, "company_binding_version": 1}),
+            {"grant_version": 0},
+        )

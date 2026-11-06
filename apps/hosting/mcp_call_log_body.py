@@ -46,6 +46,8 @@ def build_identity_call_log_body(entry: dict[str, Any]) -> dict[str, Any] | None
     ``error_code`` is required for every outcome except ``allowed``; it must be a static enum value from
     ``ALL_CALL_LOG_ERROR_CODES``. Success (``allowed``) never carries ``error_code``.
     ``approval_id`` only when valid UUID (maps from internal ``approval_request_id``).
+    Legacy ``pending_approval`` in ``entry`` is normalized to ``waiting_approval`` for Identity ingest.
+    ``global_company_id`` and ``company_binding_version`` are forwarded only when both parse.
     """
     agent_id = entry.get('agent_id')
     company_id = entry.get('company_id')
@@ -65,6 +67,8 @@ def build_identity_call_log_body(entry: dict[str, Any]) -> dict[str, Any] | None
         return None
     access_kind = _nonempty_str(entry.get('access_kind'), max_len=32)
     outcome = _nonempty_str(entry.get('outcome'), max_len=32)
+    if outcome == 'pending_approval':
+        outcome = OUTCOME_WAITING_APPROVAL
     if not all([tool, path_s, access_kind, outcome]):
         return None
     if outcome not in CANONICAL_OUTCOMES:
@@ -118,23 +122,23 @@ def build_identity_call_log_body(entry: dict[str, Any]) -> dict[str, Any] | None
     body['grant_version'] = gvi
 
     cbv = entry.get('company_binding_version')
+    cbvi: int | None = None
     if cbv is not None and cbv != '':
         try:
             cbvi = strict_non_negative_int_optional(cbv, field='company_binding_version')
         except ValueError:
             return None
-        if cbvi is not None:
-            body['company_binding_version'] = cbvi
 
     gci = entry.get('global_company_id')
+    gu: str | None = None
     if gci not in (None, ''):
-        u = _optional_uuid(gci)
-        if u is None:
+        gu = _optional_uuid(gci)
+        if gu is None:
             return None
-        body['global_company_id'] = u
-    elif 'company_binding_version' in body:
-        # Delegated agents require both binding fields; personal agents omit both.
-        return None
+
+    if gu is not None and cbvi is not None:
+        body['global_company_id'] = gu
+        body['company_binding_version'] = cbvi
 
     appr_id = _optional_uuid(entry.get('approval_id') or entry.get('approval_request_id'))
     if appr_id:

@@ -216,12 +216,14 @@ def authority_context_for_call_log(claims: dict[str, Any] | None) -> dict[str, A
     except ValueError:
         pass
     gid = global_company_id_in_claims(claims)
-    if gid is not None:
+    cbv: int | None = None
+    if claims.get("company_binding_version") not in (None, ""):
         try:
             cbv = parse_company_binding_version_claim(claims)
-            if cbv is not None:
-                out["company_binding_version"] = cbv
         except ValueError:
-            pass
+            cbv = None
+    # Identity delegated ingest: send ``global_company_id`` and ``company_binding_version`` only as a pair.
+    if gid is not None and cbv is not None:
         out["global_company_id"] = gid
+        out["company_binding_version"] = cbv
     return out
