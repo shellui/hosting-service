@@ -30,7 +30,6 @@ from apps.hosting.mcp_call_audit import (
     OUTCOME_PENDING_APPROVAL,
     call_log_access_kind,
     openapi_path_for_operation_id,
-    operation_summary_or_id,
     outcome_and_error_for_http,
 )
 from apps.hosting.mcp_identity import APPROVAL_LOOKUP_UNAVAILABLE
@@ -83,9 +82,6 @@ class HostingMcpServer(McpServer):
             'company_id': agent_claims.get('company_id'),
             'service': self.service_name,
             'tool': tool_name,
-            'operation_title': operation_summary_or_id(
-                schema, operation_id=tool_name, path_template=schema_path, method=method
-            ),
             'resource_path': schema_path,
             'http_method': method,
             'http_status': http_status,

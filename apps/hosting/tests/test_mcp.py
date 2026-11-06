@@ -338,6 +338,7 @@ class McpEndpointTests(TestCase):
         self.assertEqual(captured[0].get('outcome'), 'failed')
         self.assertEqual(captured[0].get('error_code'), 'approval_expired')
         self.assertEqual(captured[0].get('http_status'), 410)
+        self.assertNotIn('operation_title', captured[0])
 
     @patch('apps.authapi.authentication.get_jwks_client')
     def test_global_delegated_profile_refused_before_mcp_dispatch(self, mock_jwks):
