@@ -75,8 +75,16 @@ def outcome_and_error_for_http(status_code: int | None) -> tuple[str, str | None
     return OUTCOME_FAILED, call_log_error_code_for_http(code)
 
 
-def call_log_access_kind(*, method: str, tool_read_only: bool) -> str:
-    m = (method or 'GET').upper()
+def call_log_access_kind(
+    *,
+    upstream_method: str,
+    tool_read_only: bool,
+    destructive: bool,
+) -> str:
+    """Classify the proxied OpenAPI operation for Identity ``access_kind`` (not the MCP POST)."""
+    m = (upstream_method or 'GET').upper()
+    if destructive:
+        return 'destructive'
     if tool_read_only or m in READ_METHODS:
         return 'read'
     return 'write'

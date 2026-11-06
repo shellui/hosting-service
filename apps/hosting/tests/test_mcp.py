@@ -338,6 +338,8 @@ class McpEndpointTests(TestCase):
         self.assertEqual(captured[0].get('outcome'), 'failed')
         self.assertEqual(captured[0].get('error_code'), 'approval_expired')
         self.assertEqual(captured[0].get('http_status'), 410)
+        self.assertEqual(captured[0].get('path'), '/mcp')
+        self.assertEqual(captured[0].get('method'), 'POST')
         self.assertNotIn('operation_title', captured[0])
 
     @patch('apps.authapi.authentication.get_jwks_client')

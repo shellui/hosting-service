@@ -37,8 +37,10 @@ def _optional_uuid(value: Any) -> str | None:
 def build_identity_call_log_body(entry: dict[str, Any]) -> dict[str, Any] | None:
     """Return body dict or None when required fields are missing.
 
-    Aligned with Identity ``McpInternalCallLogView`` (``apps/agents/internal_views.py``): use
-    ``path``, ``method``, ``status`` (not ``resource_path`` / ``http_method`` / ``http_status``).
+    Aligned with Identity ``McpInternalCallLogView`` (``apps/agents/internal_views.py``) and
+    ``call_log_internal.canonical_call_path``: ingest accepts only JSON-RPC MCP traffic, so ``path`` must
+    be exactly ``/mcp`` and ``method`` must be ``POST`` (see ``status`` for the proxied OpenAPI result).
+    Use ``path`` / ``method`` / ``status`` (not ``resource_path`` / ``http_method`` / ``http_status`` for the forwarded body).
     Do not send ``operation_title``, ``resource_label``, or ``arguments_redacted``; Identity rejects client titles.
 
     ``error_code`` is required for every outcome except ``allowed``; it must be a static enum value from
@@ -55,8 +57,12 @@ def build_identity_call_log_body(entry: dict[str, Any]) -> dict[str, Any] | None
         return None
 
     tool = _nonempty_str(entry.get('tool'), max_len=200)
-    path_s = _nonempty_str(entry.get('path') or entry.get('resource_path'), max_len=2048)
-    method_s = _nonempty_str(entry.get('method') or entry.get('http_method'), max_len=16).upper() or 'GET'
+    raw_path = entry.get('path') or entry.get('resource_path')
+    path_s = _nonempty_str(raw_path, max_len=500)
+    path_s = path_s.split('?', 1)[0].split('#', 1)[0].strip()[:500]
+    method_s = _nonempty_str(entry.get('method') or entry.get('http_method'), max_len=10).upper() or ''
+    if path_s != '/mcp' or method_s != 'POST':
+        return None
     access_kind = _nonempty_str(entry.get('access_kind'), max_len=32)
     outcome = _nonempty_str(entry.get('outcome'), max_len=32)
     if not all([tool, path_s, access_kind, outcome]):
