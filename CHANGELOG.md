@@ -27,7 +27,13 @@ See for sample https://raw.githubusercontent.com/favoloso/conventional-changelog
 
 - MCP approval consume: treat success only when Identity returns JSON `{"consumed": true}` on 2xx, not when the status code alone is success.
 - MCP approval forward errors and Identity OAuth redirect deletes: log structured detail without raw upstream response text in hosting logs.
-- MCP approval assertions: forward optional identity-bound JWT fields into `build_mcp_approval_assertion` when `shellui-django` adds matching parameters (django-commons#14), validating `global_company_id` as a UUID.
+- MCP agent JWTs: reject globally delegated hints (`global_company_id`, `company_binding_version`) at authentication; fail closed when `grant_version` is malformed.
+- MCP revocation: after a trusted poll, deny only when the revoked row matches the current personal regional token (`company_id` and optional `grant_version`), not UUID-to-tenant mixes.
+- MCP call logs: redact forwarded `arguments` for Identity.
+
+### 🚨 Changed
+
+- Pin `shellui-django[mcp]` to django-commons git SHA `5f0fdf44bb140848fb1440cf04da6ada7996711d` (PR #14 head); Docker images install `git` for `uv` git sources.
 
 ### ✨ Feature
 

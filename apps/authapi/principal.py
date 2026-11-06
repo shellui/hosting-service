@@ -5,6 +5,8 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any
 
+from apps.authapi.mcp_authority import global_company_id_in_claims, parse_personal_grant_version
+
 
 @dataclass
 class HostingPrincipal:
@@ -53,6 +55,18 @@ def principal_from_claims(claims: dict[str, Any]) -> HostingPrincipal:
             company_id = int(raw_company)
         except (TypeError, ValueError) as exc:
             raise ValueError('Agent JWT company_id must be an integer.') from exc
+        raw_global = claims.get('global_company_id')
+        if raw_global not in (None, ''):
+            gid = global_company_id_in_claims(claims)
+            if gid is None:
+                raise ValueError('Agent JWT global_company_id must be a canonical UUID when set.')
+            raise ValueError('Globally delegated agent tokens cannot call hosting directly.')
+        if claims.get('company_binding_version') not in (None, ''):
+            raise ValueError('Agent JWT must not set company_binding_version for regional hosting access.')
+        try:
+            parse_personal_grant_version(claims)
+        except ValueError as exc:
+            raise ValueError('Agent JWT grant_version must be a non-negative integer when set.') from exc
         return HostingPrincipal(
             user_id=0,
             company_id=company_id,

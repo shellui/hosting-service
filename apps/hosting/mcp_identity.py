@@ -2,10 +2,8 @@
 
 from __future__ import annotations
 
-import inspect
 import logging
 from typing import Any
-from uuid import UUID
 
 import requests
 from django.conf import settings
@@ -19,6 +17,7 @@ from shellui_django.mcp.internal import (
 )
 from shellui_django.mcp.masking import redact_mapping
 
+from apps.authapi.mcp_authority import approval_assertion_grant_kwarg, mcp_personal_agent_rejected
 from apps.hosting.mcp_context import current_mcp_agent_claims
 from config.service_signing import signing_kwargs
 
@@ -27,66 +26,6 @@ logger = logging.getLogger(__name__)
 APPROVAL_LOOKUP_UNAVAILABLE = '__approval_unavailable__'
 
 _APPROVAL_ROUTE_CONTEXT: dict[str, dict[str, Any]] = {}
-
-_APPROVAL_ASSERTION_KWARG_NAMES: frozenset[str] | None = None
-
-
-def _approval_assertion_extra_kwargs() -> dict[str, Any]:
-    """Forward optional identity-bound fields from the live agent JWT into approval assertions.
-
-    shellui-django may add parameters (for example ``global_company_id``, ``grant_version``, ``agent_binding``)
-    after django-commons#14; only pass keys the installed library accepts.
-    """
-    global _APPROVAL_ASSERTION_KWARG_NAMES
-    if _APPROVAL_ASSERTION_KWARG_NAMES is None:
-        try:
-            params = inspect.signature(build_mcp_approval_assertion).parameters
-        except (TypeError, ValueError):
-            _APPROVAL_ASSERTION_KWARG_NAMES = frozenset()
-        else:
-            reserved = frozenset(
-                {
-                    'company_id',
-                    'agent_id',
-                    'service',
-                    'action',
-                    'arguments_hash',
-                    'audience_url',
-                    'lifetime_seconds',
-                    'private_key_pem',
-                    'kid',
-                    'issuer',
-                }
-            )
-            _APPROVAL_ASSERTION_KWARG_NAMES = frozenset(p for p in params if p not in reserved)
-
-    if not _APPROVAL_ASSERTION_KWARG_NAMES:
-        return {}
-
-    claims = current_mcp_agent_claims() or {}
-    if not isinstance(claims, dict):
-        return {}
-
-    out: dict[str, Any] = {}
-    if 'global_company_id' in _APPROVAL_ASSERTION_KWARG_NAMES:
-        raw = claims.get('global_company_id')
-        if raw not in (None, ''):
-            gid = str(raw).strip()
-            try:
-                out['global_company_id'] = str(UUID(gid))
-            except ValueError:
-                logger.warning('Agent JWT global_company_id is not a valid UUID; omitting from MCP approval assertion.')
-
-    if 'grant_version' in _APPROVAL_ASSERTION_KWARG_NAMES and claims.get('grant_version') is not None:
-        try:
-            out['grant_version'] = int(claims['grant_version'])
-        except (TypeError, ValueError):
-            logger.warning('Agent JWT grant_version is not an integer; omitting from MCP approval assertion.')
-
-    if 'agent_binding' in _APPROVAL_ASSERTION_KWARG_NAMES and claims.get('agent_binding') not in (None, ''):
-        out['agent_binding'] = str(claims['agent_binding'])
-
-    return out
 
 
 def _identity_origin() -> str:
@@ -101,6 +40,9 @@ def create_approval_request(payload: dict) -> dict | None:
     base = _identity_base()
     if not base:
         return None
+    claims = current_mcp_agent_claims()
+    if mcp_personal_agent_rejected(claims):
+        return None
     agent_id = str(payload.get('agent_id') or '')
     company_id = payload.get('company_id')
     if not agent_id or company_id is None:
@@ -113,11 +55,14 @@ def create_approval_request(payload: dict) -> dict | None:
             action=str(payload.get('action') or ''),
             arguments_hash=str(payload.get('arguments_hash') or ''),
             audience_url=_identity_origin(),
-            **_approval_assertion_extra_kwargs(),
+            **approval_assertion_grant_kwarg(claims),
             **signing_kwargs(),
         )
+    except InternalAssertionError:
+        logger.warning('MCP approval assertion rejected: mcp_assertion_rule')
+        return None
     except Exception as exc:  # noqa: BLE001
-        logger.warning('MCP approval assertion failed: %s', exc)
+        logger.warning('MCP approval assertion failed: mcp_assertion_error')
         return None
     url = f'{base}/api/v1/mcp/internal/mcp-approval-requests'
     body = {
@@ -136,11 +81,14 @@ def create_approval_request(payload: dict) -> dict | None:
         data = response.json()
         return {'id': data.get('id'), 'status': data.get('status')}
     except Exception as exc:  # noqa: BLE001
-        logger.warning('MCP approval forward error: %s', exc)
+        logger.warning('MCP approval forward error: identity_request_failed')
         return None
 
 
 def _approval_route_assertion(payload: dict) -> str | None:
+    claims = current_mcp_agent_claims()
+    if mcp_personal_agent_rejected(claims):
+        return None
     agent_id = str(payload.get('agent_id') or '')
     company_id = payload.get('company_id')
     args_hash = str(payload.get('arguments_hash') or '')
@@ -154,11 +102,14 @@ def _approval_route_assertion(payload: dict) -> str | None:
             action=str(payload.get('action') or ''),
             arguments_hash=args_hash,
             audience_url=_identity_origin(),
-            **_approval_assertion_extra_kwargs(),
+            **approval_assertion_grant_kwarg(claims),
             **signing_kwargs(),
         )
+    except InternalAssertionError:
+        logger.warning('MCP approval assertion rejected: mcp_assertion_rule')
+        return None
     except Exception as exc:  # noqa: BLE001
-        logger.warning('MCP approval assertion failed: %s', exc)
+        logger.warning('MCP approval assertion failed: mcp_assertion_error')
         return None
 
 
@@ -194,7 +145,7 @@ def lookup_approval_state(payload: dict) -> str | None:
             }
         return status or None
     except Exception as exc:  # noqa: BLE001
-        logger.debug('MCP approval lookup unavailable: %s', exc)
+        logger.debug('MCP approval lookup unavailable: identity_request_failed')
         return APPROVAL_LOOKUP_UNAVAILABLE
 
 
@@ -246,7 +197,7 @@ def consume_approval(approval_id: str, route_payload: dict | None = None) -> boo
             return False
         return body.get('consumed') is True
     except Exception as exc:  # noqa: BLE001
-        logger.debug('MCP approval consume unavailable: %s', exc)
+        logger.debug('MCP approval consume unavailable: identity_request_failed')
         return False
 
 
@@ -256,8 +207,11 @@ def forward_call_log(entry: dict) -> None:
         return
     try:
         assertion = build_mcp_call_log_assertion(audience_url=_identity_origin(), **signing_kwargs())
+    except InternalAssertionError:
+        logger.warning('MCP call log assertion rejected: mcp_assertion_rule')
+        return
     except Exception as exc:  # noqa: BLE001
-        logger.warning('MCP call log assertion failed: %s', exc)
+        logger.warning('MCP call log assertion failed: mcp_assertion_error')
         return
     url = f'{base}/api/v1/mcp/internal/mcp-call-logs'
     body = {
@@ -268,7 +222,7 @@ def forward_call_log(entry: dict) -> None:
         'method': entry.get('method') or '',
         'path': entry.get('path') or '',
         'status': entry.get('status') or 0,
-        'arguments': entry.get('arguments') or {},
+        'arguments': redact_mapping(entry.get('arguments') or {}, read_sensitive=False),
     }
     try:
         requests.post(
@@ -278,7 +232,7 @@ def forward_call_log(entry: dict) -> None:
             timeout=getattr(settings, 'IDENTITY_SYNC_TIMEOUT', 10),
         )
     except Exception as exc:  # noqa: BLE001
-        logger.warning('MCP call log forward error: %s', exc)
+        logger.warning('MCP call log forward error: identity_request_failed')
 
 
 def _revocation_verify_kwargs(origin: str) -> dict[str, Any]:
@@ -306,8 +260,11 @@ def fetch_revocation_payload(*, company_id: int | None = None) -> dict | None:
         params['company_id'] = str(int(company_id))
     try:
         headers['Authorization'] = f'Bearer {build_mcp_revocation_assertion(audience_url=origin, **signing_kwargs())}'
+    except InternalAssertionError:
+        logger.warning('MCP revocation assertion rejected: mcp_assertion_rule')
+        return None
     except Exception as exc:  # noqa: BLE001
-        logger.warning('MCP revocation assertion failed: %s', exc)
+        logger.warning('MCP revocation assertion failed: mcp_assertion_error')
         return None
     try:
         response = requests.get(url, headers=headers, params=params or None, timeout=getattr(settings, 'IDENTITY_SYNC_TIMEOUT', 10))
@@ -318,8 +275,8 @@ def fetch_revocation_payload(*, company_id: int | None = None) -> dict | None:
                 data,
                 **_revocation_verify_kwargs(origin),
             )
-        except InternalAssertionError as exc:
-            logger.warning('MCP revocation list untrusted: %s', exc.message)
+        except InternalAssertionError:
+            logger.warning('MCP revocation list untrusted: revocation_list_untrusted')
             return None
         if company_id is not None:
             for row in agents:
@@ -337,5 +294,5 @@ def fetch_revocation_payload(*, company_id: int | None = None) -> dict | None:
             'cache_seconds': cache_seconds,
         }
     except Exception as exc:  # noqa: BLE001
-        logger.warning('MCP revocation poll failed: %s', exc)
+        logger.warning('MCP revocation poll failed: identity_request_failed')
         return None

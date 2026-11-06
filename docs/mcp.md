@@ -70,7 +70,9 @@ After a company owner approves a pending write in Identity, the agent retries th
 
 A successful consume step is not inferred from HTTP status alone. Identity must return JSON with `"consumed": true` (boolean). Any other 2xx body counts as a failed consume, so the write does not run.
 
-For globally delegated agents, Identity may issue a distinct `global_company_id` (UUID) alongside the regional numeric `company_id`. When the installed `shellui-django` exposes matching optional fields on `build_mcp_approval_assertion` (see django-commons#14 and identity-service), hosting forwards valid values from the live agent JWT into create, state, and consume assertions. A bad or missing `global_company_id` is omitted from the assertion rather than coerced, so Identity can reject the call.
+**Personal regional agents** (direct `aud` for this service): signed approvals use the regional numeric `company_id`, `agent_id`, `service`, `action`, `arguments_hash`, and `target` (identity origin). When Identity issues `grant_version` on the agent JWT, hosting passes the same non-negative integer into create, state, and consume assertions (`0` is valid). When the claim is absent, the assertion omits `grant_version` (legacy personal tokens).
+
+**Globally delegated agents** must not call hosting MCP directly. If a JWT carries a canonical `global_company_id` (UUID), decoding fails before any tool runs. Delegation flows belong behind the Shellui MCP gateway with the correct resource audience.
 
 ## Deploy a site end to end
 
@@ -91,8 +93,8 @@ Agent JWT claims mirror Identity: `mcp_access` (`read_only`, `ask`, `full`), `mc
 
 ## Internal assertions to Identity
 
-Revocation polling, approvals and call logs send Identity a short-lived RS256 assertion signed with this service's own key (`HOSTING_SERVICE_SIGNING_KEY`, issuer `HOSTING_SERVICE_ISSUER`, `shellui-django` 0.4.0+). Approval assertions include the same core fields as today (`company_id`, `agent_id`, `service`, `action`, `arguments_hash`, `target`) and, when the library supports them, optional identity-bound claims copied from the agent token. The public key is served at `GET /.well-known/jwks.json`. Identity trusts it only when its own `HOSTING_SERVICE_ISSUER` matches, and reads the key from `HOSTING_SERVICE_JWKS_URL` or a pinned `HOSTING_SERVICE_JWKS`. Without a key, MCP fails closed: agents are refused and call logs are skipped.
+Revocation polling, approvals and call logs send Identity a short-lived RS256 assertion signed with this service's own key (`HOSTING_SERVICE_SIGNING_KEY`, issuer `HOSTING_SERVICE_ISSUER`). Hosting pins `shellui-django` to the matching django-commons source revision (see `pyproject.toml`). Internal assertions use a 60 second lifetime by default (the library `INTERNAL_ASSERTION_MAX_LIFETIME_SECONDS` cap). The public key is served at `GET /.well-known/jwks.json`. Identity trusts it only when its own `HOSTING_SERVICE_ISSUER` matches, and reads the key from `HOSTING_SERVICE_JWKS_URL` or a pinned `HOSTING_SERVICE_JWKS`. Without a key, MCP fails closed: agents are refused and call logs are skipped.
 
-Logs about failed approval forwards to Identity use the HTTP status only, not raw identity response bodies, so provider error text does not leak into application logs.
+MCP call log payloads redact tool arguments the same way as MCP responses. Logs about failed Identity HTTP calls use fixed reason codes (`identity_request_failed`, `mcp_assertion_error`) plus `InternalAssertionError.message` where the library returns one, not raw upstream response bodies.
 
 Generate a key with `openssl genrsa 3072` and keep it in a secret store or a mounted file (`HOSTING_SERVICE_SIGNING_KEY_FILE`).

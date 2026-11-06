@@ -6,6 +6,7 @@ from django.core.cache import cache
 
 from shellui_django.mcp.internal import REVOCATION_CACHE_SECONDS
 
+from apps.authapi.mcp_authority import global_company_id_in_claims, parse_personal_grant_version
 from apps.hosting.mcp_context import current_mcp_agent_claims
 from apps.hosting.mcp_identity import fetch_revocation_payload
 
@@ -44,7 +45,22 @@ def revocation_poll_unavailable(*, company_id: int | None = None) -> bool:
     return cache.get(_unavailable_key(company_id)) is True
 
 
-def _agent_company_binding_ok(agent_id: str, *, company_id: int | None, agents: list) -> bool:
+def _revoke_applies_to_current_token(
+    agent_id: str,
+    *,
+    company_id: int | None,
+    agents: list,
+    claims: dict | None,
+) -> bool:
+    """True when a revocation list entry applies to this MCP token (deny the request)."""
+    claims = claims if isinstance(claims, dict) else {}
+    if global_company_id_in_claims(claims):
+        # Direct hosting tokens cannot carry delegated global proof; treat as deny.
+        return True
+    try:
+        jwt_grant = parse_personal_grant_version(claims)
+    except ValueError:
+        return True
     if company_id is None:
         return True
     for row in agents:
@@ -52,10 +68,28 @@ def _agent_company_binding_ok(agent_id: str, *, company_id: int | None, agents: 
             continue
         if str(row.get('agent_id')) != str(agent_id):
             continue
+        if row.get('mcp_authority_snapshot_rejected'):
+            return True
+        if row.get('global_company_id'):
+            continue
         try:
-            return int(row.get('company_id')) == int(company_id)
+            if int(row.get('company_id')) != int(company_id):
+                continue
         except (TypeError, ValueError):
-            return False
+            return True
+        rgv = row.get('grant_version')
+        if jwt_grant is not None:
+            if rgv is None:
+                return True
+            try:
+                if int(rgv) != int(jwt_grant):
+                    continue
+            except (TypeError, ValueError):
+                return True
+        else:
+            if rgv is not None:
+                return True
+        return True
     return True
 
 
@@ -65,24 +99,23 @@ def agent_revocation_denied(agent_id: str, company_id: int | None = None) -> boo
         company_id = _agent_company_id()
     if revocation_poll_unavailable(company_id=company_id):
         return True
-    ids = _load_blocked_agent_ids(company_id=company_id)
+    claims = current_mcp_agent_claims()
+    ids = _load_revocation_agent_ids(company_id=company_id)
     if revocation_poll_unavailable(company_id=company_id):
         return True
     if agent_id not in ids:
         return False
     agents = cache.get(_agents_cache_key(company_id)) or []
-    if not _agent_company_binding_ok(agent_id, company_id=company_id, agents=agents):
-        return True
-    return True
+    return _revoke_applies_to_current_token(agent_id, company_id=company_id, agents=agents, claims=claims)
 
 
 def blocked_agent_ids() -> set[str]:
     if revocation_poll_unavailable():
         return set()
-    return _load_blocked_agent_ids()
+    return _load_revocation_agent_ids()
 
 
-def _load_blocked_agent_ids(*, company_id: int | None = None) -> set[str]:
+def _load_revocation_agent_ids(*, company_id: int | None = None) -> set[str]:
     if company_id is None:
         company_id = _agent_company_id()
     cache_key = _cache_key(company_id)
