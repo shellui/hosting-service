@@ -550,6 +550,10 @@ IDENTITY_AUDIENCE = os.getenv('IDENTITY_AUDIENCE', '').strip() or None
 
 # Base URL for forwarding the caller's JWT to register/remove OAuth redirect origins.
 IDENTITY_SYNC_TIMEOUT = _env_float('IDENTITY_SYNC_TIMEOUT', 10)
+# Canonical Identity path for live delegated RegionalAgent row checks (Storage #59 contract).
+IDENTITY_DELEGATED_AGENT_AUTHORITY_PATH = os.getenv(
+    'IDENTITY_DELEGATED_AGENT_AUTHORITY_PATH', '/api/v1/mcp/internal/mcp-agent-delegated-authority'
+).strip()
 JWKS_CACHE_TTL = _env_int('JWKS_CACHE_TTL', 900)
 JWKS_TIMEOUT = _env_float('JWKS_TIMEOUT', 15)
 JWKS_RETRIES = _env_int('JWKS_RETRIES', 2)

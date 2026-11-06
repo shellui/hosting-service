@@ -14,6 +14,8 @@ hosting-service is the Shellui backend that hosts microfrontend apps. It accepts
 
 It is a Django app, published as the `shellui/hosting-service` Docker image. It checks JSON Web Tokens (JWTs) issued by identity-service. It does not sign people in itself. Company-owner routes marked with OpenAPI `x-mcp` are available to [Shellui MCP](mcp.md) agents at `POST /mcp`.
 
+**Related handbooks (source):** [identity-service MCP and agents](https://github.com/shellui/identity-service/blob/d79d433278ac18695a6165448bf0b8cfe56c88a5/docs/mcp-and-agents.md) documents OAuth, internal assertions, live delegated authority, approvals, revocation, and call logs; [hosting MCP in this repo](mcp.md) covers `POST /mcp`, tools, and hosting-specific notes.
+
 ## Who it is for
 
 Use it when a Shellui app needs a published preview. Company owners deploy with the Shellui CLI. Staff decide which companies may host. Operators run the process, the database, and Redis.
@@ -77,7 +79,7 @@ Pick the row that matches what you are doing:
 | --- | --- |
 | Run it locally | [Run hosting-service](getting-started.md) |
 | Set environment variables | [Configuration](configuration.md) |
-| Follow an app from upload to active | [Apps and deployments](apps-and-deployments.md) |
+| Follow an app from upload to active | [Apps and deployments](apps-and-deployments.md) (includes [MCP agents: production deploy flow](apps-and-deployments.md#mcp-agents-production-deploy-flow)) |
 | Deploy from your machine or CI | [Deploy with the CLI](deploy-with-cli.md) |
 | See how public URLs are chosen | [Preview sites and public URLs](preview-and-serving.md) |
 | Approve a company | [Company access](company-access.md) |

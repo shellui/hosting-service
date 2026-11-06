@@ -1,0 +1,147 @@
+"""Build a strict-allowlist JSON body for Identity ``mcp-call-logs`` (no arbitrary tool arguments or client text)."""
+
+from __future__ import annotations
+
+from typing import Any
+from uuid import UUID
+
+from apps.authapi.mcp_authority import parse_agent_regional_company_id, strict_non_negative_int_optional
+from apps.hosting.mcp_call_audit import ALL_CALL_LOG_ERROR_CODES, OUTCOME_ALLOWED, OUTCOME_WAITING_APPROVAL
+
+# Canonical outcomes (Shellui shared contract); must match ``mcp_call_audit``.
+CANONICAL_OUTCOMES = frozenset(
+    {
+        OUTCOME_WAITING_APPROVAL,
+        OUTCOME_ALLOWED,
+        'denied',
+        'failed',
+        'session_used',
+    }
+)
+
+
+def _nonempty_str(value: Any, *, max_len: int) -> str:
+    s = str(value or '').strip()
+    return s[:max_len]
+
+
+def _optional_uuid(value: Any) -> str | None:
+    if value in (None, ''):
+        return None
+    try:
+        return str(UUID(str(value).strip()))
+    except ValueError:
+        return None
+
+
+def build_identity_call_log_body(entry: dict[str, Any]) -> dict[str, Any] | None:
+    """Return body dict or None when required fields are missing.
+
+    Aligned with Identity ``McpInternalCallLogView`` (``apps/agents/internal_views.py``) and
+    ``call_log_internal.canonical_call_path``: ingest accepts only JSON-RPC MCP traffic, so ``path`` must
+    be exactly ``/mcp`` and ``method`` must be ``POST`` (see ``status`` for the proxied OpenAPI result).
+    Use ``path`` / ``method`` / ``status`` (not ``resource_path`` / ``http_method`` / ``http_status`` for the forwarded body).
+    Do not send ``operation_title``, ``resource_label``, or ``arguments_redacted``; Identity rejects client titles.
+
+    ``error_code`` is required for every outcome except ``allowed``; it must be a static enum value from
+    ``ALL_CALL_LOG_ERROR_CODES``. Success (``allowed``) never carries ``error_code``.
+    ``approval_id`` only when valid UUID (maps from internal ``approval_request_id``).
+    Legacy ``pending_approval`` in ``entry`` is normalized to ``waiting_approval`` for Identity ingest.
+    ``global_company_id`` and ``company_binding_version`` are forwarded only when both parse.
+    """
+    agent_id = entry.get('agent_id')
+    company_id = entry.get('company_id')
+    if agent_id in (None, '') or company_id in (None, ''):
+        return None
+    try:
+        company_int = parse_agent_regional_company_id(company_id)
+    except ValueError:
+        return None
+
+    tool = _nonempty_str(entry.get('tool'), max_len=200)
+    raw_path = entry.get('path') or entry.get('resource_path')
+    path_s = _nonempty_str(raw_path, max_len=500)
+    path_s = path_s.split('?', 1)[0].split('#', 1)[0].strip()[:500]
+    method_s = _nonempty_str(entry.get('method') or entry.get('http_method'), max_len=10).upper() or ''
+    if path_s != '/mcp' or method_s != 'POST':
+        return None
+    access_kind = _nonempty_str(entry.get('access_kind'), max_len=32)
+    outcome = _nonempty_str(entry.get('outcome'), max_len=32)
+    if outcome == 'pending_approval':
+        outcome = OUTCOME_WAITING_APPROVAL
+    if not all([tool, path_s, access_kind, outcome]):
+        return None
+    if outcome not in CANONICAL_OUTCOMES:
+        return None
+
+    error_raw = entry.get('error_code')
+    if outcome == OUTCOME_ALLOWED:
+        if error_raw not in (None, ''):
+            return None
+        error_code = None
+    else:
+        error_code = _nonempty_str(error_raw, max_len=64)
+        if not error_code or error_code not in ALL_CALL_LOG_ERROR_CODES:
+            return None
+
+    try:
+        http_status = int(entry.get('status') if entry.get('status') is not None else entry.get('http_status') or 0)
+    except (TypeError, ValueError):
+        http_status = 0
+    if http_status < 0:
+        http_status = 0
+
+    try:
+        duration_ms = int(entry.get('duration_ms') if entry.get('duration_ms') is not None else 0)
+    except (TypeError, ValueError):
+        duration_ms = 0
+    if duration_ms < 0:
+        duration_ms = 0
+
+    body: dict[str, Any] = {
+        'agent_id': str(agent_id),
+        'company_id': company_int,
+        'service': _nonempty_str(entry.get('service') or 'hosting', max_len=64) or 'hosting',
+        'tool': tool,
+        'path': path_s,
+        'method': method_s,
+        'status': http_status,
+        'access_kind': access_kind,
+        'outcome': outcome,
+        'duration_ms': duration_ms,
+    }
+    if error_code:
+        body['error_code'] = error_code
+
+    try:
+        gvi = strict_non_negative_int_optional(entry.get('grant_version'), field='grant_version')
+    except ValueError:
+        return None
+    if gvi is None:
+        return None
+    body['grant_version'] = gvi
+
+    cbv = entry.get('company_binding_version')
+    cbvi: int | None = None
+    if cbv is not None and cbv != '':
+        try:
+            cbvi = strict_non_negative_int_optional(cbv, field='company_binding_version')
+        except ValueError:
+            return None
+
+    gci = entry.get('global_company_id')
+    gu: str | None = None
+    if gci not in (None, ''):
+        gu = _optional_uuid(gci)
+        if gu is None:
+            return None
+
+    if gu is not None and cbvi is not None:
+        body['global_company_id'] = gu
+        body['company_binding_version'] = cbvi
+
+    appr_id = _optional_uuid(entry.get('approval_id') or entry.get('approval_request_id'))
+    if appr_id:
+        body['approval_id'] = appr_id
+
+    return body

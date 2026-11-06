@@ -1,0 +1,181 @@
+"""Unit tests for MCP identity forwarding (approval consume and assertions)."""
+
+from __future__ import annotations
+
+from unittest.mock import MagicMock, patch
+
+from django.test import SimpleTestCase, override_settings
+
+from apps.hosting import mcp_identity
+from apps.hosting.tests.signing_helpers import MCP_SIGNING_TEST_SETTINGS
+
+
+@override_settings(
+    **MCP_SIGNING_TEST_SETTINGS,
+    IDENTITY_SERVICE_URL="http://identity.test",
+)
+@patch("apps.hosting.mcp_identity.delegated_live_authority_ok", return_value=True)
+class McpIdentityConsumeTests(SimpleTestCase):
+    def setUp(self):
+        mcp_identity._APPROVAL_ROUTE_CONTEXT.clear()
+
+    def tearDown(self):
+        mcp_identity._APPROVAL_ROUTE_CONTEXT.clear()
+
+    def _payload(self) -> dict:
+        return {
+            "agent_id": "agent-1",
+            "company_id": 42,
+            "service": "hosting",
+            "action": "hosting_v1_preview_create",
+            "arguments_hash": "abc",
+        }
+
+    @patch(
+        "apps.hosting.mcp_identity.current_mcp_agent_claims",
+        return_value={"company_id": 42, "grant_version": 0},
+    )
+    @patch("apps.hosting.mcp_identity.requests.post")
+    def test_consume_requires_consumed_true_on_200(self, mock_post, _claims, _live_ok):
+        mock_resp = MagicMock()
+        mock_resp.status_code = 200
+        mock_resp.json.return_value = {"consumed": False}
+        mock_post.return_value = mock_resp
+        mcp_identity._APPROVAL_ROUTE_CONTEXT["ap1"] = self._payload()
+        self.assertFalse(mcp_identity.consume_approval("ap1"))
+
+    @patch(
+        "apps.hosting.mcp_identity.current_mcp_agent_claims",
+        return_value={"company_id": 42, "grant_version": 0},
+    )
+    @patch("apps.hosting.mcp_identity.requests.post")
+    def test_consume_rejects_2xx_without_consumed_true(self, mock_post, _claims, _live_ok):
+        mock_resp = MagicMock()
+        mock_resp.status_code = 201
+        mock_resp.json.return_value = {"status": "ok"}
+        mock_post.return_value = mock_resp
+        mcp_identity._APPROVAL_ROUTE_CONTEXT["ap1"] = self._payload()
+        self.assertFalse(mcp_identity.consume_approval("ap1"))
+
+    @patch(
+        "apps.hosting.mcp_identity.current_mcp_agent_claims",
+        return_value={"company_id": 42, "grant_version": 0},
+    )
+    @patch("apps.hosting.mcp_identity.requests.post")
+    def test_consume_accepts_literal_true(self, mock_post, _claims, _live_ok):
+        mock_resp = MagicMock()
+        mock_resp.status_code = 200
+        mock_resp.json.return_value = {"consumed": True}
+        mock_post.return_value = mock_resp
+        mcp_identity._APPROVAL_ROUTE_CONTEXT["ap1"] = self._payload()
+        self.assertTrue(mcp_identity.consume_approval("ap1"))
+
+
+@override_settings(
+    **MCP_SIGNING_TEST_SETTINGS,
+    IDENTITY_SERVICE_URL="http://identity.test",
+)
+@patch("apps.hosting.mcp_identity.delegated_live_authority_ok", return_value=True)
+class McpIdentityApprovalAssertionTests(SimpleTestCase):
+    @patch(
+        "apps.hosting.mcp_identity.current_mcp_agent_claims",
+        return_value={"company_id": 1, "grant_version": 3},
+    )
+    def test_approval_route_assertion_includes_grant_version_when_set(self, _claims, _live_ok):
+        t = mcp_identity._approval_route_assertion(
+            {
+                "agent_id": "a",
+                "company_id": 1,
+                "service": "hosting",
+                "action": "t",
+                "arguments_hash": "h",
+            }
+        )
+        self.assertIsInstance(t, str)
+        self.assertGreater(len(t), 20)
+
+    @patch(
+        "apps.hosting.mcp_identity.current_mcp_agent_claims",
+        return_value={"company_id": 1, "grant_version": 0},
+    )
+    def test_personal_agent_includes_grant_in_assertion(self, _claims, _live_ok):
+        t = mcp_identity._approval_route_assertion(
+            {
+                "agent_id": "a",
+                "company_id": 1,
+                "service": "hosting",
+                "action": "t",
+                "arguments_hash": "h",
+            }
+        )
+        self.assertIsInstance(t, str)
+
+    @patch(
+        "apps.hosting.mcp_identity.current_mcp_agent_claims",
+        return_value={
+            "company_id": 1,
+            "mcp_authority": "delegated",
+            "global_company_id": "01234567-89ab-cdef-0123-456789abcdef",
+            "global_agent_id": "fedcba98-7654-3210-fedc-ba9876543210",
+            "grant_version": 2,
+            "company_binding_version": 1,
+        },
+    )
+    def test_exchange_delegated_regional_skips_approval_assertion(self, _claims, _live_ok):
+        """Exchange-delegated regional tokens must not create Identity internal approvals from hosting."""
+        t = mcp_identity._approval_route_assertion(
+            {
+                "agent_id": "a",
+                "company_id": 1,
+                "service": "hosting",
+                "action": "t",
+                "arguments_hash": "h",
+            }
+        )
+        self.assertIsNone(t)
+
+    @patch(
+        "apps.hosting.mcp_identity.current_mcp_agent_claims",
+        return_value={
+            "company_id": 1,
+            "mcp_authority": "delegated",
+            "global_company_id": "01234567-89ab-cdef-0123-456789abcdef",
+            "global_agent_id": "fedcba98-7654-3210-fedc-ba9876543210",
+            "grant_version": 2,
+            "company_binding_version": 1,
+        },
+    )
+    def test_exchange_delegated_create_approval_returns_none(self, _claims, _live_ok):
+        self.assertIsNone(
+            mcp_identity.create_approval_request(
+                {
+                    "agent_id": "a",
+                    "company_id": 1,
+                    "service": "hosting",
+                    "action": "t",
+                    "arguments_hash": "h",
+                }
+            )
+        )
+
+    @patch(
+        "apps.hosting.mcp_identity.current_mcp_agent_claims",
+        return_value={"company_id": 1, "grant_version": 0},
+    )
+    @patch("apps.hosting.mcp_identity.requests.post")
+    def test_create_approval_logs_out_of_sync_on_409(self, mock_post, _claims, _live_ok):
+        mock_resp = MagicMock()
+        mock_resp.status_code = 409
+        mock_resp.json.return_value = {"error": "x", "error_code": "out_of_sync"}
+        mock_post.return_value = mock_resp
+        self.assertIsNone(
+            mcp_identity.create_approval_request(
+                {
+                    "agent_id": "a",
+                    "company_id": 1,
+                    "service": "hosting",
+                    "action": "t",
+                    "arguments_hash": "h",
+                }
+            )
+        )

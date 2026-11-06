@@ -23,6 +23,20 @@ See for sample https://raw.githubusercontent.com/favoloso/conventional-changelog
 
 ## [Unreleased]
 
+### 🐛 Bug Fixes
+
+- MCP approval consume: treat success only when Identity returns JSON `{"consumed": true}` on 2xx, not when the status code alone is success.
+- MCP approval forward errors and Identity OAuth redirect deletes: log structured detail without raw upstream response text in hosting logs.
+- MCP agent JWTs: reject malformed delegation hints and invalid `grant_version` at authentication (`mcp_authority_*` error keys). `mcp_authority` = `global_delegated` with `global_company_id` fails with `mcp_authority_global_delegated_on_direct_resource`. Regional exchanged agents (`mcp_authority` = `delegated`) must carry `global_company_id`, `global_agent_id`, `grant_version`, and `company_binding_version` on the same downstream MCP `aud`; missing `global_agent_id` fails with `mcp_authority_global_agent_id_invalid`; other global UUID hints without that profile still fail with `mcp_authority_delegated_on_direct_resource`.
+- MCP delegated live authority: call Identity `POST /api/v1/mcp/internal/mcp-agent-delegated-authority` with assertion `aud` = `shellui-mcp-agent-delegated-authority`, `scope` = `mcp.agent.delegated.authority.read`, `target` = Identity issuer; accept **200** only when the body matches Identity's fixed 15-key shape (see identity-service PR #135) and `authorized` is true with `active` true and `revoked` and `paused` false, with matching regional and global ids and binding triple as native ints, `allow_destructive` false, `access_mode` / `read_level` matching JWT `mcp_access` / `mcp_read`, OAuth `scope` service ids covered by `services_allowed`, and `mcp_destructive` false on delegated JWTs; treat **403** / **404** / **400** as deny (not 503); 503 on `POST /mcp` only when the check is unavailable (assertion build failure, network, Identity **5xx**). Default `IDENTITY_DELEGATED_AGENT_AUTHORITY_PATH` matches the canonical route; retire `mcp-delegated-agent-authority`.
+- MCP revocation: after a trusted poll, deny only when there is exactly one unambiguous `agents` row for the revoked id that matches the active token (`company_id`, optional strict non-negative `grant_version` and `company_binding_version`, canonical `global_company_id` when the token carries delegated proof). Mismatch, absence, or multiple rows fail closed; a listed id with no matching row still denies.
+- MCP call logs: allowlisted audit body with canonical `outcome` values (`waiting_approval`, not legacy `pending_approval`); only explicit HTTP 2xx maps to `allowed` with **no** `error_code`; all other outcomes use a static enum `error_code` (including `approval_pending` for `waiting_approval`). Forward `path`, `method`, `status` to Identity (OpenAPI template path from `operationId` only); do not send client `operation_title`. Personal JWTs must carry `grant_version`; call-log bodies always include it; delegated agents also forward `global_company_id` and `company_binding_version`. Identity approval **create** posts an empty JSON body (`arguments` live only in the signed assertion hash). Handbook: [Apps and deployments](docs/apps-and-deployments.md#mcp-agents-production-deploy-flow) adds the MCP deploy tool sequence.
+- MCP approvals: when Identity state lookup is unavailable under the JSON-RPC tools protocol, hosting does not synthesize `pending` or create a duplicate approval in the same request.
+
+### 🚨 Changed
+
+- Pin `shellui-django[mcp]` to django-commons git SHA `1f0754b421688ed26b7eb2e76b25b6fa3eea2a37` (django-commons#14 merge); Docker images install `git` for `uv` git sources.
+
 ### ✨ Feature
 
 - Company-owner REST and Shellui MCP tools for custom domains (honest `verified` and `serving` flags), app environment variables (values never returned, `x-mcp-secret` on writes), bounded request logs for app subdomains, and an explicit empty runtime log contract for static hosting.

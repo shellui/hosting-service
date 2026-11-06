@@ -13,6 +13,7 @@ from django.utils import timezone
 
 from apps.hosting.deploy_tokens import create_deploy_token
 from apps.hosting.models import AccessStatus, App, CompanyHostingAccess, Deployment
+from apps.hosting.tests.signing_helpers import MCP_SIGNING_TEST_SETTINGS
 from apps.hosting.tests.test_mcp import _agent_token
 
 
@@ -24,6 +25,7 @@ def _approve(company_id: int) -> None:
 
 
 @override_settings(
+    **MCP_SIGNING_TEST_SETTINGS,
     DEBUG=True,
     JWT_HS256_FALLBACK_SECRET='test-secret',
     ALLOW_JWT_HS256_FALLBACK=True,
@@ -64,11 +66,17 @@ class McpTenantIsolationTests(TestCase):
             return_value={'revoked_agent_ids': [], 'agents': [], 'cache_seconds': 30},
         )
         self._revocation_ok.start()
+        self._delegated_live = patch(
+            'apps.hosting.mcp_server.delegated_live_authority_state',
+            return_value=('ok', True),
+        )
+        self._delegated_live.start()
         from apps.hosting import mcp_views
 
         mcp_views._server = None
 
     def tearDown(self):
+        self._delegated_live.stop()
         self._revocation_ok.stop()
 
     def _rpc_call(self, tool: str, arguments: dict):

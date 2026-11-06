@@ -16,7 +16,13 @@ from shellui_django.mcp.internal import (
     verify_mcp_internal_assertion,
 )
 
-from config.service_signing import public_jwk, signing_kwargs
+from config.service_signing import (
+    DELEGATED_AGENT_AUTHORITY_AUDIENCE,
+    DELEGATED_AGENT_AUTHORITY_SCOPE,
+    build_mcp_delegated_agent_authority_assertion,
+    public_jwk,
+    signing_kwargs,
+)
 
 
 def _private_pem(bits: int = 2048) -> str:
@@ -53,6 +59,20 @@ class ServiceSigningTests(SimpleTestCase):
             expected_target='https://identity.test',
         )
         self.assertEqual(claims['iss'], _ISSUER)
+
+    def test_delegated_authority_assertion_verifies(self):
+        token = build_mcp_delegated_agent_authority_assertion(audience_url='https://identity.test')
+        jwks = json.loads(self.client.get('/.well-known/jwks.json').content)
+        claims = verify_mcp_internal_assertion(
+            token,
+            jwks,
+            expected_issuer=_ISSUER,
+            expected_audience=DELEGATED_AGENT_AUTHORITY_AUDIENCE,
+            expected_scope=DELEGATED_AGENT_AUTHORITY_SCOPE,
+            expected_target='https://identity.test',
+        )
+        self.assertEqual(claims['scope'], DELEGATED_AGENT_AUTHORITY_SCOPE)
+        self.assertEqual(claims['sub'], 'service')
 
     @override_settings(MCP_SIGNING_KEY_PEM='')
     def test_without_key_signing_is_unavailable_and_jwks_is_empty(self):
