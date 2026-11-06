@@ -25,6 +25,16 @@ urlpatterns = [
         name='hosting-deployment-upload',
     ),
     path(
+        'apps/<str:app_ref>/deployments/<uuid:deployment_id>/artifact-upload-url',
+        views.DeploymentArtifactUploadUrlView.as_view(),
+        name='hosting-deployment-artifact-upload-url',
+    ),
+    path(
+        'apps/<str:app_ref>/deployments/<uuid:deployment_id>/artifact-upload-complete',
+        views.DeploymentArtifactUploadCompleteView.as_view(),
+        name='hosting-deployment-artifact-upload-complete',
+    ),
+    path(
         'apps/<str:app_ref>/deployments/<uuid:deployment_id>/finalize',
         views.DeploymentFinalizeView.as_view(),
         name='hosting-deployment-finalize',

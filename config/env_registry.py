@@ -123,6 +123,7 @@ OPTIONAL = (
     Var('MCP_RATE_LIMIT_AGENT', '120', 'Shellui MCP (optional)'),
     Var('HOSTING_MCP_RESOURCE', '', 'RFC 8707 MCP resource aud; default is {public origin}/mcp'),
     Var('HOSTING_PUBLIC_URL', '', 'Public origin when MCP resource aud cannot use request host'),
+    Var('HOSTING_ARTIFACT_UPLOAD_URL_EXPIRES', '900', 'Presigned or direct artifact upload URL lifetime (seconds)'),
     Var('ROOT_REDIRECT_URL', '', 'Apex landing'),
     Var('SHELLUI_WEBSITE_URL', 'https://shellui.com'),
     Var('SHELLUI_DOCS_URL', 'https://docs.shellui.com'),

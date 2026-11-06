@@ -63,8 +63,23 @@ MCP_SPECS: dict[str, _McpSpec] = {
     ),
     'hosting_v1_apps_deployments_create': _McpSpec(
         'Create a draft deployment',
-        'Opens a new deployment row. Upload a `.tar.gz` artifact, then call finalize to go live.',
+        'Opens a new deployment row. Request an artifact upload URL, PUT the `.tar.gz` bytes to that URL, '
+        'confirm upload, then call finalize to go live.',
         'Inserts a deployment row in `draft` status.',
+    ),
+    'hosting_v1_apps_deployments_artifact_upload_url_create': _McpSpec(
+        'Hosting: mint artifact upload URL',
+        'Returns a time-limited PUT URL and headers so the agent uploads the `.tar.gz` outside the MCP JSON stream. '
+        'On S3 backends the URL is presigned. On filesystem backends PUT to hosting-service with the same agent Bearer token.',
+        'Does not store bytes yet; only describes where to upload.',
+        notes='After PUT, call artifact upload complete (required for S3; idempotent when bytes already registered).',
+    ),
+    'hosting_v1_apps_deployments_artifact_upload_complete_create': _McpSpec(
+        'Hosting: confirm artifact upload',
+        'Verifies the artifact object exists in storage and records its size on the deployment. '
+        'Call after a successful PUT to the upload URL from the mint step.',
+        'Updates deployment `artifact_size` and status to `uploading`.',
+        notes='Safe to call again when `artifact_size` is already set (for example after a direct hosting PUT).',
     ),
     'hosting_v1_apps_deployments_finalize_create': _McpSpec(
         'Finalize and activate a deployment',

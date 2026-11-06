@@ -2,7 +2,7 @@
 
 from rest_framework import serializers
 
-from apps.authapi.mcp_fields import McpSecretCharField
+from apps.authapi.mcp_fields import McpSecretCharField, McpSensitiveCharField
 
 
 class ErrorSerializer(serializers.Serializer):
@@ -93,6 +93,25 @@ class DeploymentSerializer(serializers.Serializer):
     oauth_redirect_registered = serializers.BooleanField(required=False)
     oauth_redirect_origin = serializers.CharField(required=False, allow_blank=True)
     oauth_redirect_warning = serializers.CharField(required=False, allow_blank=True)
+
+
+class ArtifactUploadUrlResponseSerializer(serializers.Serializer):
+    upload_url = McpSensitiveCharField(
+        help_text='HTTPS URL for a raw PUT of the `.tar.gz` artifact. Treat as a secret when using S3 presigned URLs.',
+    )
+    method = serializers.CharField(help_text='HTTP method for the upload (`PUT`).')
+    headers = serializers.DictField(
+        child=serializers.CharField(),
+        help_text='Headers to send with the upload (for example `Content-Type: application/gzip`).',
+    )
+    requires_bearer = serializers.BooleanField(
+        help_text='When true, repeat the same `Authorization: Bearer` agent token on the PUT request.',
+    )
+    expires_at = serializers.DateTimeField(help_text='UTC expiry for the upload URL.')
+    backend = serializers.ChoiceField(
+        choices=['s3', 'direct'],
+        help_text='`s3` uses a presigned object URL. `direct` PUTs to hosting-service with your agent token.',
+    )
 
 
 class DeploymentCreateSerializer(serializers.Serializer):

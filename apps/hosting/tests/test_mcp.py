@@ -31,6 +31,7 @@ def _agent_token(
     agent_id: str | None = None,
     company_id: int = 42,
     mcp_access: str = 'read_only',
+    mcp_read: str = 'safe',
     mcp_destructive: bool = False,
     scope: str = 'hosting',
     aud: str | list[str] = 'http://127.0.0.1/mcp',
@@ -43,7 +44,7 @@ def _agent_token(
             'company_id': company_id,
             'scope': scope,
             'mcp_access': mcp_access,
-            'mcp_read': 'safe',
+            'mcp_read': mcp_read,
             'mcp_destructive': mcp_destructive,
             'aud': aud,
             'exp': 2**31 - 1,
@@ -102,6 +103,8 @@ class McpEndpointTests(TestCase):
         self.assertNotIn('hosting_v1_health_retrieve', names)
         self.assertNotIn('api_v1_internal_company_deletions_create', names)
         self.assertNotIn('hosting_v1_apps_deployments_upload_update', names)
+        self.assertIn('hosting_v1_apps_deployments_artifact_upload_url_create', names)
+        self.assertIn('hosting_v1_apps_deployments_artifact_upload_complete_create', names)
 
     @patch('apps.authapi.authentication.get_jwks_client')
     def test_wrong_service_scope_forbidden(self, mock_jwks):
