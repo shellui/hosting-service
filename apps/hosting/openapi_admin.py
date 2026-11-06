@@ -41,6 +41,20 @@ DEPLOYMENT_ID_PATH = OpenApiParameter(
     description='Deployment UUID from list or create responses.',
 )
 
+DOMAIN_ID_PATH = OpenApiParameter(
+    name='domain_id',
+    type=OpenApiTypes.UUID,
+    location=OpenApiParameter.PATH,
+    description='Custom domain UUID from list or create responses.',
+)
+
+ENV_KEY_PATH = OpenApiParameter(
+    name='key',
+    type=OpenApiTypes.STR,
+    location=OpenApiParameter.PATH,
+    description='Environment variable name (letters, digits, underscore).',
+)
+
 TOKEN_ID_PATH = OpenApiParameter(
     name='token_id',
     type=OpenApiTypes.UUID,

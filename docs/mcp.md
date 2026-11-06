@@ -29,6 +29,7 @@ Response fields may use `x-mcp-secret` (never return plaintext to agents) or `x-
 | Sites | `sites` | List, create, read, delete apps |
 | Deployments | `deployments` | List, create, artifact upload URL, upload complete, finalize, rollback |
 | Previews | `previews` | Prepare preview deploy, renew 7-day expiry |
+| Operations | `operations` | Custom domains, app environment keys, request logs, runtime log contract |
 | Deploy tokens | `deploy-tokens` | List metadata and revoke (create stays admin or user JWT only) |
 | Webhooks | `webhooks` | Shellui Actions rules and deliveries |
 | Event log | `event-log` | Company domain events |
@@ -36,6 +37,25 @@ Response fields may use `x-mcp-secret` (never return plaintext to agents) or `x-
 Preview sites use a **7-day TTL** (`HOSTING_PREVIEW_TTL_DAYS`). Production sites do not expire through this API.
 
 Deploy tokens are stored hashed. List and read responses never include plaintext tokens. Create returns `token` once for company-owner user JWTs and admin only; Shellui MCP agents cannot create deploy tokens or read plaintext values.
+
+## Operations after deploy
+
+Company scope always comes from the JWT `company_id`, never from a query parameter.
+
+### Custom domains
+
+- `GET/POST /hosting/v1/apps/{app_ref}/domains`, `GET/DELETE .../domains/{domain_id}`, `POST .../domains/{domain_id}/refresh`
+- Responses include DNS TXT instructions and keep `verified` and `serving` false until a future platform integration confirms provisioning. `refresh` only moves local status from `pending_dns` to `awaiting_platform` so agents never see a fake green check.
+
+### Environment variables
+
+- `GET/POST /hosting/v1/apps/{app_ref}/environment`, `GET/PUT/DELETE .../environment/{key}`
+- List and read return `key`, `value_present`, and `updated_at` only. Write bodies mark `value` with `x-mcp-secret`. Values are encrypted at rest and must never be logged by agents.
+
+### Logs
+
+- `GET /hosting/v1/apps/{app_ref}/logs/runtime` returns `source: none` and an explicit `unavailable_reason` because static hosting has no process logs in this release.
+- `GET /hosting/v1/apps/{app_ref}/logs/requests` pages backward with `cursor` and `limit` (server-capped). Rows come from app-subdomain traffic when `HOSTING_REQUEST_LOG_ENABLED` is true. They include method, path, and status only.
 
 ## MCP endpoint
 

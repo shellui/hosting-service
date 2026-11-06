@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import uuid
 
 from django.conf import settings
 from django.core.exceptions import RequestDataTooBig
@@ -21,6 +22,8 @@ from apps.hosting.openapi_admin import (
     ADMIN_API_ERRORS,
     APP_REF_PATH,
     DEPLOYMENT_ID_PATH,
+    DOMAIN_ID_PATH,
+    ENV_KEY_PATH,
     TOKEN_ID_PATH,
     admin_description,
     mcp_openapi_fields,
@@ -45,6 +48,14 @@ from .serializers import (
     HealthSerializer,
     PreviewPrepareResponseSerializer,
     PreviewPrepareSerializer,
+    CustomDomainSerializer,
+    CustomDomainCreateSerializer,
+    EnvVariableListSerializer,
+    EnvVariableUpsertSerializer,
+    EnvVariableValueSerializer,
+    EnvVariableKeySerializer,
+    RequestLogListResponseSerializer,
+    RuntimeLogResponseSerializer,
 )
 from .deploy_tokens import create_deploy_token, revoke_deploy_token, serialize_deploy_token
 from .models import DeployToken
@@ -71,6 +82,19 @@ from .services import (
 )
 from .stats import build_hosting_stats
 from .storage import ArtifactTooLarge, build_artifact_upload_target
+from .operational import (
+    add_custom_domain,
+    delete_env_variable,
+    get_custom_domain,
+    get_env_variable,
+    list_app_request_logs,
+    list_app_runtime_logs,
+    list_custom_domains,
+    list_env_variables,
+    refresh_custom_domain,
+    remove_custom_domain,
+    set_env_variable,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -134,6 +158,18 @@ def _scoped_app(request, app_ref):
     app = resolve_app_ref(app_ref, company_id=require_company_id(request.user))
     assert_deploy_token_preview(request.user, app)
     return app
+
+
+def _owner_app(request, app_ref):
+    """Company-scoped app for owner routes. Deploy tokens cannot call operational APIs."""
+    if getattr(request.user, 'deploy_token_id', None):
+        return None, _error_message('Operational APIs require a user or agent JWT.', status_code=403, code='forbidden')
+    try:
+        company_id = require_company_id(request.user)
+        app = resolve_app_ref(app_ref, company_id=company_id)
+    except HostingError as exc:
+        return None, _error(exc)
+    return app, None
 
 
 def _error_message(message: str, *, status_code: int = 400, code: str = 'Error') -> Response:
@@ -701,6 +737,349 @@ class DeploymentRollbackView(APIView):
         except HostingError as exc:
             return _error(exc)
         return Response(serialize_deployment(deployment))
+
+
+class AppCustomDomainListCreateView(APIView):
+    permission_classes = [IsAuthenticatedPrincipal]
+
+    @extend_schema(
+        tags=['operations'],
+        operation_id='hosting_v1_apps_domains_list',
+        parameters=[APP_REF_PATH],
+        responses={200: CustomDomainSerializer(many=True), **_API_ERRORS},
+        **mcp_openapi_fields('hosting_v1_apps_domains_list'),
+        **mcp_tool(operation_id='hosting_v1_apps_domains_list', read_only=True),
+    )
+    def get(self, request, app_ref):
+        app, err = _owner_app(request, app_ref)
+        if err:
+            return err
+        try:
+            payload = list_custom_domains(app=app)
+        except HostingError as exc:
+            return _error(exc)
+        return Response(payload)
+
+    @extend_schema(
+        tags=['operations'],
+        operation_id='hosting_v1_apps_domains_create',
+        parameters=[APP_REF_PATH],
+        request=CustomDomainCreateSerializer,
+        responses={201: CustomDomainSerializer, **_API_ERRORS},
+        **mcp_openapi_fields('hosting_v1_apps_domains_create'),
+        **mcp_tool(operation_id='hosting_v1_apps_domains_create', read_only=False),
+    )
+    def post(self, request, app_ref):
+        app, err = _owner_app(request, app_ref)
+        if err:
+            return err
+        data = request.data if isinstance(request.data, dict) else {}
+        try:
+            payload = add_custom_domain(
+                app=app,
+                hostname=str(data.get('hostname') or ''),
+                user_id=request.user.user_id,
+                actor_email=request.user.email,
+            )
+        except HostingError as exc:
+            return _error(exc)
+        return Response(payload, status=status.HTTP_201_CREATED)
+
+
+class AppCustomDomainDetailView(APIView):
+    permission_classes = [IsAuthenticatedPrincipal]
+
+    @extend_schema(
+        tags=['operations'],
+        operation_id='hosting_v1_apps_domains_retrieve',
+        parameters=[APP_REF_PATH, DOMAIN_ID_PATH],
+        responses={200: CustomDomainSerializer, **_API_ERRORS},
+        **mcp_openapi_fields('hosting_v1_apps_domains_retrieve'),
+        **mcp_tool(operation_id='hosting_v1_apps_domains_retrieve', read_only=True),
+    )
+    def get(self, request, app_ref, domain_id):
+        app, err = _owner_app(request, app_ref)
+        if err:
+            return err
+        try:
+            domain_uuid = uuid.UUID(str(domain_id))
+            payload = get_custom_domain(app=app, domain_id=domain_uuid)
+        except ValueError:
+            return _error_message('Invalid domain id.', status_code=400, code='invalid_domain_id')
+        except HostingError as exc:
+            return _error(exc)
+        return Response(payload)
+
+    @extend_schema(
+        tags=['operations'],
+        operation_id='hosting_v1_apps_domains_destroy',
+        parameters=[APP_REF_PATH, DOMAIN_ID_PATH],
+        responses={204: None, **_API_ERRORS},
+        **mcp_openapi_fields('hosting_v1_apps_domains_destroy'),
+        **mcp_tool(operation_id='hosting_v1_apps_domains_destroy', read_only=False, destructive=True),
+    )
+    def delete(self, request, app_ref, domain_id):
+        app, err = _owner_app(request, app_ref)
+        if err:
+            return err
+        try:
+            domain_uuid = uuid.UUID(str(domain_id))
+            remove_custom_domain(
+                app=app,
+                domain_id=domain_uuid,
+                user_id=request.user.user_id,
+                actor_email=request.user.email,
+            )
+        except ValueError:
+            return _error_message('Invalid domain id.', status_code=400, code='invalid_domain_id')
+        except HostingError as exc:
+            return _error(exc)
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class AppCustomDomainRefreshView(APIView):
+    permission_classes = [IsAuthenticatedPrincipal]
+
+    @extend_schema(
+        tags=['operations'],
+        operation_id='hosting_v1_apps_domains_refresh_create',
+        parameters=[APP_REF_PATH, DOMAIN_ID_PATH],
+        request=None,
+        responses={200: CustomDomainSerializer, **_API_ERRORS},
+        **mcp_openapi_fields('hosting_v1_apps_domains_refresh_create'),
+        **mcp_tool(operation_id='hosting_v1_apps_domains_refresh_create', read_only=False),
+    )
+    def post(self, request, app_ref, domain_id):
+        app, err = _owner_app(request, app_ref)
+        if err:
+            return err
+        try:
+            domain_uuid = uuid.UUID(str(domain_id))
+            payload = refresh_custom_domain(app=app, domain_id=domain_uuid)
+        except ValueError:
+            return _error_message('Invalid domain id.', status_code=400, code='invalid_domain_id')
+        except HostingError as exc:
+            return _error(exc)
+        return Response(payload)
+
+
+class AppEnvironmentListCreateView(APIView):
+    permission_classes = [IsAuthenticatedPrincipal]
+
+    @extend_schema(
+        tags=['operations'],
+        operation_id='hosting_v1_apps_environment_list',
+        parameters=[APP_REF_PATH],
+        responses={200: EnvVariableListSerializer(many=True), **_API_ERRORS},
+        **mcp_openapi_fields('hosting_v1_apps_environment_list'),
+        **mcp_tool(operation_id='hosting_v1_apps_environment_list', read_only=True, sensitive=True),
+    )
+    def get(self, request, app_ref):
+        app, err = _owner_app(request, app_ref)
+        if err:
+            return err
+        try:
+            payload = list_env_variables(app=app)
+        except HostingError as exc:
+            return _error(exc)
+        return Response(payload)
+
+    @extend_schema(
+        tags=['operations'],
+        operation_id='hosting_v1_apps_environment_create',
+        parameters=[APP_REF_PATH],
+        request=EnvVariableUpsertSerializer,
+        responses={200: EnvVariableListSerializer, **_API_ERRORS},
+        **mcp_openapi_fields('hosting_v1_apps_environment_create'),
+        **mcp_tool(operation_id='hosting_v1_apps_environment_create', read_only=False, sensitive=True),
+    )
+    def post(self, request, app_ref):
+        app, err = _owner_app(request, app_ref)
+        if err:
+            return err
+        data = request.data if isinstance(request.data, dict) else {}
+        try:
+            payload = set_env_variable(
+                app=app,
+                key=str(data.get('key') or ''),
+                value=str(data.get('value') if data.get('value') is not None else ''),
+                user_id=request.user.user_id,
+                actor_email=request.user.email,
+            )
+        except HostingError as exc:
+            return _error(exc)
+        return Response(payload, status=status.HTTP_200_OK)
+
+
+class AppEnvironmentKeyView(APIView):
+    permission_classes = [IsAuthenticatedPrincipal]
+
+    @extend_schema(
+        tags=['operations'],
+        operation_id='hosting_v1_apps_environment_retrieve',
+        parameters=[APP_REF_PATH, ENV_KEY_PATH],
+        responses={200: EnvVariableListSerializer, **_API_ERRORS},
+        **mcp_openapi_fields('hosting_v1_apps_environment_retrieve'),
+        **mcp_tool(operation_id='hosting_v1_apps_environment_retrieve', read_only=True, sensitive=True),
+    )
+    def get(self, request, app_ref, key):
+        app, err = _owner_app(request, app_ref)
+        if err:
+            return err
+        try:
+            payload = get_env_variable(app=app, key=str(key))
+        except HostingError as exc:
+            return _error(exc)
+        return Response(payload)
+
+    @extend_schema(
+        tags=['operations'],
+        operation_id='hosting_v1_apps_environment_update',
+        parameters=[APP_REF_PATH, ENV_KEY_PATH],
+        request=EnvVariableValueSerializer,
+        responses={200: EnvVariableListSerializer, **_API_ERRORS},
+        **mcp_openapi_fields('hosting_v1_apps_environment_update'),
+        **mcp_tool(operation_id='hosting_v1_apps_environment_update', read_only=False, sensitive=True),
+    )
+    def put(self, request, app_ref, key):
+        app, err = _owner_app(request, app_ref)
+        if err:
+            return err
+        data = request.data if isinstance(request.data, dict) else {}
+        try:
+            payload = set_env_variable(
+                app=app,
+                key=str(key),
+                value=str(data.get('value') if data.get('value') is not None else ''),
+                user_id=request.user.user_id,
+                actor_email=request.user.email,
+            )
+        except HostingError as exc:
+            return _error(exc)
+        return Response(payload)
+
+    @extend_schema(
+        tags=['operations'],
+        operation_id='hosting_v1_apps_environment_destroy',
+        parameters=[APP_REF_PATH, ENV_KEY_PATH],
+        responses={204: None, **_API_ERRORS},
+        **mcp_openapi_fields('hosting_v1_apps_environment_destroy'),
+        **mcp_tool(operation_id='hosting_v1_apps_environment_destroy', read_only=False, destructive=True, sensitive=True),
+    )
+    def delete(self, request, app_ref, key):
+        app, err = _owner_app(request, app_ref)
+        if err:
+            return err
+        try:
+            delete_env_variable(app=app, key=str(key), user_id=request.user.user_id, actor_email=request.user.email)
+        except HostingError as exc:
+            return _error(exc)
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class AppRuntimeLogsView(APIView):
+    permission_classes = [IsAuthenticatedPrincipal]
+
+    @extend_schema(
+        tags=['operations'],
+        operation_id='hosting_v1_apps_runtime_logs_list',
+        parameters=[
+            APP_REF_PATH,
+            OpenApiParameter(
+                name='limit',
+                type=int,
+                location=OpenApiParameter.QUERY,
+                required=False,
+                description='Max lines to return (capped by the server).',
+            ),
+        ],
+        responses={200: RuntimeLogResponseSerializer, **_API_ERRORS},
+        **mcp_openapi_fields('hosting_v1_apps_runtime_logs_list'),
+        **mcp_tool(operation_id='hosting_v1_apps_runtime_logs_list', read_only=True),
+    )
+    def get(self, request, app_ref):
+        app, err = _owner_app(request, app_ref)
+        if err:
+            return err
+        raw_limit = request.query_params.get('limit')
+        try:
+            limit = int(raw_limit) if raw_limit not in (None, '') else 100
+        except ValueError:
+            return _error_message('limit must be an integer.', code='invalid_limit')
+        try:
+            payload = list_app_runtime_logs(app=app, limit=limit)
+        except HostingError as exc:
+            return _error(exc)
+        return Response(payload)
+
+
+class AppRequestLogsView(APIView):
+    permission_classes = [IsAuthenticatedPrincipal]
+
+    @extend_schema(
+        tags=['operations'],
+        operation_id='hosting_v1_apps_request_logs_list',
+        parameters=[
+            APP_REF_PATH,
+            OpenApiParameter(
+                name='limit',
+                type=int,
+                location=OpenApiParameter.QUERY,
+                required=False,
+                description='Page size (default 50, capped by the server).',
+            ),
+            OpenApiParameter(
+                name='cursor',
+                type=str,
+                location=OpenApiParameter.QUERY,
+                required=False,
+                description='Opaque pagination cursor from a previous response (`next_cursor`).',
+            ),
+            OpenApiParameter(
+                name='status_min',
+                type=int,
+                location=OpenApiParameter.QUERY,
+                required=False,
+                description='Include responses with status_code greater than or equal to this value.',
+            ),
+            OpenApiParameter(
+                name='status_max',
+                type=int,
+                location=OpenApiParameter.QUERY,
+                required=False,
+                description='Include responses with status_code less than or equal to this value.',
+            ),
+        ],
+        responses={200: RequestLogListResponseSerializer, **_API_ERRORS},
+        **mcp_openapi_fields('hosting_v1_apps_request_logs_list'),
+        **mcp_tool(operation_id='hosting_v1_apps_request_logs_list', read_only=True),
+    )
+    def get(self, request, app_ref):
+        app, err = _owner_app(request, app_ref)
+        if err:
+            return err
+        raw_limit = request.query_params.get('limit')
+        raw_cursor = request.query_params.get('cursor')
+        raw_min = request.query_params.get('status_min')
+        raw_max = request.query_params.get('status_max')
+        try:
+            limit = int(raw_limit) if raw_limit not in (None, '') else 50
+        except ValueError:
+            return _error_message('limit must be an integer.', code='invalid_limit')
+        status_min = int(raw_min) if raw_min not in (None, '') else None
+        status_max = int(raw_max) if raw_max not in (None, '') else None
+        cursor = str(raw_cursor).strip() or None if raw_cursor is not None else None
+        try:
+            payload = list_app_request_logs(
+                app=app,
+                limit=limit,
+                cursor=cursor,
+                status_min=status_min,
+                status_max=status_max,
+            )
+        except HostingError as exc:
+            return _error(exc)
+        return Response(payload)
 
 
 class DeployTokenListCreateView(APIView):

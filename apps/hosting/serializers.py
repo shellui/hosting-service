@@ -162,3 +162,74 @@ class DeployTokenCreateResponseSerializer(DeployTokenSerializer):
         required=False,
         help_text='Plaintext deploy token. Returned once on create; stored hashed server-side.',
     )
+
+
+class CustomDomainDnsSerializer(serializers.Serializer):
+    verification_txt_name = serializers.CharField(help_text='TXT record name relative to the hostname (underscore label).')
+    verification_txt_value = serializers.CharField(help_text='TXT value to publish for DNS verification.')
+
+
+class CustomDomainSerializer(serializers.Serializer):
+    id = serializers.UUIDField()
+    app_id = serializers.UUIDField()
+    hostname = serializers.CharField()
+    status = serializers.ChoiceField(choices=['pending_dns', 'awaiting_platform', 'active'])
+    verified = serializers.BooleanField(
+        help_text='True only after the platform confirms DNS. Always false until edge integration ships.'
+    )
+    serving = serializers.BooleanField(
+        help_text='True only when the edge serves TLS for this hostname. Always false in this release.'
+    )
+    dns = CustomDomainDnsSerializer()
+    instructions = serializers.CharField()
+    created_at = serializers.DateTimeField()
+    updated_at = serializers.DateTimeField()
+
+
+class CustomDomainCreateSerializer(serializers.Serializer):
+    hostname = serializers.CharField(
+        max_length=253,
+        help_text='Fully qualified hostname (not under the default app hosting domain).',
+    )
+
+
+class EnvVariableListSerializer(serializers.Serializer):
+    key = serializers.CharField()
+    value_present = serializers.BooleanField(help_text='Whether a value is stored. Values are never returned.')
+    updated_at = serializers.DateTimeField()
+
+
+class EnvVariableUpsertSerializer(serializers.Serializer):
+    key = serializers.CharField(max_length=128, help_text='Must match /^[A-Za-z_][A-Za-z0-9_]{0,127}$/.')
+    value = McpSecretCharField(help_text='New value. Never echoed in list or get responses.')
+
+
+class EnvVariableValueSerializer(serializers.Serializer):
+    value = McpSecretCharField(help_text='New value. Never echoed in list or get responses.')
+
+
+class EnvVariableKeySerializer(serializers.Serializer):
+    key = serializers.CharField(max_length=128)
+
+
+class RequestLogEntrySerializer(serializers.Serializer):
+    id = serializers.IntegerField()
+    created_at = serializers.DateTimeField()
+    method = serializers.CharField()
+    path = serializers.CharField(help_text='Request path and query only; query values are not redacted.')
+    status_code = serializers.IntegerField()
+    request_id = serializers.CharField(allow_null=True, required=False)
+
+
+class RequestLogListResponseSerializer(serializers.Serializer):
+    results = RequestLogEntrySerializer(many=True)
+    next_cursor = serializers.CharField(allow_null=True, required=False)
+    limit = serializers.IntegerField()
+
+
+class RuntimeLogResponseSerializer(serializers.Serializer):
+    source = serializers.ChoiceField(choices=['none'])
+    unavailable_reason = serializers.CharField()
+    lines = serializers.ListField(child=serializers.CharField())
+    truncated = serializers.BooleanField()
+    limit = serializers.IntegerField()

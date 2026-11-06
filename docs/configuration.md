@@ -81,6 +81,10 @@ See [JWT and claim trust](claim-trust.md).
 | `HOSTING_ALLOW_ANY_HOST` | same as `DEBUG` | Accept any `Host` header. Leave this off in production |
 | `HOSTING_PREVIEW_TTL_DAYS` | `7` | Days added to `expires_at` when a preview finalize succeeds |
 | `HOSTING_SERVE_CACHE_TTL_SECONDS` | `45` | In-process cache of slug-to-app lookups. `0` disables it. Cleared on finalize and rollback |
+| `HOSTING_REQUEST_LOG_ENABLED` | `true` | When true, records one anonymized row per HTTP response on app subdomains (method, path, status, optional request id) for operations APIs |
+| `HOSTING_REQUEST_LOG_MAX_PER_APP` | `5000` | Deletes oldest rows after this many per app |
+| `HOSTING_REQUEST_LOG_PAGE_MAX` | `200` | Maximum `limit` on `GET .../logs/requests` |
+| `HOSTING_RUNTIME_LOG_MAX_LINES` | `500` | Upper cap on the `limit` query for `GET .../logs/runtime` (response stays empty until a runtime exists) |
 | `HOSTING_DEBUG_OPEN` | `false` | Skip the company waitlist. Refused when `DEBUG=false`. [`.env.example`](../.env.example) sets `true` for local clones |
 
 The public URL is `{scheme}://{slug}.{HOSTING_APP_DOMAIN}/`. Serving itself uses the first hostname label, not only this domain. `HOSTING_APP_DOMAIN` and `www.{HOSTING_APP_DOMAIN}` show the landing page. See [Preview sites and public URLs](preview-and-serving.md).

@@ -57,6 +57,18 @@ MCP_REQUIRED_OPERATION_IDS: frozenset[str] = frozenset(
         'api_v1_actions_event_log_retrieve',
         'api_v1_actions_event_log_types_list',
         'api_v1_actions_event_log_retention_retrieve',
+        'hosting_v1_apps_domains_list',
+        'hosting_v1_apps_domains_create',
+        'hosting_v1_apps_domains_retrieve',
+        'hosting_v1_apps_domains_destroy',
+        'hosting_v1_apps_domains_refresh_create',
+        'hosting_v1_apps_environment_list',
+        'hosting_v1_apps_environment_create',
+        'hosting_v1_apps_environment_retrieve',
+        'hosting_v1_apps_environment_update',
+        'hosting_v1_apps_environment_destroy',
+        'hosting_v1_apps_runtime_logs_list',
+        'hosting_v1_apps_request_logs_list',
     }
 )
 
@@ -64,6 +76,8 @@ MCP_REQUIRED_SECRET_SCHEMA_PROPERTIES: frozenset[tuple[str, str]] = frozenset(
     {
         ('DeployTokenCreateResponse', 'token'),
         ('ActionRuleCreate', 'secret'),
+        ('EnvVariableUpsert', 'value'),
+        ('EnvVariableValue', 'value'),
     }
 )
 

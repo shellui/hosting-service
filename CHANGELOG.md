@@ -21,6 +21,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 See for sample https://raw.githubusercontent.com/favoloso/conventional-changelog-emoji/master/CHANGELOG.md
 -->
 
+## [Unreleased]
+
+### ✨ Feature
+
+- Company-owner REST and Shellui MCP tools for custom domains (honest `verified` and `serving` flags), app environment variables (values never returned, `x-mcp-secret` on writes), bounded request logs for app subdomains, and an explicit empty runtime log contract for static hosting.
+- Domain events `hosting.custom_domain.*` and `hosting.environment_variable.*` for auditing.
+
 ## [0.11.0] - 2026-11-01
 
 ### ✨ Feature
