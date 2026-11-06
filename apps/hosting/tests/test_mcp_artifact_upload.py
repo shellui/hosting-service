@@ -162,6 +162,14 @@ class McpArtifactUploadFlowTests(TestCase):
     @patch('apps.hosting.storage.presigned_artifact_put_url', return_value='https://s3.example.com/presigned-put')
     def test_s3_upload_url_then_complete(self, _mock_presign, _mock_s3, mock_jwks):
         mock_jwks.return_value.get_signing_key.return_value = None
+        # Presigned URLs are x-mcp-sensitive; safe read mode redacts them before assert.
+        prev_token = self.token
+        self.token = _agent_token(
+            agent_id=self.agent_id,
+            company_id=self.company_id,
+            mcp_access='full',
+            mcp_read='sensitive',
+        )
         app = App.objects.create(
             name='s3-site',
             slug='s3site01',
@@ -208,3 +216,4 @@ class McpArtifactUploadFlowTests(TestCase):
         self.assertFalse(complete_resp.json()['result'].get('isError'))
         deployment.refresh_from_db()
         self.assertEqual(deployment.artifact_size, len(tarball))
+        self.token = prev_token
