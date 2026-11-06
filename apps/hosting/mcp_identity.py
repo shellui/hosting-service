@@ -15,9 +15,11 @@ from shellui_django.mcp.internal import (
     build_mcp_revocation_assertion,
     parse_trusted_revocation_poll_response,
 )
-from shellui_django.mcp.masking import redact_mapping
-
-from apps.authapi.mcp_authority import approval_assertion_grant_kwarg, mcp_personal_agent_rejected
+from apps.authapi.mcp_authority import (
+    approval_assertion_grant_kwarg,
+    mcp_personal_agent_rejected,
+    parse_agent_regional_company_id,
+)
 from apps.hosting.mcp_call_log_body import build_identity_call_log_body
 from apps.hosting.mcp_context import current_mcp_agent_claims
 from config.service_signing import signing_kwargs
@@ -49,8 +51,12 @@ def create_approval_request(payload: dict) -> dict | None:
     if not agent_id or company_id is None:
         return None
     try:
+        co_int = parse_agent_regional_company_id(company_id)
+    except ValueError:
+        return None
+    try:
         assertion = build_mcp_approval_assertion(
-            company_id=int(company_id),
+            company_id=co_int,
             agent_id=agent_id,
             service=str(payload.get('service') or 'hosting'),
             action=str(payload.get('action') or ''),
@@ -66,9 +72,8 @@ def create_approval_request(payload: dict) -> dict | None:
         logger.warning('MCP approval assertion failed: mcp_assertion_error')
         return None
     url = f'{base}/api/v1/mcp/internal/mcp-approval-requests'
-    body = {
-        'arguments': redact_mapping(payload.get('arguments') or {}, read_sensitive=False),
-    }
+    # Arguments are represented only in the signed assertion (`arguments_hash`); body is empty.
+    body: dict[str, Any] = {}
     try:
         response = requests.post(
             url,
@@ -96,8 +101,12 @@ def _approval_route_assertion(payload: dict) -> str | None:
     if not agent_id or company_id is None or not args_hash:
         return None
     try:
+        co_int = parse_agent_regional_company_id(company_id)
+    except ValueError:
+        return None
+    try:
         return build_mcp_approval_assertion(
-            company_id=int(company_id),
+            company_id=co_int,
             agent_id=agent_id,
             service=str(payload.get('service') or 'hosting'),
             action=str(payload.get('action') or ''),
@@ -137,9 +146,13 @@ def lookup_approval_state(payload: dict) -> str | None:
         if status == 'approved' and data.get('id'):
             approval_id = str(data['id'])
             payload['approval_id'] = approval_id
+            try:
+                co_ctx = parse_agent_regional_company_id(payload.get('company_id'))
+            except ValueError:
+                return APPROVAL_LOOKUP_UNAVAILABLE
             _APPROVAL_ROUTE_CONTEXT[approval_id] = {
                 'agent_id': str(payload.get('agent_id') or ''),
-                'company_id': int(payload.get('company_id')),
+                'company_id': co_ctx,
                 'service': str(payload.get('service') or 'hosting'),
                 'action': str(payload.get('action') or ''),
                 'arguments_hash': str(payload.get('arguments_hash') or ''),
@@ -175,9 +188,16 @@ def consume_approval(approval_id: str, route_payload: dict | None = None) -> boo
     args_hash = str(source.get('arguments_hash') or '')
     if not args_hash and ctx:
         args_hash = str(ctx.get('arguments_hash') or '')
+    raw_co = source.get('company_id')
+    if raw_co is None and ctx:
+        raw_co = ctx.get('company_id')
+    try:
+        co_int = parse_agent_regional_company_id(raw_co)
+    except (TypeError, ValueError):
+        return False
     payload = {
         'agent_id': str(source.get('agent_id') or (ctx or {}).get('agent_id') or ''),
-        'company_id': source.get('company_id') if source.get('company_id') is not None else (ctx or {}).get('company_id'),
+        'company_id': co_int,
         'service': str(source.get('service') or (ctx or {}).get('service') or 'hosting'),
         'action': str(source.get('action') or (ctx or {}).get('action') or ''),
         'arguments_hash': args_hash,
@@ -259,7 +279,10 @@ def fetch_revocation_payload(*, company_id: int | None = None) -> dict | None:
     headers: dict[str, str] = {}
     params: dict[str, str] = {}
     if company_id is not None:
-        params['company_id'] = str(int(company_id))
+        try:
+            params['company_id'] = str(parse_agent_regional_company_id(company_id))
+        except ValueError:
+            return None
     try:
         headers['Authorization'] = f'Bearer {build_mcp_revocation_assertion(audience_url=origin, **signing_kwargs())}'
     except InternalAssertionError:
@@ -281,14 +304,18 @@ def fetch_revocation_payload(*, company_id: int | None = None) -> dict | None:
             logger.warning('MCP revocation list untrusted: revocation_list_untrusted')
             return None
         if company_id is not None:
+            try:
+                expect_cid = parse_agent_regional_company_id(company_id)
+            except ValueError:
+                return None
             for row in agents:
                 if not isinstance(row, dict):
                     return None
                 try:
-                    row_company = int(row.get('company_id'))
-                except (TypeError, ValueError):
+                    row_company = parse_agent_regional_company_id(row.get('company_id'))
+                except ValueError:
                     return None
-                if row_company != int(company_id):
+                if row_company != expect_cid:
                     return None
         return {
             'revoked_agent_ids': sorted(revoked_ids),

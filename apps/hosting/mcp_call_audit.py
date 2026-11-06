@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Final
 
 READ_METHODS = frozenset({'GET', 'HEAD', 'OPTIONS'})
 
@@ -29,12 +29,18 @@ ERROR_CODE_BY_STATUS: dict[int, str] = {
     504: 'gateway_timeout',
 }
 
+# Static allowlist for ``error_code`` on failed outcomes (never free-form text).
+ALL_CALL_LOG_ERROR_CODES: Final[frozenset[str]] = frozenset(
+    set(ERROR_CODE_BY_STATUS.values())
+    | {'invalid_status', 'client_error', 'server_error', 'failed', 'unexpected_status', 'approval_pending'}
+)
 
-def call_log_error_code_for_http(status_code: int | None) -> str | None:
-    """Fixed allowlist for failed HTTP; None when unknown low status (never guess success)."""
+
+def call_log_error_code_for_http(status_code: int | None) -> str:
+    """Fixed allowlist for failed HTTP responses. Never returns None for status >= 400."""
     code = int(status_code or 0)
     if code < 400:
-        return None
+        return 'invalid_status'
     if code in ERROR_CODE_BY_STATUS:
         return ERROR_CODE_BY_STATUS[code]
     if 400 <= code <= 499:
@@ -45,12 +51,19 @@ def call_log_error_code_for_http(status_code: int | None) -> str | None:
 
 
 def outcome_and_error_for_http(status_code: int | None) -> tuple[str, str | None]:
-    """Map HTTP status to canonical outcome and optional error_code."""
+    """Map HTTP status to canonical outcome and ``error_code`` (None only when ``allowed``).
+
+    Success is only explicit 2xx (`200` through `299`). Other codes never map to ``allowed``.
+    """
     code = int(status_code or 0)
     if code < 100:
         return OUTCOME_FAILED, 'invalid_status'
-    if code < 400:
+    if 100 <= code <= 199:
+        return OUTCOME_FAILED, 'unexpected_status'
+    if 200 <= code <= 299:
         return OUTCOME_ALLOWED, None
+    if 300 <= code <= 399:
+        return OUTCOME_FAILED, 'unexpected_status'
     return OUTCOME_FAILED, call_log_error_code_for_http(code)
 
 
@@ -61,19 +74,39 @@ def call_log_access_kind(*, method: str, tool_read_only: bool) -> str:
     return 'write'
 
 
-def operation_summary_or_id(schema: dict[str, Any], *, tool_name: str, path_template: str, method: str) -> str:
+def operation_summary_or_id(schema: dict[str, Any], *, operation_id: str, path_template: str, method: str) -> str:
     """OpenAPI ``summary`` else ``operationId`` from this repo schema only (not client text)."""
     op = (schema.get('paths') or {}).get(path_template) or {}
     op_body = op.get((method or 'GET').lower()) or {}
     if not isinstance(op_body, dict):
-        return tool_name
+        return operation_id[:500]
+    oid = str(op_body.get('operationId') or '').strip()
+    if oid and oid != operation_id:
+        return operation_id[:500]
     summary = str(op_body.get('summary') or '').strip()
     if summary:
         return summary[:500]
-    oid = str(op_body.get('operationId') or '').strip()
     if oid:
         return oid[:500]
-    return tool_name[:500]
+    return operation_id[:500]
+
+
+def openapi_path_for_operation_id(schema: dict[str, Any], operation_id: str) -> str:
+    """Path template from this repo OpenAPI by ``operationId`` (single source of truth)."""
+    paths = schema.get('paths') or {}
+    oid = (operation_id or '').strip()
+    if not oid:
+        return ''
+    for path_key, path_item in paths.items():
+        if not isinstance(path_item, dict):
+            continue
+        for http_m in ('get', 'post', 'put', 'patch', 'delete', 'options', 'head', 'trace'):
+            op = path_item.get(http_m)
+            if not isinstance(op, dict):
+                continue
+            if str(op.get('operationId') or '').strip() == oid:
+                return safe_path_template(str(path_key))
+    return ''
 
 
 def safe_path_template(path_template: str) -> str:

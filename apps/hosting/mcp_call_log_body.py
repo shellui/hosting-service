@@ -5,13 +5,14 @@ from __future__ import annotations
 from typing import Any
 from uuid import UUID
 
-from apps.authapi.mcp_authority import strict_non_negative_int_optional
+from apps.authapi.mcp_authority import parse_agent_regional_company_id, strict_non_negative_int_optional
+from apps.hosting.mcp_call_audit import ALL_CALL_LOG_ERROR_CODES, OUTCOME_ALLOWED
 
 # Canonical outcomes (Shellui shared contract); must match ``mcp_call_audit``.
 CANONICAL_OUTCOMES = frozenset(
     {
         'pending_approval',
-        'allowed',
+        OUTCOME_ALLOWED,
         'denied',
         'failed',
         'session_used',
@@ -37,17 +38,17 @@ def build_identity_call_log_body(entry: dict[str, Any]) -> dict[str, Any] | None
     """Return body dict or None when required fields are missing.
 
     Excludes caller-provided correlation ids (no ``request_id``, no ``mcp_jsonrpc_id``).
-    ``error_code`` is optional on success; omit when empty. ``approval_request_id`` only when valid UUID.
+    ``error_code`` is required for every outcome except ``allowed``; it must be a static enum value from
+    ``ALL_CALL_LOG_ERROR_CODES``. Success (``allowed``) never carries ``error_code``.
+    ``approval_request_id`` only when valid UUID.
     """
     agent_id = entry.get('agent_id')
     company_id = entry.get('company_id')
     if agent_id in (None, '') or company_id in (None, ''):
         return None
     try:
-        company_int = strict_non_negative_int_optional(company_id, field='company_id')
+        company_int = parse_agent_regional_company_id(company_id)
     except ValueError:
-        return None
-    if company_int is None:
         return None
 
     tool = _nonempty_str(entry.get('tool'), max_len=200)
@@ -62,13 +63,14 @@ def build_identity_call_log_body(entry: dict[str, Any]) -> dict[str, Any] | None
         return None
 
     error_raw = entry.get('error_code')
-    error_code: str | None
-    if error_raw in (None, ''):
+    if outcome == OUTCOME_ALLOWED:
+        if error_raw not in (None, ''):
+            return None
         error_code = None
     else:
         error_code = _nonempty_str(error_raw, max_len=64)
-        if not error_code:
-            error_code = None
+        if not error_code or error_code not in ALL_CALL_LOG_ERROR_CODES:
+            return None
 
     try:
         http_status = int(entry.get('http_status') if entry.get('http_status') is not None else 0)

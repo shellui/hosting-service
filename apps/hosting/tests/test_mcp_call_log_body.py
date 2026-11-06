@@ -72,6 +72,43 @@ class CallLogBodyTests(SimpleTestCase):
         assert body is not None
         self.assertEqual(body['error_code'], 'not_found')
 
+    def test_pending_approval_requires_enum_error_code(self):
+        body = build_identity_call_log_body(
+            {
+                'agent_id': 'a',
+                'company_id': 1,
+                'tool': 't',
+                'operation_title': 'T',
+                'resource_path': '/p',
+                'http_method': 'POST',
+                'access_kind': 'write',
+                'outcome': 'pending_approval',
+                'error_code': 'approval_pending',
+                'http_status': 0,
+            }
+        )
+        self.assertIsNotNone(body)
+        assert body is not None
+        self.assertEqual(body['error_code'], 'approval_pending')
+
+    def test_rejects_allowed_with_error_code(self):
+        self.assertIsNone(
+            build_identity_call_log_body(
+                {
+                    'agent_id': 'a',
+                    'company_id': 1,
+                    'tool': 't',
+                    'operation_title': 'T',
+                    'resource_path': '/p',
+                    'http_method': 'GET',
+                    'access_kind': 'read',
+                    'outcome': 'allowed',
+                    'error_code': 'ok',
+                    'http_status': 200,
+                }
+            )
+        )
+
     def test_rejects_noncanonical_outcome(self):
         self.assertIsNone(
             build_identity_call_log_body(

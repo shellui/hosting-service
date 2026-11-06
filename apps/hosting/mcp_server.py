@@ -19,13 +19,14 @@ from shellui_django.mcp.write_gate import decide_write, is_destructive_operation
 
 from apps.authapi.mcp_authority import authority_context_for_call_log, strict_non_negative_int_optional
 from apps.hosting.mcp_call_audit import (
+    OUTCOME_ALLOWED,
     OUTCOME_DENIED,
     OUTCOME_PENDING_APPROVAL,
     OUTCOME_SESSION_USED,
     call_log_access_kind,
+    openapi_path_for_operation_id,
     operation_summary_or_id,
     outcome_and_error_for_http,
-    safe_path_template,
 )
 from apps.hosting.mcp_identity import APPROVAL_LOOKUP_UNAVAILABLE
 
@@ -66,15 +67,16 @@ class HostingMcpServer(McpServer):
     ) -> None:
         if not self.on_call:
             return
+        schema_path = openapi_path_for_operation_id(schema, tool_name) or path_template
         entry: dict[str, Any] = {
             'agent_id': agent_claims.get('agent_id'),
             'company_id': agent_claims.get('company_id'),
             'service': self.service_name,
             'tool': tool_name,
             'operation_title': operation_summary_or_id(
-                schema, tool_name=tool_name, path_template=path_template, method=method
+                schema, operation_id=tool_name, path_template=schema_path, method=method
             ),
-            'resource_path': safe_path_template(path_template),
+            'resource_path': schema_path,
             'http_method': method,
             'http_status': http_status,
             'access_kind': call_log_access_kind(method=method, tool_read_only=tool_read_only),
@@ -208,6 +210,7 @@ class HostingMcpServer(McpServer):
                         if consumed:
                             granted = True
                     else:
+                        _fail_o, _fail_e = outcome_and_error_for_http(503)
                         self._forward_call_log(
                             schema=schema,
                             agent_claims=agent_claims,
@@ -217,8 +220,8 @@ class HostingMcpServer(McpServer):
                             tool_read_only=tool_read_only,
                             duration_ms=max(0, int((time.perf_counter() - approval_started) * 1000)),
                             http_status=503,
-                            outcome=outcome_and_error_for_http(503)[0],
-                            error_code=outcome_and_error_for_http(503)[1],
+                            outcome=_fail_o,
+                            error_code=_fail_e,
                         )
                         return JsonResponse(
                             self._result(
@@ -237,7 +240,7 @@ class HostingMcpServer(McpServer):
                         duration_ms=max(0, int((time.perf_counter() - approval_started) * 1000)),
                         http_status=0,
                         outcome=OUTCOME_PENDING_APPROVAL,
-                        error_code=None,
+                        error_code='approval_pending',
                     )
                     return JsonResponse(
                         self._result(
@@ -250,6 +253,7 @@ class HostingMcpServer(McpServer):
                         )
                     )
                 elif state == APPROVAL_LOOKUP_UNAVAILABLE:
+                    _fail_o, _fail_e = outcome_and_error_for_http(503)
                     self._forward_call_log(
                         schema=schema,
                         agent_claims=agent_claims,
@@ -259,10 +263,11 @@ class HostingMcpServer(McpServer):
                         tool_read_only=tool_read_only,
                         duration_ms=max(0, int((time.perf_counter() - approval_started) * 1000)),
                         http_status=503,
-                        outcome=outcome_and_error_for_http(503)[0],
-                        error_code=outcome_and_error_for_http(503)[1],
+                        outcome=_fail_o,
+                        error_code=_fail_e,
                     )
                 elif state is None:
+                    _fail_o, _fail_e = outcome_and_error_for_http(503)
                     self._forward_call_log(
                         schema=schema,
                         agent_claims=agent_claims,
@@ -272,8 +277,8 @@ class HostingMcpServer(McpServer):
                         tool_read_only=tool_read_only,
                         duration_ms=max(0, int((time.perf_counter() - approval_started) * 1000)),
                         http_status=503,
-                        outcome=outcome_and_error_for_http(503)[0],
-                        error_code=outcome_and_error_for_http(503)[1],
+                        outcome=_fail_o,
+                        error_code=_fail_e,
                     )
             if not granted and self.approval_handler:
                 if state != APPROVAL_LOOKUP_UNAVAILABLE:
@@ -290,7 +295,7 @@ class HostingMcpServer(McpServer):
                             duration_ms=max(0, int((time.perf_counter() - approval_started) * 1000)),
                             http_status=0,
                             outcome=OUTCOME_PENDING_APPROVAL,
-                            error_code=None,
+                            error_code='approval_pending',
                             approval_request_id=str(appr_id) if appr_id else None,
                         )
                         return JsonResponse(
@@ -385,7 +390,7 @@ class HostingMcpServer(McpServer):
                 req_id,
                 {
                     'content': [{'type': 'text', 'text': json.dumps(redacted)}],
-                    'isError': status_code >= 400,
+                    'isError': outcome != OUTCOME_ALLOWED,
                 },
             )
         )

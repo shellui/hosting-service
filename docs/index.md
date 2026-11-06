@@ -77,7 +77,7 @@ Pick the row that matches what you are doing:
 | --- | --- |
 | Run it locally | [Run hosting-service](getting-started.md) |
 | Set environment variables | [Configuration](configuration.md) |
-| Follow an app from upload to active | [Apps and deployments](apps-and-deployments.md) |
+| Follow an app from upload to active | [Apps and deployments](apps-and-deployments.md) (includes [MCP agents: production deploy flow](apps-and-deployments.md#mcp-agents-production-deploy-flow)) |
 | Deploy from your machine or CI | [Deploy with the CLI](deploy-with-cli.md) |
 | See how public URLs are chosen | [Preview sites and public URLs](preview-and-serving.md) |
 | Approve a company | [Company access](company-access.md) |
