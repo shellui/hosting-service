@@ -33,7 +33,11 @@ from apps.hosting.mcp_call_audit import (
     outcome_and_error_for_http,
 )
 from apps.hosting.mcp_identity import APPROVAL_LOOKUP_UNAVAILABLE
-from apps.hosting.mcp_live_authority import delegated_live_authority_ok
+from apps.hosting.mcp_live_authority import (
+    DELEGATED_AUTH_REASON_MISCONFIGURED,
+    DELEGATED_AUTH_REASON_UNAVAILABLE,
+    delegated_live_authority_state,
+)
 
 _BODYLESS_METHODS = frozenset({'GET', 'HEAD', 'OPTIONS', 'TRACE'})
 
@@ -106,7 +110,10 @@ class HostingMcpServer(McpServer):
             return JsonResponse({'error': 'rate_limited'}, status=429)
         if mcp_personal_agent_rejected(agent_claims):
             return JsonResponse({'error': 'forbidden'}, status=403)
-        if not delegated_live_authority_ok(agent_claims):
+        auth_reason, authority_ok = delegated_live_authority_state(agent_claims)
+        if not authority_ok:
+            if auth_reason in (DELEGATED_AUTH_REASON_UNAVAILABLE, DELEGATED_AUTH_REASON_MISCONFIGURED):
+                return JsonResponse({'error': 'service_unavailable'}, status=503)
             return JsonResponse({'error': 'forbidden'}, status=403)
         company_id = agent_claims.get('company_id')
         try:

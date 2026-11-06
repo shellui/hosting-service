@@ -67,8 +67,8 @@ class McpTenantIsolationTests(TestCase):
         )
         self._revocation_ok.start()
         self._delegated_live = patch(
-            'apps.hosting.mcp_server.delegated_live_authority_ok',
-            return_value=True,
+            'apps.hosting.mcp_server.delegated_live_authority_state',
+            return_value=('ok', True),
         )
         self._delegated_live.start()
         from apps.hosting import mcp_views

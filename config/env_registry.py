@@ -63,7 +63,7 @@ OPTIONAL = (
     Var('IDENTITY_SYNC_TIMEOUT', '10'),
     Var(
         'IDENTITY_DELEGATED_AGENT_AUTHORITY_PATH',
-        '/api/v1/mcp/internal/mcp-delegated-agent-authority',
+        '/api/v1/mcp/internal/mcp-agent-delegated-authority',
         'Identity MCP internal: live delegated RegionalAgent row check (POST body matches JWT triplet)',
     ),
     Var('JWKS_CACHE_TTL', '900'),

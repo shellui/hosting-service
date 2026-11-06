@@ -37,6 +37,7 @@ def _agent_token(
     aud: str | list[str] = 'http://127.0.0.1/mcp',
     mcp_authority: str | None = None,
     global_company_id: str | None = None,
+    global_agent_id: str | None = None,
     grant_version: int | None = None,
     company_binding_version: int | None = None,
 ) -> str:
@@ -56,6 +57,8 @@ def _agent_token(
         claims['mcp_authority'] = mcp_authority
     if global_company_id is not None:
         claims['global_company_id'] = global_company_id
+    if global_agent_id is not None:
+        claims['global_agent_id'] = global_agent_id
     if grant_version is not None:
         claims['grant_version'] = grant_version
     if company_binding_version is not None:
@@ -85,8 +88,8 @@ class McpEndpointTests(TestCase):
         )
         self._revocation_ok.start()
         self._delegated_live = patch(
-            'apps.hosting.mcp_server.delegated_live_authority_ok',
-            return_value=True,
+            'apps.hosting.mcp_server.delegated_live_authority_state',
+            return_value=('ok', True),
         )
         self._delegated_live.start()
         from apps.hosting import mcp_views
@@ -352,12 +355,33 @@ class McpEndpointTests(TestCase):
         token = _agent_token(
             mcp_authority='delegated',
             global_company_id='01234567-89ab-cdef-0123-456789abcdef',
+            global_agent_id='fedcba98-7654-3210-fedc-ba9876543210',
             grant_version=1,
             company_binding_version=0,
         )
-        with patch('apps.hosting.mcp_server.delegated_live_authority_ok', return_value=False):
+        with patch('apps.hosting.mcp_server.delegated_live_authority_state', return_value=('deny', False)):
             response = self._rpc('tools/list', token=token)
         self.assertEqual(response.status_code, 403)
+
+    @patch('apps.authapi.authentication.get_jwks_client')
+    def test_delegated_live_authority_unavailable_503(self, mock_jwks):
+        from apps.hosting.mcp_live_authority import DELEGATED_AUTH_REASON_UNAVAILABLE
+
+        mock_jwks.return_value.get_signing_key.return_value = None
+        token = _agent_token(
+            mcp_authority='delegated',
+            global_company_id='01234567-89ab-cdef-0123-456789abcdef',
+            global_agent_id='fedcba98-7654-3210-fedc-ba9876543210',
+            grant_version=1,
+            company_binding_version=0,
+        )
+        with patch(
+            'apps.hosting.mcp_server.delegated_live_authority_state',
+            return_value=(DELEGATED_AUTH_REASON_UNAVAILABLE, False),
+        ):
+            response = self._rpc('tools/list', token=token)
+        self.assertEqual(response.status_code, 503)
+        self.assertEqual(response.json().get('error'), 'service_unavailable')
 
     @patch('apps.authapi.authentication.get_jwks_client')
     def test_deploy_token_list_never_returns_secrets(self, mock_jwks):

@@ -1,4 +1,4 @@
-"""Live delegated authority check (Identity POST mcp-delegated-agent-authority)."""
+"""Live delegated authority check (Identity ``POST .../mcp-agent-delegated-authority``)."""
 
 from __future__ import annotations
 
@@ -7,18 +7,45 @@ from unittest.mock import MagicMock, patch
 from django.core.cache import cache
 from django.test import SimpleTestCase, override_settings
 
-from apps.hosting.mcp_live_authority import bump_delegated_authority_cache_on_identity_failure, delegated_live_authority_ok
+from apps.hosting.mcp_live_authority import (
+    DELEGATED_AUTH_REASON_UNAVAILABLE,
+    bump_delegated_authority_cache_on_identity_failure,
+    delegated_live_authority_ok,
+    delegated_live_authority_state,
+)
 from apps.hosting.tests.signing_helpers import MCP_SIGNING_TEST_SETTINGS
 
 _GID = "01234567-89ab-cdef-0123-456789abcdef"
+_GAID = "fedcba98-7654-3210-fedc-ba9876543210"
+
+
+def _ok_identity_body(*, agent_id: str, company_id: int = 42) -> dict:
+    """Shape from Identity ``McpInternalDelegatedAgentAuthorityView.post`` success."""
+    return {
+        "authorized": True,
+        "revoked": False,
+        "paused": False,
+        "agent_id": agent_id,
+        "company_id": company_id,
+        "global_agent_id": _GAID,
+        "global_company_id": _GID,
+        "grant_version": 1,
+        "company_binding_version": 0,
+        "services_allowed": ["hosting", "storage"],
+        "global_allowed_services": ["hosting", "storage"],
+        "access_mode": "full",
+        "read_level": "safe",
+        "allow_destructive_without_asking": False,
+    }
 
 
 def _delegated_claims(**kwargs):
     base = {
-        "agent_id": "agent-delegated",
+        "agent_id": "aabbccdd-eeff-0011-aabb-ccddeeff0011",
         "company_id": 42,
         "mcp_authority": "delegated",
         "global_company_id": _GID,
+        "global_agent_id": _GAID,
         "grant_version": 1,
         "company_binding_version": 0,
     }
@@ -35,13 +62,13 @@ class DelegatedLiveAuthorityTests(SimpleTestCase):
     def tearDown(self):
         cache.clear()
 
-    @patch("apps.hosting.mcp_live_authority.build_mcp_revocation_assertion", return_value="assertion")
+    @patch("apps.hosting.mcp_live_authority.build_mcp_delegated_agent_authority_assertion", return_value="assertion")
     def test_personal_regional_skips_http(self, _assert):
         self.assertTrue(
             delegated_live_authority_ok({"agent_id": "a", "company_id": 42, "grant_version": 0})
         )
 
-    @patch("apps.hosting.mcp_live_authority.build_mcp_revocation_assertion", return_value="assertion")
+    @patch("apps.hosting.mcp_live_authority.build_mcp_delegated_agent_authority_assertion", return_value="assertion")
     def test_delegated_without_global_skips_http(self, _assert):
         self.assertTrue(
             delegated_live_authority_ok(
@@ -50,126 +77,97 @@ class DelegatedLiveAuthorityTests(SimpleTestCase):
         )
 
     @patch("apps.hosting.mcp_live_authority.requests.post")
-    @patch("apps.hosting.mcp_live_authority.build_mcp_revocation_assertion", return_value="assertion")
+    @patch("apps.hosting.mcp_live_authority.build_mcp_delegated_agent_authority_assertion", return_value="assertion")
     def test_delegated_ok_matching_triplet(self, _assert, mock_post):
+        aid = "aabbccdd-eeff-0011-aabb-ccddeeff0011"
         mock_resp = MagicMock()
         mock_resp.status_code = 200
-        mock_resp.json.return_value = {
-            "authorized": True,
-            "revoked": False,
-            "paused": False,
-            "agent_id": "agent-delegated",
-            "company_id": 42,
-            "global_company_id": _GID,
-            "grant_version": 1,
-            "company_binding_version": 0,
-        }
+        mock_resp.json.return_value = _ok_identity_body(agent_id=aid)
         mock_post.return_value = mock_resp
-        self.assertTrue(delegated_live_authority_ok(_delegated_claims()))
+        self.assertTrue(delegated_live_authority_ok(_delegated_claims(agent_id=aid)))
 
     @patch("apps.hosting.mcp_live_authority.requests.post")
-    @patch("apps.hosting.mcp_live_authority.build_mcp_revocation_assertion", return_value="assertion")
+    @patch("apps.hosting.mcp_live_authority.build_mcp_delegated_agent_authority_assertion", return_value="assertion")
     def test_delegated_triplet_zero_versions_valid(self, _assert, mock_post):
+        aid = "aabbccdd-eeff-0011-aabb-ccddeeff0011"
         mock_resp = MagicMock()
         mock_resp.status_code = 200
-        mock_resp.json.return_value = {
-            "authorized": True,
-            "revoked": False,
-            "paused": False,
-            "agent_id": "agent-delegated",
-            "company_id": 42,
-            "global_company_id": _GID,
-            "grant_version": 0,
-            "company_binding_version": 0,
-        }
+        body = _ok_identity_body(agent_id=aid)
+        body["grant_version"] = 0
+        body["company_binding_version"] = 0
+        mock_resp.json.return_value = body
         mock_post.return_value = mock_resp
-        claims = _delegated_claims(grant_version=0, company_binding_version=0)
+        claims = _delegated_claims(agent_id=aid, grant_version=0, company_binding_version=0)
         self.assertTrue(delegated_live_authority_ok(claims))
-        body = mock_post.call_args.kwargs.get("json") or {}
-        self.assertEqual(body["grant_version"], 0)
-        self.assertEqual(body["company_binding_version"], 0)
+        posted = mock_post.call_args.kwargs.get("json") or {}
+        self.assertEqual(posted["grant_version"], 0)
+        self.assertEqual(posted["company_binding_version"], 0)
 
     @patch("apps.hosting.mcp_live_authority.requests.post")
-    @patch("apps.hosting.mcp_live_authority.build_mcp_revocation_assertion", return_value="assertion")
+    @patch("apps.hosting.mcp_live_authority.build_mcp_delegated_agent_authority_assertion", return_value="assertion")
     def test_delegated_rejects_string_grant_in_response(self, _assert, mock_post):
         mock_resp = MagicMock()
         mock_resp.status_code = 200
-        mock_resp.json.return_value = {
-            "authorized": True,
-            "revoked": False,
-            "paused": False,
-            "agent_id": "agent-delegated",
-            "company_id": 42,
-            "global_company_id": _GID,
-            "grant_version": "1",
-            "company_binding_version": 0,
-        }
+        body = _ok_identity_body(agent_id=_delegated_claims()["agent_id"])
+        body["grant_version"] = "1"
+        mock_resp.json.return_value = body
         mock_post.return_value = mock_resp
         self.assertFalse(delegated_live_authority_ok(_delegated_claims()))
 
     @patch("apps.hosting.mcp_live_authority.requests.post")
-    @patch("apps.hosting.mcp_live_authority.build_mcp_revocation_assertion", return_value="assertion")
+    @patch("apps.hosting.mcp_live_authority.build_mcp_delegated_agent_authority_assertion", return_value="assertion")
     def test_delegated_requires_authorized_revoked_paused_shape(self, _assert, mock_post):
         mock_resp = MagicMock()
         mock_resp.status_code = 200
-        mock_resp.json.return_value = {
-            "authorized": True,
-            "revoked": True,
-            "paused": False,
-            "agent_id": "agent-delegated",
-            "company_id": 42,
-            "global_company_id": _GID,
-            "grant_version": 1,
-            "company_binding_version": 0,
-        }
+        body = _ok_identity_body(agent_id=_delegated_claims()["agent_id"])
+        body["revoked"] = True
+        mock_resp.json.return_value = body
         mock_post.return_value = mock_resp
         self.assertFalse(delegated_live_authority_ok(_delegated_claims()))
 
     @patch("apps.hosting.mcp_live_authority.requests.post")
-    @patch("apps.hosting.mcp_live_authority.build_mcp_revocation_assertion", return_value="assertion")
+    @patch("apps.hosting.mcp_live_authority.build_mcp_delegated_agent_authority_assertion", return_value="assertion")
     def test_delegated_network_failure(self, _assert, mock_post):
         mock_post.side_effect = OSError("network")
-        self.assertFalse(delegated_live_authority_ok(_delegated_claims()))
+        reason, allowed = delegated_live_authority_state(_delegated_claims())
+        self.assertFalse(allowed)
+        self.assertEqual(reason, DELEGATED_AUTH_REASON_UNAVAILABLE)
 
     @patch("apps.hosting.mcp_live_authority.requests.post")
-    @patch("apps.hosting.mcp_live_authority.build_mcp_revocation_assertion", return_value="assertion")
+    @patch("apps.hosting.mcp_live_authority.build_mcp_delegated_agent_authority_assertion", return_value="assertion")
     def test_cache_short_circuits_second_call(self, _assert, mock_post):
+        aid = "aabbccdd-eeff-0011-aabb-ccddeeff0011"
         mock_resp = MagicMock()
         mock_resp.status_code = 200
-        mock_resp.json.return_value = {
-            "authorized": True,
-            "revoked": False,
-            "paused": False,
-            "agent_id": "agent-delegated",
-            "company_id": 42,
-            "global_company_id": _GID,
-            "grant_version": 1,
-            "company_binding_version": 0,
-        }
+        mock_resp.json.return_value = _ok_identity_body(agent_id=aid)
         mock_post.return_value = mock_resp
-        claims = _delegated_claims()
+        claims = _delegated_claims(agent_id=aid)
         self.assertTrue(delegated_live_authority_ok(claims))
         self.assertTrue(delegated_live_authority_ok(claims))
         self.assertEqual(mock_post.call_count, 1)
 
     @patch("apps.hosting.mcp_live_authority.requests.post")
-    @patch("apps.hosting.mcp_live_authority.build_mcp_revocation_assertion", return_value="assertion")
+    @patch("apps.hosting.mcp_live_authority.build_mcp_delegated_agent_authority_assertion", return_value="assertion")
     def test_bump_generation_invalidates_positive_cache(self, _assert, mock_post):
+        aid = "aabbccdd-eeff-0011-aabb-ccddeeff0011"
         mock_resp = MagicMock()
         mock_resp.status_code = 200
-        mock_resp.json.return_value = {
-            "authorized": True,
-            "revoked": False,
-            "paused": False,
-            "agent_id": "agent-delegated",
-            "company_id": 42,
-            "global_company_id": _GID,
-            "grant_version": 1,
-            "company_binding_version": 0,
-        }
+        mock_resp.json.return_value = _ok_identity_body(agent_id=aid)
         mock_post.return_value = mock_resp
-        claims = _delegated_claims()
+        claims = _delegated_claims(agent_id=aid)
         self.assertTrue(delegated_live_authority_ok(claims))
         bump_delegated_authority_cache_on_identity_failure()
         self.assertTrue(delegated_live_authority_ok(claims))
         self.assertEqual(mock_post.call_count, 2)
+
+    @patch("apps.hosting.mcp_live_authority.requests.post")
+    @patch("apps.hosting.mcp_live_authority.build_mcp_delegated_agent_authority_assertion", return_value="assertion")
+    def test_404_agent_missing_denies(self, _assert, mock_post):
+        mock_post.return_value = MagicMock(status_code=404, json=MagicMock(side_effect=ValueError))
+        self.assertFalse(delegated_live_authority_ok(_delegated_claims()))
+
+    @patch("apps.hosting.mcp_live_authority.requests.post")
+    @patch("apps.hosting.mcp_live_authority.build_mcp_delegated_agent_authority_assertion", return_value="assertion")
+    def test_403_stale_binding_denies(self, _assert, mock_post):
+        mock_post.return_value = MagicMock(status_code=403, json=lambda: {"authorized": False})
+        self.assertFalse(delegated_live_authority_ok(_delegated_claims()))

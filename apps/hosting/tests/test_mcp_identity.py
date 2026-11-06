@@ -117,6 +117,7 @@ class McpIdentityApprovalAssertionTests(SimpleTestCase):
             "company_id": 1,
             "mcp_authority": "delegated",
             "global_company_id": "01234567-89ab-cdef-0123-456789abcdef",
+            "global_agent_id": "fedcba98-7654-3210-fedc-ba9876543210",
             "grant_version": 2,
             "company_binding_version": 1,
         },

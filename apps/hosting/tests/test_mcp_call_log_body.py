@@ -15,10 +15,9 @@ class CallLogBodyTests(SimpleTestCase):
                 'company_id': 42,
                 'service': 'hosting',
                 'tool': 'hosting_v1_apps_list',
-                'operation_title': 'List apps',
-                'resource_path': '/hosting/v1/apps',
-                'http_method': 'GET',
-                'http_status': 200,
+                'path': '/hosting/v1/apps',
+                'method': 'GET',
+                'status': 200,
                 'access_kind': 'read',
                 'outcome': 'allowed',
                 'duration_ms': 12,
@@ -28,7 +27,8 @@ class CallLogBodyTests(SimpleTestCase):
         self.assertIsNotNone(body)
         assert body is not None
         self.assertEqual(body['tool'], 'hosting_v1_apps_list')
-        self.assertEqual(body['resource_path'], '/hosting/v1/apps')
+        self.assertEqual(body['path'], '/hosting/v1/apps')
+        self.assertNotIn('operation_title', body)
         self.assertNotIn('request_id', body)
         self.assertNotIn('mcp_jsonrpc_id', body)
         self.assertNotIn('error_code', body)
@@ -40,13 +40,12 @@ class CallLogBodyTests(SimpleTestCase):
                 'agent_id': 'a',
                 'company_id': 0,
                 'tool': 't',
-                'operation_title': 'T',
-                'resource_path': '/p',
-                'http_method': 'GET',
+                'path': '/p',
+                'method': 'GET',
                 'access_kind': 'read',
                 'outcome': 'allowed',
                 'error_code': '',
-                'http_status': 200,
+                'status': 200,
             }
         )
         self.assertIsNotNone(body)
@@ -59,13 +58,12 @@ class CallLogBodyTests(SimpleTestCase):
                 'agent_id': 'a',
                 'company_id': 1,
                 'tool': 't',
-                'operation_title': 'T',
-                'resource_path': '/p',
-                'http_method': 'GET',
+                'path': '/p',
+                'method': 'GET',
                 'access_kind': 'read',
                 'outcome': 'failed',
                 'error_code': 'not_found',
-                'http_status': 404,
+                'status': 404,
             }
         )
         self.assertIsNotNone(body)
@@ -78,13 +76,12 @@ class CallLogBodyTests(SimpleTestCase):
                 'agent_id': 'a',
                 'company_id': 1,
                 'tool': 't',
-                'operation_title': 'T',
-                'resource_path': '/p',
-                'http_method': 'POST',
+                'path': '/p',
+                'method': 'POST',
                 'access_kind': 'write',
                 'outcome': 'pending_approval',
                 'error_code': 'approval_pending',
-                'http_status': 0,
+                'status': 0,
             }
         )
         self.assertIsNotNone(body)
@@ -98,13 +95,12 @@ class CallLogBodyTests(SimpleTestCase):
                     'agent_id': 'a',
                     'company_id': 1,
                     'tool': 't',
-                    'operation_title': 'T',
-                    'resource_path': '/p',
-                    'http_method': 'GET',
+                    'path': '/p',
+                    'method': 'GET',
                     'access_kind': 'read',
                     'outcome': 'allowed',
                     'error_code': 'ok',
-                    'http_status': 200,
+                    'status': 200,
                 }
             )
         )
@@ -116,12 +112,11 @@ class CallLogBodyTests(SimpleTestCase):
                     'agent_id': 'a',
                     'company_id': 1,
                     'tool': 't',
-                    'operation_title': 'T',
-                    'resource_path': '/p',
-                    'http_method': 'GET',
+                    'path': '/p',
+                    'method': 'GET',
                     'access_kind': 'read',
                     'outcome': 'success',
-                    'http_status': 200,
+                    'status': 200,
                 }
             )
         )
@@ -133,13 +128,12 @@ class CallLogBodyTests(SimpleTestCase):
                     'agent_id': 'a',
                     'company_id': 1,
                     'tool': 't',
-                    'operation_title': 'T',
-                    'resource_path': '/p',
-                    'http_method': 'GET',
+                    'path': '/p',
+                    'method': 'GET',
                     'access_kind': 'read',
                     'outcome': 'allowed',
                     'grant_version': 1.0,
-                    'http_status': 200,
+                    'status': 200,
                 }
             )
         )

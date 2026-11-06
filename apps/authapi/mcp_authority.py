@@ -31,6 +31,13 @@ def global_company_id_in_claims(claims: dict[str, Any] | None) -> str | None:
     return _normalized_global_company_id(claims.get("global_company_id"))
 
 
+def global_agent_id_in_claims(claims: dict[str, Any] | None) -> str | None:
+    """Canonical SaaS ``global_agent_id`` uuid string when Identity issues it on delegated regional tokens."""
+    if not isinstance(claims, dict):
+        return None
+    return _normalized_global_company_id(claims.get("global_agent_id"))
+
+
 def mcp_authority_mode(claims: dict[str, Any] | None) -> str:
     """Normalized ``mcp_authority`` claim, or empty string when absent."""
     if not isinstance(claims, dict):
@@ -86,6 +93,14 @@ def parse_agent_regional_company_id(raw: Any) -> int:
     return val
 
 
+def parse_delegated_live_authority_company_id(raw: Any) -> int:
+    """Regional company id for Identity ``mcp-agent-delegated-authority`` POST: strict positive JSON integer."""
+    val = strict_non_negative_int_optional(raw, field="company_id")
+    if val is None or val < 1:
+        raise ValueError("company_id must be a positive integer.")
+    return val
+
+
 def mcp_personal_agent_rejected(claims: dict[str, Any] | None) -> bool:
     """True when claims are unusable for Identity MCP forwarding (fail closed).
 
@@ -111,6 +126,8 @@ def mcp_personal_agent_rejected(claims: dict[str, Any] | None) -> bool:
 
     if gid is not None:
         if mode != MCP_AUTHORITY_DELEGATED:
+            return True
+        if global_agent_id_in_claims(claims) is None:
             return True
         try:
             gv = parse_personal_grant_version(claims)

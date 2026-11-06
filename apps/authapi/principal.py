@@ -8,6 +8,7 @@ from typing import Any
 from apps.authapi.mcp_authority import (
     MCP_AUTHORITY_DELEGATED,
     MCP_AUTHORITY_GLOBAL_DELEGATED,
+    global_agent_id_in_claims,
     global_company_id_in_claims,
     mcp_authority_mode,
     parse_agent_regional_company_id,
@@ -81,6 +82,8 @@ def principal_from_claims(claims: dict[str, Any]) -> HostingPrincipal:
                     raise ValueError("mcp_authority_delegated_triplet_invalid") from exc
                 if gv is None or cbv is None:
                     raise ValueError("mcp_authority_delegated_triplet_incomplete")
+                if global_agent_id_in_claims(claims) is None:
+                    raise ValueError("mcp_authority_global_agent_id_invalid")
             else:
                 raise ValueError("mcp_authority_delegated_on_direct_resource")
         elif claims.get("company_binding_version") not in (None, ""):

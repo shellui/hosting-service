@@ -11,7 +11,10 @@ import hashlib
 import json
 from functools import lru_cache
 from pathlib import Path
+import time
+import uuid
 
+import jwt
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import rsa
 from django.conf import settings
@@ -19,7 +22,13 @@ from django.core.exceptions import ImproperlyConfigured
 from django.http import JsonResponse
 from jwt.algorithms import RSAAlgorithm
 
+from shellui_django.mcp.internal import InternalAssertionError
+
 MIN_RSA_KEY_SIZE = 2048
+
+# Identity internal live delegated-agent checks (see identity-service ``verify_delegated_authority_assertion``).
+DELEGATED_AGENT_AUTHORITY_AUDIENCE = 'shellui-mcp-agent-delegated-authority'
+DELEGATED_AGENT_AUTHORITY_SCOPE = 'mcp.agent.delegated.authority.read'
 
 
 def read_signing_pem(*, value: str, file_path: str, base_dir: Path) -> str:
@@ -55,13 +64,40 @@ def public_jwk(private_pem: str) -> dict:
 def signing_kwargs() -> dict[str, str]:
     """Keyword arguments for ``shellui_django.mcp.internal.build_mcp_*_assertion``."""
     # Imported here: settings.py loads this module before SimpleJWT settings exist.
-    from shellui_django.mcp.internal import InternalAssertionError
 
     pem = getattr(settings, 'MCP_SIGNING_KEY_PEM', '') or ''
     issuer = (getattr(settings, 'MCP_SIGNING_ISSUER', '') or '').strip().rstrip('/')
     if not pem or not issuer:
         raise InternalAssertionError('Service assertion signing is not configured.', status=503)
     return {'private_key_pem': pem, 'kid': public_jwk(pem)['kid'], 'issuer': issuer}
+
+
+def build_mcp_delegated_agent_authority_assertion(
+    *,
+    audience_url: str,
+    lifetime_seconds: int = 60,
+) -> str:
+    """RS256 service assertion for ``POST .../mcp-agent-delegated-authority`` (live delegated binding)."""
+    sk = signing_kwargs()
+    pem = sk['private_key_pem']
+    kid = sk['kid']
+    iss = sk['issuer']
+    origin = (audience_url or '').strip().rstrip('/')
+    if not origin:
+        raise InternalAssertionError('Identity audience URL is required for delegated authority.', status=503)
+    now = int(time.time())
+    claims = {
+        'iss': iss,
+        'aud': DELEGATED_AGENT_AUTHORITY_AUDIENCE,
+        'sub': 'service',
+        'scope': DELEGATED_AGENT_AUTHORITY_SCOPE,
+        'target': origin,
+        'iat': now,
+        'exp': now + int(lifetime_seconds),
+        'jti': uuid.uuid4().hex,
+    }
+    token = jwt.encode(claims, pem, algorithm='RS256', headers={'kid': kid})
+    return token.decode('utf-8') if isinstance(token, bytes) else token
 
 
 def jwks_view(_request):

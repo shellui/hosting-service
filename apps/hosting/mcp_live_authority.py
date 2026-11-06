@@ -9,27 +9,32 @@ from typing import Any
 import requests
 from django.conf import settings
 from django.core.cache import cache
-from shellui_django.mcp.internal import (
-    REVOCATION_CACHE_SECONDS,
-    build_mcp_revocation_assertion,
-)
+from shellui_django.mcp.internal import InternalAssertionError
 
 from apps.authapi.mcp_authority import (
     MCP_AUTHORITY_DELEGATED,
+    global_agent_id_in_claims,
     global_company_id_in_claims,
     mcp_authority_mode,
     parse_agent_regional_company_id,
     parse_company_binding_version_claim,
+    parse_delegated_live_authority_company_id,
     parse_json_integer_non_negative,
     parse_personal_grant_version,
 )
-from config.service_signing import signing_kwargs
+from config.service_signing import build_mcp_delegated_agent_authority_assertion
 
 logger = logging.getLogger(__name__)
 
 _DELEGATED_AUTH_CACHE_PREFIX = "hosting:mcp:delegated_auth:v1:"
 _DELEGATED_AUTH_GEN_KEY = "hosting:mcp:delegated_auth:gen"
 
+# Reason from ``delegated_live_authority_state`` for HTTP mapping on the MCP edge.
+DELEGATED_AUTH_REASON_SKIP = "skip"
+DELEGATED_AUTH_REASON_OK = "ok"
+DELEGATED_AUTH_REASON_DENY = "deny"
+DELEGATED_AUTH_REASON_UNAVAILABLE = "unavailable"
+DELEGATED_AUTH_REASON_MISCONFIGURED = "misconfigured"
 
 def _delegated_cache_generation() -> int:
     raw = cache.get(_DELEGATED_AUTH_GEN_KEY)
@@ -46,6 +51,8 @@ def bump_delegated_authority_cache_on_identity_failure() -> None:
 
 
 def _cache_ttl_seconds() -> int:
+    from shellui_django.mcp.internal import REVOCATION_CACHE_SECONDS
+
     return min(5, int(REVOCATION_CACHE_SECONDS))
 
 
@@ -76,24 +83,77 @@ def _delegated_authority_cache_key(
     return f"{_DELEGATED_AUTH_CACHE_PREFIX}{h}"
 
 
-def delegated_live_authority_ok(claims: dict[str, Any] | None) -> bool:
-    """True only when Identity confirms an active delegated row matching the token triplet."""
-    if not isinstance(claims, dict):
+def _strict_bool(value: Any, *, field: str) -> bool:
+    if isinstance(value, bool):
+        return value
+    raise ValueError(f"{field} must be a boolean.")
+
+
+def _delegated_success_response_ok(data: dict[str, Any], claims: dict[str, Any]) -> bool:
+    """Validate Identity 200 JSON (see identity-service ``McpInternalDelegatedAgentAuthorityView``)."""
+    try:
+        authorized = _strict_bool(data.get("authorized"), field="authorized")
+        revoked = _strict_bool(data.get("revoked"), field="revoked")
+        paused = _strict_bool(data.get("paused"), field="paused")
+    except ValueError:
         return False
+
+    if not authorized or revoked or paused:
+        logger.info(
+            "Delegated agent authority denied by Identity snapshot: authorized=%s revoked=%s paused=%s",
+            authorized,
+            revoked,
+            paused,
+        )
+        return False
+
+    agent_id = str(claims.get("agent_id") or "").strip()
+    company_id = parse_delegated_live_authority_company_id(claims.get("company_id"))
+    gv = parse_personal_grant_version(claims)
+    cbv = parse_company_binding_version_claim(claims)
+    gid = global_company_id_in_claims(claims)
+    gaid = global_agent_id_in_claims(claims)
+    if gv is None or cbv is None or gid is None or gaid is None:
+        return False
+
+    try:
+        if str(data.get("agent_id") or "").strip() != agent_id:
+            return False
+        if global_company_id_in_claims({"global_company_id": data.get("global_company_id")}) != gid:
+            return False
+        if global_agent_id_in_claims({"global_agent_id": data.get("global_agent_id")}) != gaid:
+            return False
+        if parse_delegated_live_authority_company_id(data.get("company_id")) != company_id:
+            return False
+        if parse_json_integer_non_negative(data.get("grant_version"), field="grant_version") != gv:
+            return False
+        if parse_json_integer_non_negative(data.get("company_binding_version"), field="company_binding_version") != cbv:
+            return False
+    except (TypeError, ValueError):
+        return False
+
+    return True
+
+
+def delegated_live_authority_state(claims: dict[str, Any] | None) -> tuple[str, bool]:
+    """Return (reason, allowed). ``skip`` when no live delegated check applies."""
+    if not isinstance(claims, dict):
+        return DELEGATED_AUTH_REASON_DENY, False
     if mcp_authority_mode(claims) != MCP_AUTHORITY_DELEGATED:
-        return True
+        return DELEGATED_AUTH_REASON_SKIP, True
     gid = global_company_id_in_claims(claims)
     if gid is None:
-        return True
+        return DELEGATED_AUTH_REASON_SKIP, True
     try:
         agent_id = str(claims.get("agent_id") or "").strip()
-        company_id = parse_agent_regional_company_id(claims.get("company_id"))
+        company_id = parse_delegated_live_authority_company_id(claims.get("company_id"))
         gv = parse_personal_grant_version(claims)
         cbv = parse_company_binding_version_claim(claims)
     except (TypeError, ValueError):
-        return False
-    if not agent_id or gv is None or cbv is None:
-        return False
+        return DELEGATED_AUTH_REASON_DENY, False
+    gaid = global_agent_id_in_claims(claims)
+    if not agent_id or gv is None or cbv is None or gaid is None:
+        return DELEGATED_AUTH_REASON_DENY, False
 
     cache_key = _delegated_authority_cache_key(
         agent_id=agent_id,
@@ -104,26 +164,34 @@ def delegated_live_authority_ok(claims: dict[str, Any] | None) -> bool:
     )
     cached = cache.get(cache_key)
     if cached is True:
-        return True
+        return DELEGATED_AUTH_REASON_OK, True
     if cached is False:
-        return False
+        return DELEGATED_AUTH_REASON_DENY, False
 
     base = _service_base_url()
     origin = _identity_audience_url()
     if not base or not origin:
-        return False
+        return DELEGATED_AUTH_REASON_MISCONFIGURED, False
+
     path = getattr(
         settings,
         "IDENTITY_DELEGATED_AGENT_AUTHORITY_PATH",
-        "/api/v1/mcp/internal/mcp-delegated-agent-authority",
+        "/api/v1/mcp/internal/mcp-agent-delegated-authority",
     )
     url = f"{base.rstrip('/')}{path}"
     timeout = min(5.0, float(getattr(settings, "IDENTITY_SYNC_TIMEOUT", 10) or 10))
     try:
-        assertion = build_mcp_revocation_assertion(audience_url=origin, **signing_kwargs())
-    except Exception:
+        assertion = build_mcp_delegated_agent_authority_assertion(audience_url=origin)
+    except InternalAssertionError as exc:
+        if getattr(exc, "status", None) == 503:
+            logger.warning("Delegated authority assertion rejected: mcp_assertion_rule")
+            return DELEGATED_AUTH_REASON_UNAVAILABLE, False
         logger.warning("Delegated authority assertion rejected: mcp_assertion_rule")
-        return False
+        return DELEGATED_AUTH_REASON_DENY, False
+    except Exception:
+        logger.warning("Delegated authority assertion failed: mcp_assertion_error")
+        return DELEGATED_AUTH_REASON_DENY, False
+
     body = {
         "agent_id": agent_id,
         "company_id": company_id,
@@ -138,42 +206,46 @@ def delegated_live_authority_ok(claims: dict[str, Any] | None) -> bool:
             headers={"Authorization": f"Bearer {assertion}"},
             timeout=timeout,
         )
-    except Exception:  # noqa: BLE001
-        return False
+    except OSError:
+        bump_delegated_authority_cache_on_identity_failure()
+        return DELEGATED_AUTH_REASON_UNAVAILABLE, False
+    except Exception:
+        bump_delegated_authority_cache_on_identity_failure()
+        return DELEGATED_AUTH_REASON_UNAVAILABLE, False
+
+    if response.status_code == 401:
+        return DELEGATED_AUTH_REASON_DENY, False
+    if response.status_code == 400:
+        cache.set(cache_key, False, timeout=_cache_ttl_seconds())
+        return DELEGATED_AUTH_REASON_DENY, False
+    if response.status_code == 503 or response.status_code == 502 or response.status_code == 504:
+        bump_delegated_authority_cache_on_identity_failure()
+        return DELEGATED_AUTH_REASON_UNAVAILABLE, False
+    if response.status_code == 404 or response.status_code == 403:
+        cache.set(cache_key, False, timeout=_cache_ttl_seconds())
+        return DELEGATED_AUTH_REASON_DENY, False
     if response.status_code < 200 or response.status_code > 299:
-        return False
+        bump_delegated_authority_cache_on_identity_failure()
+        return DELEGATED_AUTH_REASON_UNAVAILABLE, False
+
     try:
         data = response.json()
     except ValueError:
-        return False
+        bump_delegated_authority_cache_on_identity_failure()
+        return DELEGATED_AUTH_REASON_UNAVAILABLE, False
     if not isinstance(data, dict):
-        return False
+        bump_delegated_authority_cache_on_identity_failure()
+        return DELEGATED_AUTH_REASON_UNAVAILABLE, False
 
-    def _bool(key: str) -> bool:
-        return data.get(key) is True
-
-    if not _bool("authorized"):
+    if not _delegated_success_response_ok(data, claims):
         cache.set(cache_key, False, timeout=_cache_ttl_seconds())
-        return False
-    if _bool("revoked") or _bool("paused"):
-        cache.set(cache_key, False, timeout=_cache_ttl_seconds())
-        return False
-
-    try:
-        if str(data.get("agent_id") or "").strip() != agent_id:
-            return False
-        if parse_agent_regional_company_id(data.get("company_id")) != company_id:
-            return False
-        if global_company_id_in_claims({"global_company_id": data.get("global_company_id")}) != gid:
-            return False
-        if parse_json_integer_non_negative(data.get("grant_version"), field="grant_version") != gv:
-            return False
-        if parse_json_integer_non_negative(
-            data.get("company_binding_version"), field="company_binding_version"
-        ) != cbv:
-            return False
-    except (TypeError, ValueError):
-        return False
+        return DELEGATED_AUTH_REASON_DENY, False
 
     cache.set(cache_key, True, timeout=_cache_ttl_seconds())
-    return True
+    return DELEGATED_AUTH_REASON_OK, True
+
+
+def delegated_live_authority_ok(claims: dict[str, Any] | None) -> bool:
+    """True only when Identity confirms an active delegated row matching the token triplet."""
+    _reason, allowed = delegated_live_authority_state(claims)
+    return allowed

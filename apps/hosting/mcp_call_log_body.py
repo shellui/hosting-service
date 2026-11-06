@@ -37,10 +37,13 @@ def _optional_uuid(value: Any) -> str | None:
 def build_identity_call_log_body(entry: dict[str, Any]) -> dict[str, Any] | None:
     """Return body dict or None when required fields are missing.
 
-    Excludes caller-provided correlation ids (no ``request_id``, no ``mcp_jsonrpc_id``).
+    Aligned with Identity ``McpInternalCallLogView`` (``apps/agents/internal_views.py``): use
+    ``path``, ``method``, ``status`` (not ``resource_path`` / ``http_method`` / ``http_status``).
+    Do not send ``operation_title``, ``resource_label``, or ``arguments_redacted``; Identity rejects client titles.
+
     ``error_code`` is required for every outcome except ``allowed``; it must be a static enum value from
     ``ALL_CALL_LOG_ERROR_CODES``. Success (``allowed``) never carries ``error_code``.
-    ``approval_request_id`` only when valid UUID.
+    ``approval_id`` only when valid UUID (maps from internal ``approval_request_id``).
     """
     agent_id = entry.get('agent_id')
     company_id = entry.get('company_id')
@@ -52,12 +55,11 @@ def build_identity_call_log_body(entry: dict[str, Any]) -> dict[str, Any] | None
         return None
 
     tool = _nonempty_str(entry.get('tool'), max_len=200)
-    resource_path = _nonempty_str(entry.get('resource_path'), max_len=2048)
-    http_method = _nonempty_str(entry.get('http_method'), max_len=16).upper() or 'GET'
-    operation_title = _nonempty_str(entry.get('operation_title'), max_len=500)
+    path_s = _nonempty_str(entry.get('path') or entry.get('resource_path'), max_len=2048)
+    method_s = _nonempty_str(entry.get('method') or entry.get('http_method'), max_len=16).upper() or 'GET'
     access_kind = _nonempty_str(entry.get('access_kind'), max_len=32)
     outcome = _nonempty_str(entry.get('outcome'), max_len=32)
-    if not all([tool, resource_path, operation_title, access_kind, outcome]):
+    if not all([tool, path_s, access_kind, outcome]):
         return None
     if outcome not in CANONICAL_OUTCOMES:
         return None
@@ -73,7 +75,7 @@ def build_identity_call_log_body(entry: dict[str, Any]) -> dict[str, Any] | None
             return None
 
     try:
-        http_status = int(entry.get('http_status') if entry.get('http_status') is not None else 0)
+        http_status = int(entry.get('status') if entry.get('status') is not None else entry.get('http_status') or 0)
     except (TypeError, ValueError):
         http_status = 0
     if http_status < 0:
@@ -91,10 +93,9 @@ def build_identity_call_log_body(entry: dict[str, Any]) -> dict[str, Any] | None
         'company_id': company_int,
         'service': _nonempty_str(entry.get('service') or 'hosting', max_len=64) or 'hosting',
         'tool': tool,
-        'operation_title': operation_title,
-        'resource_path': resource_path,
-        'http_method': http_method,
-        'http_status': http_status,
+        'path': path_s,
+        'method': method_s,
+        'status': http_status,
         'access_kind': access_kind,
         'outcome': outcome,
         'duration_ms': duration_ms,
@@ -127,8 +128,8 @@ def build_identity_call_log_body(entry: dict[str, Any]) -> dict[str, Any] | None
             return None
         body['global_company_id'] = u
 
-    appr_id = _optional_uuid(entry.get('approval_request_id'))
+    appr_id = _optional_uuid(entry.get('approval_id') or entry.get('approval_request_id'))
     if appr_id:
-        body['approval_request_id'] = appr_id
+        body['approval_id'] = appr_id
 
     return body
