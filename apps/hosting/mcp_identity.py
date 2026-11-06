@@ -17,6 +17,7 @@ from shellui_django.mcp.internal import (
 )
 from apps.authapi.mcp_authority import (
     approval_assertion_grant_kwarg,
+    is_exchange_delegated_regional_agent,
     mcp_personal_agent_rejected,
     parse_agent_regional_company_id,
 )
@@ -58,6 +59,8 @@ def create_approval_request(payload: dict) -> dict | None:
     if not base:
         return None
     claims = current_mcp_agent_claims()
+    if is_exchange_delegated_regional_agent(claims):
+        return None
     if mcp_personal_agent_rejected(claims):
         return None
     if not delegated_live_authority_ok(claims):
@@ -109,6 +112,8 @@ def create_approval_request(payload: dict) -> dict | None:
 
 def _approval_route_assertion(payload: dict) -> str | None:
     claims = current_mcp_agent_claims()
+    if is_exchange_delegated_regional_agent(claims):
+        return None
     if mcp_personal_agent_rejected(claims):
         return None
     if not delegated_live_authority_ok(claims):

@@ -45,6 +45,16 @@ def mcp_authority_mode(claims: dict[str, Any] | None) -> str:
     return str(claims.get("mcp_authority") or "").strip().lower()
 
 
+def is_exchange_delegated_regional_agent(claims: dict[str, Any] | None) -> bool:
+    """True when ``mcp_authority`` is ``delegated`` and ``global_company_id`` is set (exchange binding).
+
+    Hosting must not create Identity internal approvals for that profile; those approvals belong on the regional AI gateway path.
+    """
+    if not isinstance(claims, dict):
+        return False
+    return mcp_authority_mode(claims) == MCP_AUTHORITY_DELEGATED and global_company_id_in_claims(claims) is not None
+
+
 def strict_non_negative_int_optional(raw: Any, *, field: str) -> int | None:
     """Strict JSON integer for JWT claims: ``int`` only (not bool, str, float)."""
     if raw is None or raw == "":

@@ -281,7 +281,18 @@ def delegated_live_authority_state(claims: dict[str, Any] | None) -> tuple[str, 
     if response.status_code == 503 or response.status_code == 502 or response.status_code == 504:
         bump_delegated_authority_cache_on_identity_failure()
         return DELEGATED_AUTH_REASON_UNAVAILABLE, False
-    if response.status_code == 404 or response.status_code == 403:
+    if response.status_code == 404:
+        try:
+            err_body = response.json()
+        except ValueError:
+            bump_delegated_authority_cache_on_identity_failure()
+            return DELEGATED_AUTH_REASON_UNAVAILABLE, False
+        if isinstance(err_body, dict) and err_body.get('error'):
+            cache.set(cache_key, False, timeout=_cache_ttl_seconds())
+            return DELEGATED_AUTH_REASON_DENY, False
+        bump_delegated_authority_cache_on_identity_failure()
+        return DELEGATED_AUTH_REASON_UNAVAILABLE, False
+    if response.status_code == 403:
         cache.set(cache_key, False, timeout=_cache_ttl_seconds())
         return DELEGATED_AUTH_REASON_DENY, False
     if response.status_code < 200 or response.status_code > 299:

@@ -19,6 +19,7 @@ from shellui_django.mcp.write_gate import decide_write, is_destructive_operation
 
 from apps.authapi.mcp_authority import (
     authority_context_for_call_log,
+    is_exchange_delegated_regional_agent,
     mcp_personal_agent_rejected,
     strict_non_negative_int_optional,
 )
@@ -184,6 +185,33 @@ class HostingMcpServer(McpServer):
             tool_read_only=tool_read_only,
         )
         if decision.needs_approval:
+            if is_exchange_delegated_regional_agent(agent_claims):
+                self._forward_call_log(
+                    schema=schema,
+                    agent_claims=agent_claims,
+                    tool_name=tool_name,
+                    path_template=path_template,
+                    method=method,
+                    tool_read_only=tool_read_only,
+                    duration_ms=0,
+                    http_status=403,
+                    outcome=OUTCOME_DENIED,
+                    error_code='forbidden',
+                )
+                return JsonResponse(
+                    self._result(
+                        req_id,
+                        {
+                            'content': [
+                                {
+                                    'type': 'text',
+                                    'text': 'Approve write tools in your company regional AI gateway. Hosting does not create those approvals.',
+                                }
+                            ],
+                            'isError': True,
+                        },
+                    )
+                )
             args_hash = hashlib.sha256(json.dumps(arguments, sort_keys=True, default=str).encode()).hexdigest()
             approval_payload = {
                 'agent_id': agent_claims.get('agent_id'),

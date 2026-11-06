@@ -8,6 +8,7 @@ from django.core.cache import cache
 from django.test import SimpleTestCase, override_settings
 
 from apps.hosting.mcp_live_authority import (
+    DELEGATED_AUTH_REASON_DENY,
     DELEGATED_AUTH_REASON_UNAVAILABLE,
     bump_delegated_authority_cache_on_identity_failure,
     delegated_live_authority_ok,
@@ -169,6 +170,17 @@ class DelegatedLiveAuthorityTests(SimpleTestCase):
     def test_404_agent_missing_denies(self, _assert, mock_post):
         mock_post.return_value = MagicMock(status_code=404, json=MagicMock(side_effect=ValueError))
         self.assertFalse(delegated_live_authority_ok(_delegated_claims()))
+
+    @patch("apps.hosting.mcp_live_authority.requests.post")
+    @patch("apps.hosting.mcp_live_authority.build_mcp_delegated_agent_authority_assertion", return_value="assertion")
+    def test_404_json_error_body_denies_not_unavailable(self, _assert, mock_post):
+        mock_resp = MagicMock()
+        mock_resp.status_code = 404
+        mock_resp.json.return_value = {"error": "not_found", "detail": "unknown"}
+        mock_post.return_value = mock_resp
+        reason, allowed = delegated_live_authority_state(_delegated_claims())
+        self.assertFalse(allowed)
+        self.assertEqual(reason, DELEGATED_AUTH_REASON_DENY)
 
     @patch("apps.hosting.mcp_live_authority.requests.post")
     @patch("apps.hosting.mcp_live_authority.build_mcp_delegated_agent_authority_assertion", return_value="assertion")

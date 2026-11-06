@@ -384,6 +384,42 @@ class McpEndpointTests(TestCase):
         self.assertEqual(response.json().get('error'), 'service_unavailable')
 
     @patch('apps.authapi.authentication.get_jwks_client')
+    def test_exchange_delegated_ask_mode_blocks_hosting_approval(self, mock_jwks):
+        """Exchange-delegated regional tokens must not use hosting to create write approvals."""
+        mock_jwks.return_value.get_signing_key.return_value = None
+        token = _agent_token(
+            mcp_access='ask',
+            scope='hosting',
+            mcp_authority='delegated',
+            global_company_id='01234567-89ab-cdef-0123-456789abcdef',
+            global_agent_id='fedcba98-7654-3210-fedc-ba9876543210',
+            grant_version=1,
+            company_binding_version=0,
+        )
+        with (
+            patch('apps.hosting.mcp_identity.lookup_approval_state', return_value=None),
+            patch('apps.hosting.mcp_identity.create_approval_request', return_value={'id': 'abc'}) as mock_create,
+            patch('apps.hosting.mcp_revocation.delegated_live_authority_ok', return_value=True),
+        ):
+            response = self._rpc(
+                'tools/call',
+                {
+                    'name': 'hosting_v1_preview_create',
+                    'arguments': {
+                        'path': '/hosting/v1/preview',
+                        'method': 'POST',
+                        'body': {'app_version': '1.0.0', 'shellui_version': '0.2.0'},
+                    },
+                },
+                token=token,
+            )
+        mock_create.assert_not_called()
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()['result']
+        self.assertTrue(payload.get('isError'))
+        self.assertNotIn('meta', payload)
+
+    @patch('apps.authapi.authentication.get_jwks_client')
     def test_deploy_token_list_never_returns_secrets(self, mock_jwks):
         mock_jwks.return_value.get_signing_key.return_value = None
         from apps.hosting.models import DeployToken

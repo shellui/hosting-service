@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from unittest.mock import MagicMock, patch
 
-import jwt
 from django.test import SimpleTestCase, override_settings
 
 from apps.hosting import mcp_identity
@@ -122,7 +121,8 @@ class McpIdentityApprovalAssertionTests(SimpleTestCase):
             "company_binding_version": 1,
         },
     )
-    def test_delegated_assertion_includes_global_triplet(self, _claims, _live_ok):
+    def test_exchange_delegated_regional_skips_approval_assertion(self, _claims, _live_ok):
+        """Exchange-delegated regional tokens must not create Identity internal approvals from hosting."""
         t = mcp_identity._approval_route_assertion(
             {
                 "agent_id": "a",
@@ -132,10 +132,28 @@ class McpIdentityApprovalAssertionTests(SimpleTestCase):
                 "arguments_hash": "h",
             }
         )
-        self.assertIsInstance(t, str)
-        payload = jwt.decode(t, options={"verify_signature": False})
-        self.assertEqual(
-            payload["global_company_id"], "01234567-89ab-cdef-0123-456789abcdef"
+        self.assertIsNone(t)
+
+    @patch(
+        "apps.hosting.mcp_identity.current_mcp_agent_claims",
+        return_value={
+            "company_id": 1,
+            "mcp_authority": "delegated",
+            "global_company_id": "01234567-89ab-cdef-0123-456789abcdef",
+            "global_agent_id": "fedcba98-7654-3210-fedc-ba9876543210",
+            "grant_version": 2,
+            "company_binding_version": 1,
+        },
+    )
+    def test_exchange_delegated_create_approval_returns_none(self, _claims, _live_ok):
+        self.assertIsNone(
+            mcp_identity.create_approval_request(
+                {
+                    "agent_id": "a",
+                    "company_id": 1,
+                    "service": "hosting",
+                    "action": "t",
+                    "arguments_hash": "h",
+                }
+            )
         )
-        self.assertEqual(payload["grant_version"], 2)
-        self.assertEqual(payload["company_binding_version"], 1)
