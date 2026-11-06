@@ -102,6 +102,8 @@ class McpEndpointTests(TestCase):
         self.assertNotIn('hosting_v1_health_retrieve', names)
         self.assertNotIn('api_v1_internal_company_deletions_create', names)
         self.assertNotIn('hosting_v1_apps_deployments_upload_update', names)
+        self.assertIn('hosting_v1_apps_deployments_artifact_upload_url_create', names)
+        self.assertIn('hosting_v1_apps_deployments_artifact_upload_complete_create', names)
 
     @patch('apps.authapi.authentication.get_jwks_client')
     def test_wrong_service_scope_forbidden(self, mock_jwks):

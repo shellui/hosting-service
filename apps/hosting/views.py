@@ -8,7 +8,7 @@ from django.conf import settings
 from django.core.exceptions import RequestDataTooBig
 from django.http import HttpResponse
 from drf_spectacular.types import OpenApiTypes
-from drf_spectacular.utils import OpenApiResponse, extend_schema, extend_schema_view
+from drf_spectacular.utils import OpenApiParameter, OpenApiResponse, extend_schema, extend_schema_view
 from rest_framework import status
 from rest_framework.parsers import BaseParser, MultiPartParser
 from rest_framework.permissions import AllowAny
@@ -36,6 +36,7 @@ from .serializers import (
     AccessUpdateSerializer,
     AppCreateSerializer,
     AppSerializer,
+    ArtifactUploadUrlResponseSerializer,
     DeploymentCreateSerializer,
     DeploymentSerializer,
     DeployTokenCreateResponseSerializer,
@@ -65,10 +66,11 @@ from .services import (
     serialize_app,
     serialize_deployment,
     update_access,
+    confirm_deployment_artifact_upload,
     upload_deployment_artifact,
 )
 from .stats import build_hosting_stats
-from .storage import ArtifactTooLarge
+from .storage import ArtifactTooLarge, build_artifact_upload_target
 
 logger = logging.getLogger(__name__)
 
@@ -87,6 +89,15 @@ class GzipParser(BaseParser):
 
     def parse(self, stream, media_type=None, parser_context=None):
         return stream
+
+
+class EmptyBodyParser(BaseParser):
+    """Accept MCP ``tools/call`` POST bodies that use ``application/octet-stream`` with no payload."""
+
+    media_type = '*/*'
+
+    def parse(self, stream, media_type=None, parser_context=None):
+        return {}
 
 
 def _error(exc: HostingError) -> Response:
@@ -543,6 +554,89 @@ class DeploymentUploadView(APIView):
         if isinstance(exc, RequestDataTooBig):
             return _too_large(None, settings.HOSTING_MAX_UPLOAD_BYTES)
         return super().handle_exception(exc)
+
+
+class DeploymentArtifactUploadUrlView(APIView):
+    permission_classes = [IsAuthenticatedPrincipal]
+    deploy_token_methods = ('POST',)
+    rate_limit_scope = 'upload'
+    throttle_classes = [HostingScopeThrottle]
+    parser_classes = [EmptyBodyParser]
+
+    @extend_schema(
+        tags=['deployments'],
+        operation_id='hosting_v1_apps_deployments_artifact_upload_url_create',
+        parameters=[
+            APP_REF_PATH,
+            DEPLOYMENT_ID_PATH,
+            OpenApiParameter(
+                name='expires_in',
+                type=int,
+                location=OpenApiParameter.QUERY,
+                required=False,
+                description='Seconds until the upload URL expires (60 to server default).',
+            ),
+        ],
+        request=None,
+        responses={200: ArtifactUploadUrlResponseSerializer, **_API_ERRORS},
+        **mcp_openapi_fields('hosting_v1_apps_deployments_artifact_upload_url_create'),
+        **mcp_tool(
+            operation_id='hosting_v1_apps_deployments_artifact_upload_url_create',
+            read_only=False,
+        ),
+    )
+    def post(self, request, app_ref, deployment_id):
+        try:
+            app = _scoped_app(request, app_ref)
+            deployment = Deployment.objects.get(id=deployment_id, app=app)
+        except Deployment.DoesNotExist:
+            return _error_message('Deployment not found.', status_code=404, code='deployment_not_found')
+        except HostingError as exc:
+            return _error(exc)
+
+        data = request.data if isinstance(request.data, dict) else {}
+        default_expires = settings.HOSTING_ARTIFACT_UPLOAD_URL_EXPIRES
+        raw_expires = request.query_params.get('expires_in') or data.get('expires_in')
+        try:
+            expires_in = int(raw_expires) if raw_expires not in (None, '') else default_expires
+        except (TypeError, ValueError):
+            return _error_message('expires_in must be an integer.', code='invalid_expires_in')
+        expires_in = max(60, min(expires_in, default_expires))
+
+        try:
+            payload = build_artifact_upload_target(deployment, request=request, expires_in=expires_in)
+        except RuntimeError as exc:
+            logger.exception('artifact upload url failed')
+            return _error_message(str(exc), status_code=500, code='upload_url_failed')
+        return Response(payload)
+
+
+class DeploymentArtifactUploadCompleteView(APIView):
+    permission_classes = [IsAuthenticatedPrincipal]
+    deploy_token_methods = ('POST',)
+    rate_limit_scope = 'upload'
+    throttle_classes = [HostingScopeThrottle]
+    parser_classes = [EmptyBodyParser]
+
+    @extend_schema(
+        tags=['deployments'],
+        operation_id='hosting_v1_apps_deployments_artifact_upload_complete_create',
+        parameters=[APP_REF_PATH, DEPLOYMENT_ID_PATH],
+        request=None,
+        responses={200: DeploymentSerializer, **_API_ERRORS},
+        **mcp_openapi_fields('hosting_v1_apps_deployments_artifact_upload_complete_create'),
+        **mcp_tool(operation_id='hosting_v1_apps_deployments_artifact_upload_complete_create', read_only=False),
+    )
+    def post(self, request, app_ref, deployment_id):
+        try:
+            app = _scoped_app(request, app_ref)
+            deployment = Deployment.objects.get(id=deployment_id, app=app)
+            deployment = confirm_deployment_artifact_upload(deployment=deployment)
+        except Deployment.DoesNotExist:
+            return _error_message('Deployment not found.', status_code=404, code='deployment_not_found')
+        except HostingError as exc:
+            return _error(exc)
+        return Response(serialize_deployment(deployment))
 
 
 class DeploymentFinalizeView(APIView):

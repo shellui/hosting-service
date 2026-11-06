@@ -35,6 +35,8 @@ MCP_REQUIRED_OPERATION_IDS: frozenset[str] = frozenset(
         'hosting_v1_apps_renew_expiry_create',
         'hosting_v1_apps_deployments_list',
         'hosting_v1_apps_deployments_create',
+        'hosting_v1_apps_deployments_artifact_upload_url_create',
+        'hosting_v1_apps_deployments_artifact_upload_complete_create',
         'hosting_v1_apps_deployments_finalize_create',
         'hosting_v1_apps_deployments_rollback_create',
         'hosting_v1_deploy_tokens_retrieve',

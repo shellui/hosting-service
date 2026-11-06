@@ -96,6 +96,7 @@ Use a different registrable domain from identity-service and Django admin. `shel
 | `HOSTING_MAX_UPLOAD_BYTES` | `100M` | Maximum gzip archive size |
 | `HOSTING_MAX_EXTRACT_FILES` | `5000` | Maximum regular files extracted from one archive |
 | `HOSTING_MAX_EXTRACT_BYTES` | `500M` | Maximum total uncompressed size |
+| `HOSTING_ARTIFACT_UPLOAD_URL_EXPIRES` | `900` | Lifetime in seconds for MCP artifact upload URLs (presigned S3 or direct hosting PUT) |
 | `HOSTING_MAX_EXTRACT_FILE_BYTES` | same as the upload cap | Maximum size of one extracted file |
 | `DATA_UPLOAD_MAX_MEMORY_SIZE` | `12M` | Django in-memory limit for form and JSON bodies. Artifact uploads are streamed and only capped by `HOSTING_MAX_UPLOAD_BYTES` |
 

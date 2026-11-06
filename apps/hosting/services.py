@@ -494,6 +494,38 @@ def upload_deployment_artifact(
     return deployment
 
 
+def confirm_deployment_artifact_upload(*, deployment: Deployment) -> Deployment:
+    """After a direct-to-storage PUT, record artifact size on the deployment row."""
+    if deployment.status not in {DeploymentStatus.DRAFT, DeploymentStatus.UPLOADING, DeploymentStatus.FAILED}:
+        raise HostingError(
+            'Deployment cannot accept uploads in its current status.',
+            status=409,
+            code='invalid_deployment_status',
+        )
+    if deployment.artifact_size > 0:
+        return deployment
+    key = artifact_key(deployment)
+    if not default_storage.exists(key):
+        raise HostingError('Upload an artifact before confirming.', code='artifact_missing')
+    try:
+        size = int(default_storage.size(key))
+    except (TypeError, ValueError, FileNotFoundError):
+        raise HostingError('Uploaded artifact is missing or unreadable.', code='artifact_missing') from None
+    max_bytes = settings.HOSTING_MAX_UPLOAD_BYTES
+    if size <= 0:
+        raise HostingError('Upload an artifact before confirming.', code='artifact_missing')
+    if size > max_bytes:
+        raise HostingError(
+            f'Artifact exceeds maximum upload size ({max_bytes} bytes).',
+            status=413,
+            code='upload_too_large',
+        )
+    deployment.status = DeploymentStatus.UPLOADING
+    deployment.artifact_size = size
+    deployment.save(update_fields=['status', 'artifact_size', 'updated_at'])
+    return deployment
+
+
 def finalize_deployment(
     *,
     deployment: Deployment,
