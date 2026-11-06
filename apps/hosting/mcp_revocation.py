@@ -17,6 +17,7 @@ from apps.authapi.mcp_authority import (
 )
 from apps.hosting.mcp_context import current_mcp_agent_claims
 from apps.hosting.mcp_identity import fetch_revocation_payload
+from apps.hosting.mcp_live_authority import delegated_live_authority_ok
 
 _INVALID = object()
 
@@ -171,8 +172,11 @@ def _revoke_applies_to_current_token(
     matching = _matching_revocation_rows(
         agent_id, company_id=company_id, claims=claims, rows=id_rows
     )
+    if len(matching) == 0:
+        # Listed id does not describe this token's authority snapshot: revocation does not apply.
+        return False
     if len(matching) != 1:
-        # Absent or ambiguous match for this token vs live rows: fail closed.
+        # Ambiguous rows for this token: fail closed.
         return True
     row = matching[0]
     # True when Identity marks this snapshot rejected; otherwise the listed id does not revoke this token.
@@ -186,6 +190,15 @@ def agent_revocation_denied(agent_id: str, company_id: int | None = None) -> boo
     if revocation_poll_unavailable(company_id=company_id):
         return True
     claims = current_mcp_agent_claims()
+    # Delegated regional tokens: signed revocation rows are exclusions only; require a matching
+    # live RegionalAgent row even when this agent id is not listed as revoked.
+    if (
+        isinstance(claims, dict)
+        and mcp_authority_mode(claims) == MCP_AUTHORITY_DELEGATED
+        and global_company_id_in_claims(claims) is not None
+        and not delegated_live_authority_ok(claims)
+    ):
+        return True
     ids = _load_revocation_agent_ids(company_id=company_id)
     if revocation_poll_unavailable(company_id=company_id):
         return True

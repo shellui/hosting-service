@@ -65,3 +65,22 @@ class RevocationMatchingTests(SimpleTestCase):
             'agents': [{'agent_id': aid, 'company_id': 42, 'grant_version': 1, 'global_company_id': None}],
         }
         self.assertFalse(agent_revocation_denied(aid, company_id=42))
+
+    @patch('apps.hosting.mcp_revocation.delegated_live_authority_ok', return_value=False)
+    @patch('apps.hosting.mcp_revocation.current_mcp_agent_claims')
+    @patch('apps.hosting.mcp_revocation.fetch_revocation_payload')
+    def test_delegated_not_in_revoked_list_still_denied_when_live_row_missing(
+        self, mock_fetch, mock_claims, _live
+    ):
+        """Delegated global tokens require a live Identity row match, not only absence from revoked ids."""
+        aid = 'not-on-revocation-list'
+        mock_claims.return_value = {
+            'agent_id': aid,
+            'company_id': 42,
+            'mcp_authority': 'delegated',
+            'global_company_id': '01234567-89ab-cdef-0123-456789abcdef',
+            'grant_version': 1,
+            'company_binding_version': 0,
+        }
+        mock_fetch.return_value = {'revoked_agent_ids': [], 'agents': []}
+        self.assertTrue(agent_revocation_denied(aid, company_id=42))

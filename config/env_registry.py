@@ -61,6 +61,11 @@ OPTIONAL = (
     Var('HOSTING_SERVICE_SIGNING_KEY', ''),
     Var('HOSTING_SERVICE_SIGNING_KEY_FILE', ''),
     Var('IDENTITY_SYNC_TIMEOUT', '10'),
+    Var(
+        'IDENTITY_DELEGATED_AGENT_AUTHORITY_PATH',
+        '/api/v1/mcp/internal/mcp-delegated-agent-authority',
+        'Identity MCP internal: live delegated RegionalAgent row check (POST body matches JWT triplet)',
+    ),
     Var('JWKS_CACHE_TTL', '900'),
     Var('JWKS_TIMEOUT', '15'),
     Var('JWKS_RETRIES', '2'),

@@ -32,7 +32,15 @@ ERROR_CODE_BY_STATUS: dict[int, str] = {
 # Static allowlist for ``error_code`` on failed outcomes (never free-form text).
 ALL_CALL_LOG_ERROR_CODES: Final[frozenset[str]] = frozenset(
     set(ERROR_CODE_BY_STATUS.values())
-    | {'invalid_status', 'client_error', 'server_error', 'failed', 'unexpected_status', 'approval_pending'}
+    | {
+        'invalid_status',
+        'client_error',
+        'server_error',
+        'failed',
+        'unexpected_status',
+        'approval_pending',
+        'approval_expired',
+    }
 )
 
 

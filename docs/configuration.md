@@ -69,6 +69,7 @@ When `HOSTING_ALLOW_ANY_HOST` is on (the default while `DEBUG=true`), `ALLOWED_H
 | `JWT_HS256_FALLBACK_SECRET` | empty | HS256 secret for local identity debug tokens. Set it to the identity `SECRET_KEY` |
 | `ALLOW_JWT_HS256_FALLBACK` | `false` | Allow the HS256 secret when `DEBUG=false` |
 | `IDENTITY_SYNC_TIMEOUT` | `10` | Seconds for the OAuth redirect sync call |
+| `IDENTITY_DELEGATED_AGENT_AUTHORITY_PATH` | `/api/v1/mcp/internal/mcp-delegated-agent-authority` | Identity internal route for the live delegated RegionalAgent row check (POST JSON body matches the JWT triplet). Override only when Identity documents a different path |
 
 See [JWT and claim trust](claim-trust.md).
 

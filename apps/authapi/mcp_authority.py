@@ -39,20 +39,26 @@ def mcp_authority_mode(claims: dict[str, Any] | None) -> str:
 
 
 def strict_non_negative_int_optional(raw: Any, *, field: str) -> int | None:
-    """JSON-style non-negative int only: int (not bool), or decimal digit string. Rejects float and ``True``/``False``."""
+    """Strict JSON integer for JWT claims: ``int`` only (not bool, str, float)."""
     if raw is None or raw == "":
         return None
     if isinstance(raw, bool):
-        raise ValueError(f"{field} must be a non-negative integer.")  # noqa: TRY004
+        raise ValueError(f"{field} must be a non-negative integer.")
     if isinstance(raw, int):
         if raw < 0:
             raise ValueError(f"{field} must be non-negative.")
         return raw
-    if isinstance(raw, str):
-        s = raw.strip()
-        if not s.isdigit():
-            raise ValueError(f"{field} must be a non-negative integer.")
-        return int(s)
+    raise ValueError(f"{field} must be a non-negative integer.")
+
+
+def parse_json_integer_non_negative(raw: Any, *, field: str) -> int:
+    """Identity HTTP JSON: required non-negative JSON integer."""
+    if isinstance(raw, bool):
+        raise ValueError(f"{field} must be a non-negative integer.")
+    if isinstance(raw, int):
+        if raw < 0:
+            raise ValueError(f"{field} must be non-negative.")
+        return raw
     raise ValueError(f"{field} must be a non-negative integer.")
 
 
@@ -60,9 +66,7 @@ def parse_personal_grant_version(claims: dict[str, Any] | None) -> int | None:
     """Non-negative int for approval assertions, or None when absent. Raises ValueError if invalid."""
     if not isinstance(claims, dict):
         return None
-    return strict_non_negative_int_optional(
-        claims.get("grant_version"), field="grant_version"
-    )
+    return strict_non_negative_int_optional(claims.get("grant_version"), field="grant_version")
 
 
 def parse_company_binding_version_claim(claims: dict[str, Any] | None) -> int | None:

@@ -17,18 +17,23 @@ from shellui_django.mcp.routing import McpToolArgumentError, materialize_openapi
 from shellui_django.mcp.server import McpServer
 from shellui_django.mcp.write_gate import decide_write, is_destructive_operation
 
-from apps.authapi.mcp_authority import authority_context_for_call_log, strict_non_negative_int_optional
+from apps.authapi.mcp_authority import (
+    authority_context_for_call_log,
+    mcp_personal_agent_rejected,
+    strict_non_negative_int_optional,
+)
 from apps.hosting.mcp_call_audit import (
     OUTCOME_ALLOWED,
     OUTCOME_DENIED,
+    OUTCOME_FAILED,
     OUTCOME_PENDING_APPROVAL,
-    OUTCOME_SESSION_USED,
     call_log_access_kind,
     openapi_path_for_operation_id,
     operation_summary_or_id,
     outcome_and_error_for_http,
 )
 from apps.hosting.mcp_identity import APPROVAL_LOOKUP_UNAVAILABLE
+from apps.hosting.mcp_live_authority import delegated_live_authority_ok
 
 _BODYLESS_METHODS = frozenset({'GET', 'HEAD', 'OPTIONS', 'TRACE'})
 
@@ -99,6 +104,10 @@ class HostingMcpServer(McpServer):
             return JsonResponse({'error': 'unauthorized'}, status=401)
         if check_agent_rate_limit(agent_id):
             return JsonResponse({'error': 'rate_limited'}, status=429)
+        if mcp_personal_agent_rejected(agent_claims):
+            return JsonResponse({'error': 'forbidden'}, status=403)
+        if not delegated_live_authority_ok(agent_claims):
+            return JsonResponse({'error': 'forbidden'}, status=403)
         company_id = agent_claims.get('company_id')
         try:
             company_id_int = strict_non_negative_int_optional(company_id, field='company_id')
@@ -193,14 +202,14 @@ class HostingMcpServer(McpServer):
                         method=method,
                         tool_read_only=tool_read_only,
                         duration_ms=max(0, int((time.perf_counter() - approval_started) * 1000)),
-                        http_status=409,
-                        outcome=OUTCOME_SESSION_USED,
-                        error_code='conflict',
+                        http_status=410,
+                        outcome=OUTCOME_FAILED,
+                        error_code='approval_expired',
                     )
                     return JsonResponse(
                         self._result(
                             req_id,
-                            {'content': [{'type': 'text', 'text': 'Approval already used.'}], 'isError': True},
+                            {'content': [{'type': 'text', 'text': 'Approval expired.'}], 'isError': True},
                         )
                     )
                 if state == 'approved':

@@ -15,6 +15,7 @@ from apps.hosting.tests.signing_helpers import MCP_SIGNING_TEST_SETTINGS
     **MCP_SIGNING_TEST_SETTINGS,
     IDENTITY_SERVICE_URL="http://identity.test",
 )
+@patch("apps.hosting.mcp_identity.delegated_live_authority_ok", return_value=True)
 class McpIdentityConsumeTests(SimpleTestCase):
     def setUp(self):
         mcp_identity._APPROVAL_ROUTE_CONTEXT.clear()
@@ -36,7 +37,7 @@ class McpIdentityConsumeTests(SimpleTestCase):
         return_value={"company_id": 42, "grant_version": 0},
     )
     @patch("apps.hosting.mcp_identity.requests.post")
-    def test_consume_requires_consumed_true_on_200(self, mock_post, _claims):
+    def test_consume_requires_consumed_true_on_200(self, mock_post, _claims, _live_ok):
         mock_resp = MagicMock()
         mock_resp.status_code = 200
         mock_resp.json.return_value = {"consumed": False}
@@ -49,7 +50,7 @@ class McpIdentityConsumeTests(SimpleTestCase):
         return_value={"company_id": 42, "grant_version": 0},
     )
     @patch("apps.hosting.mcp_identity.requests.post")
-    def test_consume_rejects_2xx_without_consumed_true(self, mock_post, _claims):
+    def test_consume_rejects_2xx_without_consumed_true(self, mock_post, _claims, _live_ok):
         mock_resp = MagicMock()
         mock_resp.status_code = 201
         mock_resp.json.return_value = {"status": "ok"}
@@ -62,7 +63,7 @@ class McpIdentityConsumeTests(SimpleTestCase):
         return_value={"company_id": 42, "grant_version": 0},
     )
     @patch("apps.hosting.mcp_identity.requests.post")
-    def test_consume_accepts_literal_true(self, mock_post, _claims):
+    def test_consume_accepts_literal_true(self, mock_post, _claims, _live_ok):
         mock_resp = MagicMock()
         mock_resp.status_code = 200
         mock_resp.json.return_value = {"consumed": True}
@@ -75,12 +76,13 @@ class McpIdentityConsumeTests(SimpleTestCase):
     **MCP_SIGNING_TEST_SETTINGS,
     IDENTITY_SERVICE_URL="http://identity.test",
 )
+@patch("apps.hosting.mcp_identity.delegated_live_authority_ok", return_value=True)
 class McpIdentityApprovalAssertionTests(SimpleTestCase):
     @patch(
         "apps.hosting.mcp_identity.current_mcp_agent_claims",
         return_value={"company_id": 1, "grant_version": 3},
     )
-    def test_approval_route_assertion_includes_grant_version_when_set(self, _claims):
+    def test_approval_route_assertion_includes_grant_version_when_set(self, _claims, _live_ok):
         t = mcp_identity._approval_route_assertion(
             {
                 "agent_id": "a",
@@ -97,7 +99,7 @@ class McpIdentityApprovalAssertionTests(SimpleTestCase):
         "apps.hosting.mcp_identity.current_mcp_agent_claims",
         return_value={"company_id": 1},
     )
-    def test_personal_agent_without_grant_omits_grant_claim(self, _claims):
+    def test_personal_agent_without_grant_omits_grant_claim(self, _claims, _live_ok):
         t = mcp_identity._approval_route_assertion(
             {
                 "agent_id": "a",
@@ -119,7 +121,7 @@ class McpIdentityApprovalAssertionTests(SimpleTestCase):
             "company_binding_version": 1,
         },
     )
-    def test_delegated_assertion_includes_global_triplet(self, _claims):
+    def test_delegated_assertion_includes_global_triplet(self, _claims, _live_ok):
         t = mcp_identity._approval_route_assertion(
             {
                 "agent_id": "a",

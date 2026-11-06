@@ -20,6 +20,10 @@ from apps.authapi.mcp_authority import (
     mcp_personal_agent_rejected,
     parse_agent_regional_company_id,
 )
+from apps.hosting.mcp_live_authority import (
+    bump_delegated_authority_cache_on_identity_failure,
+    delegated_live_authority_ok,
+)
 from apps.hosting.mcp_call_log_body import build_identity_call_log_body
 from apps.hosting.mcp_context import current_mcp_agent_claims
 from config.service_signing import signing_kwargs
@@ -31,12 +35,22 @@ APPROVAL_LOOKUP_UNAVAILABLE = '__approval_unavailable__'
 _APPROVAL_ROUTE_CONTEXT: dict[str, dict[str, Any]] = {}
 
 
+def identity_origin_url() -> str:
+    return (getattr(settings, 'IDENTITY_ISSUER', None) or getattr(settings, 'IDENTITY_SERVICE_URL', None) or '').rstrip(
+        '/'
+    )
+
+
+def identity_service_base_url() -> str:
+    return (getattr(settings, 'IDENTITY_SERVICE_URL', None) or identity_origin_url()).rstrip('/')
+
+
 def _identity_origin() -> str:
-    return (getattr(settings, 'IDENTITY_ISSUER', None) or getattr(settings, 'IDENTITY_SERVICE_URL', None) or '').rstrip('/')
+    return identity_origin_url()
 
 
 def _identity_base() -> str:
-    return (getattr(settings, 'IDENTITY_SERVICE_URL', None) or _identity_origin()).rstrip('/')
+    return identity_service_base_url()
 
 
 def create_approval_request(payload: dict) -> dict | None:
@@ -45,6 +59,8 @@ def create_approval_request(payload: dict) -> dict | None:
         return None
     claims = current_mcp_agent_claims()
     if mcp_personal_agent_rejected(claims):
+        return None
+    if not delegated_live_authority_ok(claims):
         return None
     agent_id = str(payload.get('agent_id') or '')
     company_id = payload.get('company_id')
@@ -95,6 +111,8 @@ def _approval_route_assertion(payload: dict) -> str | None:
     claims = current_mcp_agent_claims()
     if mcp_personal_agent_rejected(claims):
         return None
+    if not delegated_live_authority_ok(claims):
+        return None
     agent_id = str(payload.get('agent_id') or '')
     company_id = payload.get('company_id')
     args_hash = str(payload.get('arguments_hash') or '')
@@ -127,6 +145,11 @@ def lookup_approval_state(payload: dict) -> str | None:
     """Return ``pending``, ``approved``, ``executed``, or None by asking identity-service."""
     base = _identity_base()
     if not base:
+        return None
+    claims = current_mcp_agent_claims()
+    if mcp_personal_agent_rejected(claims):
+        return None
+    if not delegated_live_authority_ok(claims):
         return None
     assertion = _approval_route_assertion(payload)
     if not assertion:
@@ -180,6 +203,11 @@ def approval_state(payload: dict, *, use_mcp_approval_protocol: bool = True) -> 
 def consume_approval(approval_id: str, route_payload: dict | None = None) -> bool:
     base = _identity_base()
     if not base or not approval_id:
+        return False
+    claims = current_mcp_agent_claims()
+    if mcp_personal_agent_rejected(claims):
+        return False
+    if not delegated_live_authority_ok(claims):
         return False
     ctx = _APPROVAL_ROUTE_CONTEXT.pop(str(approval_id), None)
     source = route_payload if isinstance(route_payload, dict) else ctx
@@ -282,6 +310,7 @@ def fetch_revocation_payload(*, company_id: int | None = None) -> dict | None:
         try:
             params['company_id'] = str(parse_agent_regional_company_id(company_id))
         except ValueError:
+            bump_delegated_authority_cache_on_identity_failure()
             return None
     try:
         headers['Authorization'] = f'Bearer {build_mcp_revocation_assertion(audience_url=origin, **signing_kwargs())}'
@@ -302,20 +331,25 @@ def fetch_revocation_payload(*, company_id: int | None = None) -> dict | None:
             )
         except InternalAssertionError:
             logger.warning('MCP revocation list untrusted: revocation_list_untrusted')
+            bump_delegated_authority_cache_on_identity_failure()
             return None
         if company_id is not None:
             try:
                 expect_cid = parse_agent_regional_company_id(company_id)
             except ValueError:
+                bump_delegated_authority_cache_on_identity_failure()
                 return None
             for row in agents:
                 if not isinstance(row, dict):
+                    bump_delegated_authority_cache_on_identity_failure()
                     return None
                 try:
                     row_company = parse_agent_regional_company_id(row.get('company_id'))
                 except ValueError:
+                    bump_delegated_authority_cache_on_identity_failure()
                     return None
                 if row_company != expect_cid:
+                    bump_delegated_authority_cache_on_identity_failure()
                     return None
         return {
             'revoked_agent_ids': sorted(revoked_ids),
@@ -324,4 +358,5 @@ def fetch_revocation_payload(*, company_id: int | None = None) -> dict | None:
         }
     except Exception as exc:  # noqa: BLE001
         logger.warning('MCP revocation poll failed: identity_request_failed')
+        bump_delegated_authority_cache_on_identity_failure()
         return None

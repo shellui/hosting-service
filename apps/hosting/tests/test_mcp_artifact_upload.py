@@ -52,11 +52,17 @@ class McpArtifactUploadFlowTests(TestCase):
             return_value={'revoked_agent_ids': []},
         )
         self._revocation_ok.start()
+        self._delegated_live = patch(
+            'apps.hosting.mcp_server.delegated_live_authority_ok',
+            return_value=True,
+        )
+        self._delegated_live.start()
         from apps.hosting import mcp_views
 
         mcp_views._server = None
 
     def tearDown(self):
+        self._delegated_live.stop()
         self._revocation_ok.stop()
 
     def _rpc(self, method: str, params: dict | None = None):

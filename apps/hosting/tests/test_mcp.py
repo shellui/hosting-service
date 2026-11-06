@@ -35,23 +35,32 @@ def _agent_token(
     mcp_destructive: bool = False,
     scope: str = 'hosting',
     aud: str | list[str] = 'http://127.0.0.1/mcp',
+    mcp_authority: str | None = None,
+    global_company_id: str | None = None,
+    grant_version: int | None = None,
+    company_binding_version: int | None = None,
 ) -> str:
     agent_id = agent_id or str(uuid.uuid4())
-    return jwt.encode(
-        {
-            'sub': f'agent:{agent_id}',
-            'agent_id': agent_id,
-            'company_id': company_id,
-            'scope': scope,
-            'mcp_access': mcp_access,
-            'mcp_read': mcp_read,
-            'mcp_destructive': mcp_destructive,
-            'aud': aud,
-            'exp': 2**31 - 1,
-        },
-        secret,
-        algorithm='HS256',
-    )
+    claims: dict = {
+        'sub': f'agent:{agent_id}',
+        'agent_id': agent_id,
+        'company_id': company_id,
+        'scope': scope,
+        'mcp_access': mcp_access,
+        'mcp_read': mcp_read,
+        'mcp_destructive': mcp_destructive,
+        'aud': aud,
+        'exp': 2**31 - 1,
+    }
+    if mcp_authority is not None:
+        claims['mcp_authority'] = mcp_authority
+    if global_company_id is not None:
+        claims['global_company_id'] = global_company_id
+    if grant_version is not None:
+        claims['grant_version'] = grant_version
+    if company_binding_version is not None:
+        claims['company_binding_version'] = company_binding_version
+    return jwt.encode(claims, secret, algorithm='HS256')
 
 
 @override_settings(
@@ -75,11 +84,17 @@ class McpEndpointTests(TestCase):
             return_value={'revoked_agent_ids': []},
         )
         self._revocation_ok.start()
+        self._delegated_live = patch(
+            'apps.hosting.mcp_server.delegated_live_authority_ok',
+            return_value=True,
+        )
+        self._delegated_live.start()
         from apps.hosting import mcp_views
 
         mcp_views._server = None
 
     def tearDown(self):
+        self._delegated_live.stop()
         self._revocation_ok.stop()
 
     def _rpc(self, method: str, params: dict | None = None, *, token: str | None = None):
@@ -287,6 +302,62 @@ class McpEndpointTests(TestCase):
             )
         meta = response.json()['result'].get('meta') or {}
         self.assertEqual(meta.get('status'), 'pending')
+
+    @patch('apps.authapi.authentication.get_jwks_client')
+    def test_approval_executed_logs_failed_approval_expired(self, mock_jwks):
+        mock_jwks.return_value.get_signing_key.return_value = None
+        token = _agent_token(mcp_access='ask')
+        captured: list[dict] = []
+
+        def _capture(entry):
+            captured.append(entry)
+
+        with (
+            patch('apps.hosting.mcp_views.approval_state', return_value='executed'),
+            patch('apps.hosting.mcp_views.forward_call_log', side_effect=_capture),
+        ):
+            response = self._rpc(
+                'tools/call',
+                {
+                    'name': 'hosting_v1_preview_create',
+                    'arguments': {
+                        'path': '/hosting/v1/preview',
+                        'method': 'POST',
+                        'body': {'app_version': '1.0.0', 'shellui_version': '0.2.0'},
+                    },
+                },
+                token=token,
+            )
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()['result']
+        self.assertTrue(payload.get('isError'))
+        self.assertEqual(len(captured), 1)
+        self.assertEqual(captured[0].get('outcome'), 'failed')
+        self.assertEqual(captured[0].get('error_code'), 'approval_expired')
+        self.assertEqual(captured[0].get('http_status'), 410)
+
+    @patch('apps.authapi.authentication.get_jwks_client')
+    def test_global_delegated_profile_refused_before_mcp_dispatch(self, mock_jwks):
+        mock_jwks.return_value.get_signing_key.return_value = None
+        token = _agent_token(
+            mcp_authority='global_delegated',
+            global_company_id='01234567-89ab-cdef-0123-456789abcdef',
+        )
+        response = self._rpc('tools/list', token=token)
+        self.assertEqual(response.status_code, 401)
+
+    @patch('apps.authapi.authentication.get_jwks_client')
+    def test_delegated_live_authority_failure_refused(self, mock_jwks):
+        mock_jwks.return_value.get_signing_key.return_value = None
+        token = _agent_token(
+            mcp_authority='delegated',
+            global_company_id='01234567-89ab-cdef-0123-456789abcdef',
+            grant_version=1,
+            company_binding_version=0,
+        )
+        with patch('apps.hosting.mcp_server.delegated_live_authority_ok', return_value=False):
+            response = self._rpc('tools/list', token=token)
+        self.assertEqual(response.status_code, 403)
 
     @patch('apps.authapi.authentication.get_jwks_client')
     def test_deploy_token_list_never_returns_secrets(self, mock_jwks):
