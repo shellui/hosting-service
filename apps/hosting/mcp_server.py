@@ -7,8 +7,9 @@ import json
 import time
 from typing import Any
 
+from django.core.serializers.json import DjangoJSONEncoder
 from django.http import HttpRequest, JsonResponse
-from django.urls import resolve
+from django.urls import Resolver404, resolve
 from shellui_django.mcp.masking import redact_mapping
 from shellui_django.mcp.openapi_mcp import marker_tree_for_operation_response
 from shellui_django.mcp.openapi_tools import tools_from_schema
@@ -40,6 +41,7 @@ from apps.hosting.mcp_live_authority import (
 )
 
 _BODYLESS_METHODS = frozenset({'GET', 'HEAD', 'OPTIONS', 'TRACE'})
+_ARTIFACT_UPLOAD_URL_TOOL = 'hosting_v1_apps_deployments_artifact_upload_url_create'
 
 
 def _strip_agent_company_overrides(arguments: dict[str, Any]) -> dict[str, Any]:
@@ -54,6 +56,62 @@ def _strip_agent_company_overrides(arguments: dict[str, Any]) -> dict[str, Any]:
         body.pop('company_id', None)
         cleaned['body'] = body
     return cleaned
+
+
+def _dispatch_kwargs(method: str, arguments: dict[str, Any], authorization: str) -> dict[str, Any]:
+    """Build the inner REST request.
+
+    Tool bodies arrive as JSON objects. ``APIRequestFactory`` would otherwise send a dict as
+    ``application/octet-stream``, and DRF then rejects every write that reads ``request.data``.
+    """
+    kwargs: dict[str, Any] = {
+        'query_params': arguments.get('query') or {},
+        'HTTP_AUTHORIZATION': authorization,
+    }
+    if method in _BODYLESS_METHODS:
+        return kwargs
+    body = arguments.get('body')
+    if body is None:
+        body = {}
+    if isinstance(body, (dict, list)):
+        kwargs['data'] = json.dumps(body)
+        kwargs['content_type'] = 'application/json'
+    else:
+        kwargs['data'] = body
+    return kwargs
+
+
+def _public_tool_payload(
+    data: Any,
+    *,
+    read_sensitive: bool,
+    markers: dict[str, Any],
+    tool_name: str,
+) -> Any:
+    """Redact a proxied REST payload without changing its JSON shape.
+
+    OpenAPI list operations return arrays. Wrapping them in ``{"result": ...}`` makes the tool
+    result disagree with the operation schema. Presigned S3 upload URLs stay masked. A direct
+    hosting PUT URL is not a credential (the agent still sends its bearer token), so safe-read
+    agents can follow the upload step.
+    """
+    if isinstance(data, list):
+        return [
+            redact_mapping(item, read_sensitive=read_sensitive, markers=markers)
+            if isinstance(item, dict)
+            else item
+            for item in data
+        ]
+    if not isinstance(data, dict):
+        return redact_mapping(None, read_sensitive=read_sensitive, markers=markers)
+    redacted = redact_mapping(data, read_sensitive=read_sensitive, markers=markers)
+    if (
+        tool_name == _ARTIFACT_UPLOAD_URL_TOOL
+        and data.get('backend') == 'direct'
+        and data.get('upload_url')
+    ):
+        redacted['upload_url'] = data['upload_url']
+    return redacted
 
 
 class HostingMcpServer(McpServer):
@@ -380,7 +438,9 @@ class HostingMcpServer(McpServer):
                         {'content': [{'type': 'text', 'text': decision.reason or 'Forbidden'}], 'isError': True},
                     )
                 )
-        if not decision.allowed:
+        # Destructive tools stay ``allowed=False`` after a consumed approval. Do not apply that
+        # flag again once the approval block has granted the call.
+        elif not decision.allowed:
             self._forward_call_log(
                 schema=schema,
                 agent_claims=agent_claims,
@@ -401,17 +461,18 @@ class HostingMcpServer(McpServer):
                 )
             )
 
-        inner_kwargs: dict[str, Any] = {
-            'query_params': arguments.get('query') or {},
-            'HTTP_AUTHORIZATION': request.META.get('HTTP_AUTHORIZATION', ''),
-        }
-        if method not in _BODYLESS_METHODS:
-            body = arguments.get('body')
-            inner_kwargs['data'] = body if body is not None else {}
+        inner_kwargs = _dispatch_kwargs(
+            method,
+            arguments if isinstance(arguments, dict) else {},
+            request.META.get('HTTP_AUTHORIZATION', ''),
+        )
         drf_request = self._factory.generic(method, resolved_path, **inner_kwargs)
         self._attach_request_principal(drf_request, request, agent_claims)
         started = time.perf_counter()
-        match = resolve(resolved_path, urlconf=self.urlconf)
+        try:
+            match = resolve(resolved_path, urlconf=self.urlconf)
+        except Resolver404:
+            return JsonResponse(self._error(req_id, -32602, 'Tool path did not resolve'))
         response = match.func(drf_request, *match.args, **match.kwargs)
         status_code = getattr(response, 'status_code', 500)
         try:
@@ -419,10 +480,11 @@ class HostingMcpServer(McpServer):
         except AttributeError:
             data = {'detail': 'ok'}
         read_sensitive = read_level == 'sensitive'
-        redacted = redact_mapping(
-            data if isinstance(data, dict) else {'result': data},
+        redacted = _public_tool_payload(
+            data,
             read_sensitive=read_sensitive,
             markers=response_markers,
+            tool_name=tool_name,
         )
         duration_ms = max(0, int((time.perf_counter() - started) * 1000))
         outcome, error_code = outcome_and_error_for_http(status_code)
@@ -444,7 +506,7 @@ class HostingMcpServer(McpServer):
             self._result(
                 req_id,
                 {
-                    'content': [{'type': 'text', 'text': json.dumps(redacted)}],
+                    'content': [{'type': 'text', 'text': json.dumps(redacted, cls=DjangoJSONEncoder)}],
                     'isError': outcome != OUTCOME_ALLOWED,
                 },
             )

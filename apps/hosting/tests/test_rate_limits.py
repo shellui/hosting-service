@@ -110,3 +110,33 @@ class HostingRateLimitTests(TestCase):
             HTTP_AUTHORIZATION=self.auth,
         )
         self.assertEqual(response.status_code, 429)
+
+    @override_settings(HOSTING_RATE_LIMITS={'deploy': {'limit': 1, 'window': 60}})
+    def test_agents_do_not_share_deploy_bucket(self):
+        """Agent principals use user_id 0. Each agent must have its own throttle bucket."""
+        from apps.hosting.tests.test_mcp import _agent_token
+
+        cache.clear()
+        token_a = _agent_token(company_id=10, mcp_access='full')
+        token_b = _agent_token(company_id=10, mcp_access='full')
+        first = self.client.post(
+            '/hosting/v1/apps',
+            {'name': 'rate-a', 'display_name': 'A'},
+            format='json',
+            HTTP_AUTHORIZATION=f'Bearer {token_a}',
+        )
+        self.assertEqual(first.status_code, 201, first.content)
+        second = self.client.post(
+            '/hosting/v1/apps',
+            {'name': 'rate-b', 'display_name': 'B'},
+            format='json',
+            HTTP_AUTHORIZATION=f'Bearer {token_b}',
+        )
+        self.assertEqual(second.status_code, 201, second.content)
+        third = self.client.post(
+            '/hosting/v1/apps',
+            {'name': 'rate-c', 'display_name': 'C'},
+            format='json',
+            HTTP_AUTHORIZATION=f'Bearer {token_a}',
+        )
+        self.assertEqual(third.status_code, 429)

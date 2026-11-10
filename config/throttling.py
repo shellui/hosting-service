@@ -37,7 +37,12 @@ class HostingScopeThrottle(SimpleRateThrottle):
             return None
         user = request.user
         if user and getattr(user, 'is_authenticated', False):
-            ident = f'user_{getattr(user, "user_id", user.pk)}'
+            # Agent principals all use user_id 0. Key by agent id so companies do not share one bucket.
+            agent_id = getattr(user, 'agent_id', None)
+            if agent_id:
+                ident = f'agent_{agent_id}'
+            else:
+                ident = f'user_{getattr(user, "user_id", user.pk)}'
         else:
             ident = f'ip_{client_ip_rate_limit_key(get_client_ip(request))}'
         return self.cache_format % {'scope': scope, 'ident': ident}
