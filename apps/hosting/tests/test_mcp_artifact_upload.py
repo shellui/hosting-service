@@ -125,6 +125,9 @@ class McpArtifactUploadFlowTests(TestCase):
         self.assertEqual(upload_meta['method'], 'PUT')
         self.assertTrue(upload_meta['requires_bearer'])
         self.assertEqual(upload_meta['backend'], 'direct')
+        # Safe-read agents must still see the hosting PUT URL. It is not a credential.
+        self.assertIn(str(deployment.id), upload_meta['upload_url'])
+        self.assertNotEqual(upload_meta['upload_url'], '[redacted]')
 
         tarball = _site_tarball()
         upload_path = reverse(
@@ -223,3 +226,39 @@ class McpArtifactUploadFlowTests(TestCase):
         deployment.refresh_from_db()
         self.assertEqual(deployment.artifact_size, len(tarball))
         self.token = prev_token
+
+    @patch('apps.authapi.authentication.get_jwks_client')
+    @patch('apps.hosting.storage.is_s3_backend', return_value=True)
+    @patch('apps.hosting.storage.presigned_artifact_put_url', return_value='https://s3.example.com/presigned-put')
+    def test_s3_upload_url_stays_masked_for_safe_read(self, _mock_presign, _mock_s3, mock_jwks):
+        mock_jwks.return_value.get_signing_key.return_value = None
+        app = App.objects.create(
+            name='s3-safe',
+            slug='s3safe01',
+            company_id=self.company_id,
+            display_name='S3 safe',
+            created_by_id=1,
+        )
+        dep_id = uuid.uuid4()
+        deployment = Deployment.objects.create(
+            id=dep_id,
+            app=app,
+            app_version='1.0.0',
+            shellui_version='0.5.0',
+            deployed_by_id=1,
+            storage_prefix=f'{app.id}/deployments/{dep_id}/',
+            status=DeploymentStatus.DRAFT,
+        )
+        url_resp = self._tool(
+            'hosting_v1_apps_deployments_artifact_upload_url_create',
+            {
+                'path': '/hosting/v1/apps/{app_ref}/deployments/{deployment_id}/artifact-upload-url',
+                'method': 'POST',
+                'path_params': {'app_ref': app.slug, 'deployment_id': str(deployment.id)},
+            },
+        )
+        meta = self._result_json(url_resp)
+        self.assertFalse(url_resp.json()['result'].get('isError'), meta)
+        self.assertEqual(meta['backend'], 's3')
+        self.assertEqual(meta['upload_url'], '[redacted]')
+        self.assertNotIn('presigned-put', url_resp.content.decode())

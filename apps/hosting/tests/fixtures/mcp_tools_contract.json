@@ -1,0 +1,3007 @@
+{
+  "access": {
+    "api_v1_actions_deliveries_list": {
+      "body_fields": [],
+      "body_required": [],
+      "destructive": false,
+      "method": "GET",
+      "needs_approval": false,
+      "path": "/api/v1/actions/deliveries",
+      "path_params": [],
+      "query_fields": [
+        "action_rule_id",
+        "company_id",
+        "created_after",
+        "created_before",
+        "event_type",
+        "page",
+        "page_size",
+        "scheduled_job_run_id",
+        "status"
+      ],
+      "query_required": [],
+      "read_only": true,
+      "required": [
+        "path",
+        "method"
+      ]
+    },
+    "api_v1_actions_deliveries_requeue": {
+      "body_fields": [],
+      "body_required": [],
+      "destructive": false,
+      "method": "POST",
+      "needs_approval": false,
+      "path": "/api/v1/actions/deliveries/{delivery_id}/requeue",
+      "path_params": [
+        "delivery_id"
+      ],
+      "query_fields": [],
+      "query_required": [],
+      "read_only": false,
+      "required": [
+        "path",
+        "method",
+        "path_params"
+      ]
+    },
+    "api_v1_actions_deliveries_retrieve": {
+      "body_fields": [],
+      "body_required": [],
+      "destructive": false,
+      "method": "GET",
+      "needs_approval": false,
+      "path": "/api/v1/actions/deliveries/{delivery_id}",
+      "path_params": [
+        "delivery_id"
+      ],
+      "query_fields": [],
+      "query_required": [],
+      "read_only": true,
+      "required": [
+        "path",
+        "method",
+        "path_params"
+      ]
+    },
+    "api_v1_actions_event_log_list": {
+      "body_fields": [],
+      "body_required": [],
+      "destructive": false,
+      "method": "GET",
+      "needs_approval": false,
+      "path": "/api/v1/actions/event-log",
+      "path_params": [],
+      "query_fields": [
+        "company_id",
+        "created_after",
+        "created_before",
+        "event_type",
+        "page",
+        "page_size",
+        "user",
+        "user_id"
+      ],
+      "query_required": [],
+      "read_only": true,
+      "required": [
+        "path",
+        "method"
+      ]
+    },
+    "api_v1_actions_event_log_retention_retrieve": {
+      "body_fields": [],
+      "body_required": [],
+      "destructive": false,
+      "method": "GET",
+      "needs_approval": false,
+      "path": "/api/v1/actions/event-log/retention",
+      "path_params": [],
+      "query_fields": [
+        "company_id"
+      ],
+      "query_required": [],
+      "read_only": true,
+      "required": [
+        "path",
+        "method"
+      ]
+    },
+    "api_v1_actions_event_log_retrieve": {
+      "body_fields": [],
+      "body_required": [],
+      "destructive": false,
+      "method": "GET",
+      "needs_approval": false,
+      "path": "/api/v1/actions/event-log/{id}",
+      "path_params": [
+        "id"
+      ],
+      "query_fields": [],
+      "query_required": [],
+      "read_only": true,
+      "required": [
+        "path",
+        "method",
+        "path_params"
+      ]
+    },
+    "api_v1_actions_event_log_types_list": {
+      "body_fields": [],
+      "body_required": [],
+      "destructive": false,
+      "method": "GET",
+      "needs_approval": false,
+      "path": "/api/v1/actions/event-log/types",
+      "path_params": [],
+      "query_fields": [
+        "company_id"
+      ],
+      "query_required": [],
+      "read_only": true,
+      "required": [
+        "path",
+        "method"
+      ]
+    },
+    "api_v1_actions_events_list": {
+      "body_fields": [],
+      "body_required": [],
+      "destructive": false,
+      "method": "GET",
+      "needs_approval": false,
+      "path": "/api/v1/actions/events",
+      "path_params": [],
+      "query_fields": [
+        "company_id"
+      ],
+      "query_required": [],
+      "read_only": true,
+      "required": [
+        "path",
+        "method"
+      ]
+    },
+    "api_v1_actions_rules_create": {
+      "body_fields": [
+        "allow_private_urls",
+        "authorization_header",
+        "description",
+        "enabled",
+        "event_type",
+        "name",
+        "secret",
+        "url"
+      ],
+      "body_required": [
+        "event_type",
+        "name"
+      ],
+      "destructive": false,
+      "method": "POST",
+      "needs_approval": false,
+      "path": "/api/v1/actions/rules",
+      "path_params": [],
+      "query_fields": [
+        "company_id"
+      ],
+      "query_required": [],
+      "read_only": false,
+      "required": [
+        "path",
+        "method"
+      ]
+    },
+    "api_v1_actions_rules_destroy": {
+      "body_fields": [],
+      "body_required": [],
+      "destructive": true,
+      "method": "DELETE",
+      "needs_approval": true,
+      "path": "/api/v1/actions/rules/{id}",
+      "path_params": [
+        "id"
+      ],
+      "query_fields": [],
+      "query_required": [],
+      "read_only": false,
+      "required": [
+        "path",
+        "method",
+        "path_params"
+      ]
+    },
+    "api_v1_actions_rules_list": {
+      "body_fields": [],
+      "body_required": [],
+      "destructive": false,
+      "method": "GET",
+      "needs_approval": false,
+      "path": "/api/v1/actions/rules",
+      "path_params": [],
+      "query_fields": [
+        "company_id"
+      ],
+      "query_required": [],
+      "read_only": true,
+      "required": [
+        "path",
+        "method"
+      ]
+    },
+    "api_v1_actions_rules_partial_update": {
+      "body_fields": [
+        "allow_private_urls",
+        "authorization_header",
+        "description",
+        "enabled",
+        "event_type",
+        "name",
+        "secret",
+        "url"
+      ],
+      "body_required": [],
+      "destructive": false,
+      "method": "PATCH",
+      "needs_approval": false,
+      "path": "/api/v1/actions/rules/{id}",
+      "path_params": [
+        "id"
+      ],
+      "query_fields": [],
+      "query_required": [],
+      "read_only": false,
+      "required": [
+        "path",
+        "method",
+        "path_params"
+      ]
+    },
+    "api_v1_actions_rules_retrieve": {
+      "body_fields": [],
+      "body_required": [],
+      "destructive": false,
+      "method": "GET",
+      "needs_approval": false,
+      "path": "/api/v1/actions/rules/{id}",
+      "path_params": [
+        "id"
+      ],
+      "query_fields": [],
+      "query_required": [],
+      "read_only": true,
+      "required": [
+        "path",
+        "method",
+        "path_params"
+      ]
+    },
+    "api_v1_actions_rules_rotate_secret": {
+      "body_fields": [],
+      "body_required": [],
+      "destructive": false,
+      "method": "POST",
+      "needs_approval": false,
+      "path": "/api/v1/actions/rules/{id}/rotate-secret",
+      "path_params": [
+        "id"
+      ],
+      "query_fields": [],
+      "query_required": [],
+      "read_only": false,
+      "required": [
+        "path",
+        "method",
+        "path_params"
+      ]
+    },
+    "api_v1_actions_rules_send_test": {
+      "body_fields": [],
+      "body_required": [],
+      "destructive": false,
+      "method": "POST",
+      "needs_approval": false,
+      "path": "/api/v1/actions/rules/{id}/send-test",
+      "path_params": [
+        "id"
+      ],
+      "query_fields": [],
+      "query_required": [],
+      "read_only": false,
+      "required": [
+        "path",
+        "method",
+        "path_params"
+      ]
+    },
+    "hosting_v1_access_request_create": {
+      "body_fields": [],
+      "body_required": [],
+      "destructive": false,
+      "method": "POST",
+      "needs_approval": false,
+      "path": "/hosting/v1/access/request",
+      "path_params": [],
+      "query_fields": [],
+      "query_required": [],
+      "read_only": false,
+      "required": [
+        "path",
+        "method"
+      ]
+    },
+    "hosting_v1_apps_create": {
+      "body_fields": [
+        "display_name",
+        "name"
+      ],
+      "body_required": [
+        "name"
+      ],
+      "destructive": false,
+      "method": "POST",
+      "needs_approval": false,
+      "path": "/hosting/v1/apps",
+      "path_params": [],
+      "query_fields": [],
+      "query_required": [],
+      "read_only": false,
+      "required": [
+        "path",
+        "method"
+      ]
+    },
+    "hosting_v1_apps_deployments_artifact_upload_complete_create": {
+      "body_fields": [],
+      "body_required": [],
+      "destructive": false,
+      "method": "POST",
+      "needs_approval": false,
+      "path": "/hosting/v1/apps/{app_ref}/deployments/{deployment_id}/artifact-upload-complete",
+      "path_params": [
+        "app_ref",
+        "deployment_id"
+      ],
+      "query_fields": [],
+      "query_required": [],
+      "read_only": false,
+      "required": [
+        "path",
+        "method",
+        "path_params"
+      ]
+    },
+    "hosting_v1_apps_deployments_artifact_upload_url_create": {
+      "body_fields": [],
+      "body_required": [],
+      "destructive": false,
+      "method": "POST",
+      "needs_approval": false,
+      "path": "/hosting/v1/apps/{app_ref}/deployments/{deployment_id}/artifact-upload-url",
+      "path_params": [
+        "app_ref",
+        "deployment_id"
+      ],
+      "query_fields": [
+        "expires_in"
+      ],
+      "query_required": [],
+      "read_only": false,
+      "required": [
+        "path",
+        "method",
+        "path_params"
+      ]
+    },
+    "hosting_v1_apps_deployments_create": {
+      "body_fields": [
+        "app_version",
+        "pinned",
+        "shellui_version"
+      ],
+      "body_required": [
+        "app_version",
+        "shellui_version"
+      ],
+      "destructive": false,
+      "method": "POST",
+      "needs_approval": false,
+      "path": "/hosting/v1/apps/{app_ref}/deployments",
+      "path_params": [
+        "app_ref"
+      ],
+      "query_fields": [],
+      "query_required": [],
+      "read_only": false,
+      "required": [
+        "path",
+        "method",
+        "path_params"
+      ]
+    },
+    "hosting_v1_apps_deployments_finalize_create": {
+      "body_fields": [],
+      "body_required": [],
+      "destructive": false,
+      "method": "POST",
+      "needs_approval": false,
+      "path": "/hosting/v1/apps/{app_ref}/deployments/{deployment_id}/finalize",
+      "path_params": [
+        "app_ref",
+        "deployment_id"
+      ],
+      "query_fields": [],
+      "query_required": [],
+      "read_only": false,
+      "required": [
+        "path",
+        "method",
+        "path_params"
+      ]
+    },
+    "hosting_v1_apps_deployments_list": {
+      "body_fields": [],
+      "body_required": [],
+      "destructive": false,
+      "method": "GET",
+      "needs_approval": false,
+      "path": "/hosting/v1/apps/{app_ref}/deployments",
+      "path_params": [
+        "app_ref"
+      ],
+      "query_fields": [],
+      "query_required": [],
+      "read_only": true,
+      "required": [
+        "path",
+        "method",
+        "path_params"
+      ]
+    },
+    "hosting_v1_apps_deployments_rollback_create": {
+      "body_fields": [],
+      "body_required": [],
+      "destructive": true,
+      "method": "POST",
+      "needs_approval": true,
+      "path": "/hosting/v1/apps/{app_ref}/deployments/{deployment_id}/rollback",
+      "path_params": [
+        "app_ref",
+        "deployment_id"
+      ],
+      "query_fields": [],
+      "query_required": [],
+      "read_only": false,
+      "required": [
+        "path",
+        "method",
+        "path_params"
+      ]
+    },
+    "hosting_v1_apps_destroy": {
+      "body_fields": [],
+      "body_required": [],
+      "destructive": true,
+      "method": "DELETE",
+      "needs_approval": true,
+      "path": "/hosting/v1/apps/{app_ref}",
+      "path_params": [
+        "app_ref"
+      ],
+      "query_fields": [],
+      "query_required": [],
+      "read_only": false,
+      "required": [
+        "path",
+        "method",
+        "path_params"
+      ]
+    },
+    "hosting_v1_apps_domains_create": {
+      "body_fields": [
+        "hostname"
+      ],
+      "body_required": [
+        "hostname"
+      ],
+      "destructive": false,
+      "method": "POST",
+      "needs_approval": false,
+      "path": "/hosting/v1/apps/{app_ref}/domains",
+      "path_params": [
+        "app_ref"
+      ],
+      "query_fields": [],
+      "query_required": [],
+      "read_only": false,
+      "required": [
+        "path",
+        "method",
+        "path_params"
+      ]
+    },
+    "hosting_v1_apps_domains_destroy": {
+      "body_fields": [],
+      "body_required": [],
+      "destructive": true,
+      "method": "DELETE",
+      "needs_approval": true,
+      "path": "/hosting/v1/apps/{app_ref}/domains/{domain_id}",
+      "path_params": [
+        "app_ref",
+        "domain_id"
+      ],
+      "query_fields": [],
+      "query_required": [],
+      "read_only": false,
+      "required": [
+        "path",
+        "method",
+        "path_params"
+      ]
+    },
+    "hosting_v1_apps_domains_list": {
+      "body_fields": [],
+      "body_required": [],
+      "destructive": false,
+      "method": "GET",
+      "needs_approval": false,
+      "path": "/hosting/v1/apps/{app_ref}/domains",
+      "path_params": [
+        "app_ref"
+      ],
+      "query_fields": [],
+      "query_required": [],
+      "read_only": true,
+      "required": [
+        "path",
+        "method",
+        "path_params"
+      ]
+    },
+    "hosting_v1_apps_domains_refresh_create": {
+      "body_fields": [],
+      "body_required": [],
+      "destructive": false,
+      "method": "POST",
+      "needs_approval": false,
+      "path": "/hosting/v1/apps/{app_ref}/domains/{domain_id}/refresh",
+      "path_params": [
+        "app_ref",
+        "domain_id"
+      ],
+      "query_fields": [],
+      "query_required": [],
+      "read_only": false,
+      "required": [
+        "path",
+        "method",
+        "path_params"
+      ]
+    },
+    "hosting_v1_apps_domains_retrieve": {
+      "body_fields": [],
+      "body_required": [],
+      "destructive": false,
+      "method": "GET",
+      "needs_approval": false,
+      "path": "/hosting/v1/apps/{app_ref}/domains/{domain_id}",
+      "path_params": [
+        "app_ref",
+        "domain_id"
+      ],
+      "query_fields": [],
+      "query_required": [],
+      "read_only": true,
+      "required": [
+        "path",
+        "method",
+        "path_params"
+      ]
+    },
+    "hosting_v1_apps_environment_create": {
+      "body_fields": [
+        "key",
+        "value"
+      ],
+      "body_required": [
+        "key",
+        "value"
+      ],
+      "destructive": false,
+      "method": "POST",
+      "needs_approval": false,
+      "path": "/hosting/v1/apps/{app_ref}/environment",
+      "path_params": [
+        "app_ref"
+      ],
+      "query_fields": [],
+      "query_required": [],
+      "read_only": false,
+      "required": [
+        "path",
+        "method",
+        "path_params"
+      ]
+    },
+    "hosting_v1_apps_environment_destroy": {
+      "body_fields": [],
+      "body_required": [],
+      "destructive": true,
+      "method": "DELETE",
+      "needs_approval": true,
+      "path": "/hosting/v1/apps/{app_ref}/environment/{key}",
+      "path_params": [
+        "app_ref",
+        "key"
+      ],
+      "query_fields": [],
+      "query_required": [],
+      "read_only": false,
+      "required": [
+        "path",
+        "method",
+        "path_params"
+      ]
+    },
+    "hosting_v1_apps_environment_list": {
+      "body_fields": [],
+      "body_required": [],
+      "destructive": false,
+      "method": "GET",
+      "needs_approval": false,
+      "path": "/hosting/v1/apps/{app_ref}/environment",
+      "path_params": [
+        "app_ref"
+      ],
+      "query_fields": [],
+      "query_required": [],
+      "read_only": true,
+      "required": [
+        "path",
+        "method",
+        "path_params"
+      ]
+    },
+    "hosting_v1_apps_environment_retrieve": {
+      "body_fields": [],
+      "body_required": [],
+      "destructive": false,
+      "method": "GET",
+      "needs_approval": false,
+      "path": "/hosting/v1/apps/{app_ref}/environment/{key}",
+      "path_params": [
+        "app_ref",
+        "key"
+      ],
+      "query_fields": [],
+      "query_required": [],
+      "read_only": true,
+      "required": [
+        "path",
+        "method",
+        "path_params"
+      ]
+    },
+    "hosting_v1_apps_environment_update": {
+      "body_fields": [
+        "value"
+      ],
+      "body_required": [
+        "value"
+      ],
+      "destructive": false,
+      "method": "PUT",
+      "needs_approval": false,
+      "path": "/hosting/v1/apps/{app_ref}/environment/{key}",
+      "path_params": [
+        "app_ref",
+        "key"
+      ],
+      "query_fields": [],
+      "query_required": [],
+      "read_only": false,
+      "required": [
+        "path",
+        "method",
+        "path_params"
+      ]
+    },
+    "hosting_v1_apps_list": {
+      "body_fields": [],
+      "body_required": [],
+      "destructive": false,
+      "method": "GET",
+      "needs_approval": false,
+      "path": "/hosting/v1/apps",
+      "path_params": [],
+      "query_fields": [],
+      "query_required": [],
+      "read_only": true,
+      "required": [
+        "path",
+        "method"
+      ]
+    },
+    "hosting_v1_apps_renew_expiry_create": {
+      "body_fields": [],
+      "body_required": [],
+      "destructive": false,
+      "method": "POST",
+      "needs_approval": false,
+      "path": "/hosting/v1/apps/{app_ref}/renew-expiry",
+      "path_params": [
+        "app_ref"
+      ],
+      "query_fields": [],
+      "query_required": [],
+      "read_only": false,
+      "required": [
+        "path",
+        "method",
+        "path_params"
+      ]
+    },
+    "hosting_v1_apps_request_logs_list": {
+      "body_fields": [],
+      "body_required": [],
+      "destructive": false,
+      "method": "GET",
+      "needs_approval": false,
+      "path": "/hosting/v1/apps/{app_ref}/logs/requests",
+      "path_params": [
+        "app_ref"
+      ],
+      "query_fields": [
+        "cursor",
+        "limit",
+        "status_max",
+        "status_min"
+      ],
+      "query_required": [],
+      "read_only": true,
+      "required": [
+        "path",
+        "method",
+        "path_params"
+      ]
+    },
+    "hosting_v1_apps_retrieve": {
+      "body_fields": [],
+      "body_required": [],
+      "destructive": false,
+      "method": "GET",
+      "needs_approval": false,
+      "path": "/hosting/v1/apps/{app_ref}",
+      "path_params": [
+        "app_ref"
+      ],
+      "query_fields": [],
+      "query_required": [],
+      "read_only": true,
+      "required": [
+        "path",
+        "method",
+        "path_params"
+      ]
+    },
+    "hosting_v1_apps_runtime_logs_list": {
+      "body_fields": [],
+      "body_required": [],
+      "destructive": false,
+      "method": "GET",
+      "needs_approval": false,
+      "path": "/hosting/v1/apps/{app_ref}/logs/runtime",
+      "path_params": [
+        "app_ref"
+      ],
+      "query_fields": [
+        "limit"
+      ],
+      "query_required": [],
+      "read_only": true,
+      "required": [
+        "path",
+        "method",
+        "path_params"
+      ]
+    },
+    "hosting_v1_deploy_tokens_retrieve": {
+      "body_fields": [],
+      "body_required": [],
+      "destructive": false,
+      "method": "GET",
+      "needs_approval": false,
+      "path": "/hosting/v1/deploy-tokens",
+      "path_params": [],
+      "query_fields": [],
+      "query_required": [],
+      "read_only": true,
+      "required": [
+        "path",
+        "method"
+      ]
+    },
+    "hosting_v1_deploy_tokens_revoke_create": {
+      "body_fields": [],
+      "body_required": [],
+      "destructive": true,
+      "method": "POST",
+      "needs_approval": true,
+      "path": "/hosting/v1/deploy-tokens/{token_id}/revoke",
+      "path_params": [
+        "token_id"
+      ],
+      "query_fields": [],
+      "query_required": [],
+      "read_only": false,
+      "required": [
+        "path",
+        "method",
+        "path_params"
+      ]
+    },
+    "hosting_v1_preview_create": {
+      "body_fields": [
+        "app_version",
+        "display_name",
+        "shellui_version",
+        "slug"
+      ],
+      "body_required": [
+        "app_version",
+        "shellui_version"
+      ],
+      "destructive": false,
+      "method": "POST",
+      "needs_approval": false,
+      "path": "/hosting/v1/preview",
+      "path_params": [],
+      "query_fields": [],
+      "query_required": [],
+      "read_only": false,
+      "required": [
+        "path",
+        "method"
+      ]
+    },
+    "hosting_v1_stats_retrieve": {
+      "body_fields": [],
+      "body_required": [],
+      "destructive": false,
+      "method": "GET",
+      "needs_approval": false,
+      "path": "/hosting/v1/stats",
+      "path_params": [],
+      "query_fields": [],
+      "query_required": [],
+      "read_only": true,
+      "required": [
+        "path",
+        "method"
+      ]
+    }
+  },
+  "tools": [
+    {
+      "description": "List recent webhook deliveries",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "body": {
+            "additionalProperties": false,
+            "properties": {},
+            "type": "object"
+          },
+          "method": {
+            "enum": [
+              "GET"
+            ],
+            "type": "string"
+          },
+          "path": {
+            "const": "/api/v1/actions/deliveries",
+            "type": "string"
+          },
+          "query": {
+            "additionalProperties": false,
+            "properties": {
+              "action_rule_id": {
+                "type": "integer"
+              },
+              "company_id": {
+                "type": "integer"
+              },
+              "created_after": {
+                "type": "string"
+              },
+              "created_before": {
+                "type": "string"
+              },
+              "event_type": {
+                "type": "string"
+              },
+              "page": {
+                "type": "integer"
+              },
+              "page_size": {
+                "type": "integer"
+              },
+              "scheduled_job_run_id": {
+                "type": "integer"
+              },
+              "status": {
+                "type": "string"
+              }
+            },
+            "type": "object"
+          }
+        },
+        "required": [
+          "path",
+          "method"
+        ],
+        "type": "object"
+      },
+      "name": "api_v1_actions_deliveries_list"
+    },
+    {
+      "description": "Requeue a failed webhook delivery",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "body": {
+            "additionalProperties": false,
+            "properties": {},
+            "type": "object"
+          },
+          "method": {
+            "enum": [
+              "POST"
+            ],
+            "type": "string"
+          },
+          "path": {
+            "const": "/api/v1/actions/deliveries/{delivery_id}/requeue",
+            "type": "string"
+          },
+          "path_params": {
+            "additionalProperties": false,
+            "properties": {
+              "delivery_id": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "delivery_id"
+            ],
+            "type": "object"
+          },
+          "query": {
+            "additionalProperties": false,
+            "properties": {},
+            "type": "object"
+          }
+        },
+        "required": [
+          "path",
+          "method",
+          "path_params"
+        ],
+        "type": "object"
+      },
+      "name": "api_v1_actions_deliveries_requeue"
+    },
+    {
+      "description": "Read one webhook delivery",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "body": {
+            "additionalProperties": false,
+            "properties": {},
+            "type": "object"
+          },
+          "method": {
+            "enum": [
+              "GET"
+            ],
+            "type": "string"
+          },
+          "path": {
+            "const": "/api/v1/actions/deliveries/{delivery_id}",
+            "type": "string"
+          },
+          "path_params": {
+            "additionalProperties": false,
+            "properties": {
+              "delivery_id": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "delivery_id"
+            ],
+            "type": "object"
+          },
+          "query": {
+            "additionalProperties": false,
+            "properties": {},
+            "type": "object"
+          }
+        },
+        "required": [
+          "path",
+          "method",
+          "path_params"
+        ],
+        "type": "object"
+      },
+      "name": "api_v1_actions_deliveries_retrieve"
+    },
+    {
+      "description": "List recent domain events for the company",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "body": {
+            "additionalProperties": false,
+            "properties": {},
+            "type": "object"
+          },
+          "method": {
+            "enum": [
+              "GET"
+            ],
+            "type": "string"
+          },
+          "path": {
+            "const": "/api/v1/actions/event-log",
+            "type": "string"
+          },
+          "query": {
+            "additionalProperties": false,
+            "properties": {
+              "company_id": {
+                "type": "integer"
+              },
+              "created_after": {
+                "type": "string"
+              },
+              "created_before": {
+                "type": "string"
+              },
+              "event_type": {
+                "type": "string"
+              },
+              "page": {
+                "type": "integer"
+              },
+              "page_size": {
+                "type": "integer"
+              },
+              "user": {
+                "type": "string"
+              },
+              "user_id": {
+                "type": "integer"
+              }
+            },
+            "type": "object"
+          }
+        },
+        "required": [
+          "path",
+          "method"
+        ],
+        "type": "object"
+      },
+      "name": "api_v1_actions_event_log_list"
+    },
+    {
+      "description": "Read event log retention settings",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "body": {
+            "additionalProperties": false,
+            "properties": {},
+            "type": "object"
+          },
+          "method": {
+            "enum": [
+              "GET"
+            ],
+            "type": "string"
+          },
+          "path": {
+            "const": "/api/v1/actions/event-log/retention",
+            "type": "string"
+          },
+          "query": {
+            "additionalProperties": false,
+            "properties": {
+              "company_id": {
+                "type": "integer"
+              }
+            },
+            "type": "object"
+          }
+        },
+        "required": [
+          "path",
+          "method"
+        ],
+        "type": "object"
+      },
+      "name": "api_v1_actions_event_log_retention_retrieve"
+    },
+    {
+      "description": "Read one domain event log entry",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "body": {
+            "additionalProperties": false,
+            "properties": {},
+            "type": "object"
+          },
+          "method": {
+            "enum": [
+              "GET"
+            ],
+            "type": "string"
+          },
+          "path": {
+            "const": "/api/v1/actions/event-log/{id}",
+            "type": "string"
+          },
+          "path_params": {
+            "additionalProperties": false,
+            "properties": {
+              "id": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "id"
+            ],
+            "type": "object"
+          },
+          "query": {
+            "additionalProperties": false,
+            "properties": {},
+            "type": "object"
+          }
+        },
+        "required": [
+          "path",
+          "method",
+          "path_params"
+        ],
+        "type": "object"
+      },
+      "name": "api_v1_actions_event_log_retrieve"
+    },
+    {
+      "description": "List domain event type ids",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "body": {
+            "additionalProperties": false,
+            "properties": {},
+            "type": "object"
+          },
+          "method": {
+            "enum": [
+              "GET"
+            ],
+            "type": "string"
+          },
+          "path": {
+            "const": "/api/v1/actions/event-log/types",
+            "type": "string"
+          },
+          "query": {
+            "additionalProperties": false,
+            "properties": {
+              "company_id": {
+                "type": "integer"
+              }
+            },
+            "type": "object"
+          }
+        },
+        "required": [
+          "path",
+          "method"
+        ],
+        "type": "object"
+      },
+      "name": "api_v1_actions_event_log_types_list"
+    },
+    {
+      "description": "List Shellui Actions event types",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "body": {
+            "additionalProperties": false,
+            "properties": {},
+            "type": "object"
+          },
+          "method": {
+            "enum": [
+              "GET"
+            ],
+            "type": "string"
+          },
+          "path": {
+            "const": "/api/v1/actions/events",
+            "type": "string"
+          },
+          "query": {
+            "additionalProperties": false,
+            "properties": {
+              "company_id": {
+                "type": "integer"
+              }
+            },
+            "type": "object"
+          }
+        },
+        "required": [
+          "path",
+          "method"
+        ],
+        "type": "object"
+      },
+      "name": "api_v1_actions_events_list"
+    },
+    {
+      "description": "Create a Shellui Actions webhook rule",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "body": {
+            "additionalProperties": false,
+            "properties": {
+              "allow_private_urls": {
+                "type": "boolean"
+              },
+              "authorization_header": {
+                "type": "string"
+              },
+              "description": {
+                "type": "string"
+              },
+              "enabled": {
+                "type": "boolean"
+              },
+              "event_type": {
+                "type": "string"
+              },
+              "name": {
+                "type": "string"
+              },
+              "secret": {
+                "type": "string"
+              },
+              "url": {
+                "format": "uri",
+                "type": "string"
+              }
+            },
+            "required": [
+              "event_type",
+              "name"
+            ],
+            "type": "object"
+          },
+          "method": {
+            "enum": [
+              "POST"
+            ],
+            "type": "string"
+          },
+          "path": {
+            "const": "/api/v1/actions/rules",
+            "type": "string"
+          },
+          "query": {
+            "additionalProperties": false,
+            "properties": {
+              "company_id": {
+                "type": "integer"
+              }
+            },
+            "type": "object"
+          }
+        },
+        "required": [
+          "path",
+          "method"
+        ],
+        "type": "object"
+      },
+      "name": "api_v1_actions_rules_create"
+    },
+    {
+      "description": "Delete a Shellui Actions webhook rule",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "body": {
+            "additionalProperties": false,
+            "properties": {},
+            "type": "object"
+          },
+          "method": {
+            "enum": [
+              "DELETE"
+            ],
+            "type": "string"
+          },
+          "path": {
+            "const": "/api/v1/actions/rules/{id}",
+            "type": "string"
+          },
+          "path_params": {
+            "additionalProperties": false,
+            "properties": {
+              "id": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "id"
+            ],
+            "type": "object"
+          },
+          "query": {
+            "additionalProperties": false,
+            "properties": {},
+            "type": "object"
+          }
+        },
+        "required": [
+          "path",
+          "method",
+          "path_params"
+        ],
+        "type": "object"
+      },
+      "name": "api_v1_actions_rules_destroy"
+    },
+    {
+      "description": "List Shellui Actions webhook rules",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "body": {
+            "additionalProperties": false,
+            "properties": {},
+            "type": "object"
+          },
+          "method": {
+            "enum": [
+              "GET"
+            ],
+            "type": "string"
+          },
+          "path": {
+            "const": "/api/v1/actions/rules",
+            "type": "string"
+          },
+          "query": {
+            "additionalProperties": false,
+            "properties": {
+              "company_id": {
+                "type": "integer"
+              }
+            },
+            "type": "object"
+          }
+        },
+        "required": [
+          "path",
+          "method"
+        ],
+        "type": "object"
+      },
+      "name": "api_v1_actions_rules_list"
+    },
+    {
+      "description": "Update a Shellui Actions webhook rule",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "body": {
+            "additionalProperties": false,
+            "properties": {
+              "allow_private_urls": {
+                "type": "boolean"
+              },
+              "authorization_header": {
+                "type": "string"
+              },
+              "description": {
+                "type": "string"
+              },
+              "enabled": {
+                "type": "boolean"
+              },
+              "event_type": {
+                "type": "string"
+              },
+              "name": {
+                "type": "string"
+              },
+              "secret": {
+                "type": "string"
+              },
+              "url": {
+                "format": "uri",
+                "type": "string"
+              }
+            },
+            "type": "object"
+          },
+          "method": {
+            "enum": [
+              "PATCH"
+            ],
+            "type": "string"
+          },
+          "path": {
+            "const": "/api/v1/actions/rules/{id}",
+            "type": "string"
+          },
+          "path_params": {
+            "additionalProperties": false,
+            "properties": {
+              "id": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "id"
+            ],
+            "type": "object"
+          },
+          "query": {
+            "additionalProperties": false,
+            "properties": {},
+            "type": "object"
+          }
+        },
+        "required": [
+          "path",
+          "method",
+          "path_params"
+        ],
+        "type": "object"
+      },
+      "name": "api_v1_actions_rules_partial_update"
+    },
+    {
+      "description": "Read one Shellui Actions webhook rule",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "body": {
+            "additionalProperties": false,
+            "properties": {},
+            "type": "object"
+          },
+          "method": {
+            "enum": [
+              "GET"
+            ],
+            "type": "string"
+          },
+          "path": {
+            "const": "/api/v1/actions/rules/{id}",
+            "type": "string"
+          },
+          "path_params": {
+            "additionalProperties": false,
+            "properties": {
+              "id": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "id"
+            ],
+            "type": "object"
+          },
+          "query": {
+            "additionalProperties": false,
+            "properties": {},
+            "type": "object"
+          }
+        },
+        "required": [
+          "path",
+          "method",
+          "path_params"
+        ],
+        "type": "object"
+      },
+      "name": "api_v1_actions_rules_retrieve"
+    },
+    {
+      "description": "Rotate a webhook signing secret",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "body": {
+            "additionalProperties": false,
+            "properties": {},
+            "type": "object"
+          },
+          "method": {
+            "enum": [
+              "POST"
+            ],
+            "type": "string"
+          },
+          "path": {
+            "const": "/api/v1/actions/rules/{id}/rotate-secret",
+            "type": "string"
+          },
+          "path_params": {
+            "additionalProperties": false,
+            "properties": {
+              "id": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "id"
+            ],
+            "type": "object"
+          },
+          "query": {
+            "additionalProperties": false,
+            "properties": {},
+            "type": "object"
+          }
+        },
+        "required": [
+          "path",
+          "method",
+          "path_params"
+        ],
+        "type": "object"
+      },
+      "name": "api_v1_actions_rules_rotate_secret"
+    },
+    {
+      "description": "Queue a sample webhook delivery",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "body": {
+            "additionalProperties": false,
+            "properties": {},
+            "type": "object"
+          },
+          "method": {
+            "enum": [
+              "POST"
+            ],
+            "type": "string"
+          },
+          "path": {
+            "const": "/api/v1/actions/rules/{id}/send-test",
+            "type": "string"
+          },
+          "path_params": {
+            "additionalProperties": false,
+            "properties": {
+              "id": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "id"
+            ],
+            "type": "object"
+          },
+          "query": {
+            "additionalProperties": false,
+            "properties": {},
+            "type": "object"
+          }
+        },
+        "required": [
+          "path",
+          "method",
+          "path_params"
+        ],
+        "type": "object"
+      },
+      "name": "api_v1_actions_rules_send_test"
+    },
+    {
+      "description": "Request hosting access for your company",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "body": {
+            "additionalProperties": false,
+            "properties": {},
+            "type": "object"
+          },
+          "method": {
+            "enum": [
+              "POST"
+            ],
+            "type": "string"
+          },
+          "path": {
+            "const": "/hosting/v1/access/request",
+            "type": "string"
+          },
+          "query": {
+            "additionalProperties": false,
+            "properties": {},
+            "type": "object"
+          }
+        },
+        "required": [
+          "path",
+          "method"
+        ],
+        "type": "object"
+      },
+      "name": "hosting_v1_access_request_create"
+    },
+    {
+      "description": "Register a hosted site slug",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "body": {
+            "additionalProperties": false,
+            "properties": {
+              "display_name": {
+                "description": "Optional display label.",
+                "type": "string"
+              },
+              "name": {
+                "description": "Unique slug under the company (lowercase, hyphens).",
+                "type": "string"
+              }
+            },
+            "required": [
+              "name"
+            ],
+            "type": "object"
+          },
+          "method": {
+            "enum": [
+              "POST"
+            ],
+            "type": "string"
+          },
+          "path": {
+            "const": "/hosting/v1/apps",
+            "type": "string"
+          },
+          "query": {
+            "additionalProperties": false,
+            "properties": {},
+            "type": "object"
+          }
+        },
+        "required": [
+          "path",
+          "method"
+        ],
+        "type": "object"
+      },
+      "name": "hosting_v1_apps_create"
+    },
+    {
+      "description": "Hosting: confirm artifact upload",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "body": {
+            "additionalProperties": false,
+            "properties": {},
+            "type": "object"
+          },
+          "method": {
+            "enum": [
+              "POST"
+            ],
+            "type": "string"
+          },
+          "path": {
+            "const": "/hosting/v1/apps/{app_ref}/deployments/{deployment_id}/artifact-upload-complete",
+            "type": "string"
+          },
+          "path_params": {
+            "additionalProperties": false,
+            "properties": {
+              "app_ref": {
+                "type": "string"
+              },
+              "deployment_id": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "app_ref",
+              "deployment_id"
+            ],
+            "type": "object"
+          },
+          "query": {
+            "additionalProperties": false,
+            "properties": {},
+            "type": "object"
+          }
+        },
+        "required": [
+          "path",
+          "method",
+          "path_params"
+        ],
+        "type": "object"
+      },
+      "name": "hosting_v1_apps_deployments_artifact_upload_complete_create"
+    },
+    {
+      "description": "Hosting: mint artifact upload URL",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "body": {
+            "additionalProperties": false,
+            "properties": {},
+            "type": "object"
+          },
+          "method": {
+            "enum": [
+              "POST"
+            ],
+            "type": "string"
+          },
+          "path": {
+            "const": "/hosting/v1/apps/{app_ref}/deployments/{deployment_id}/artifact-upload-url",
+            "type": "string"
+          },
+          "path_params": {
+            "additionalProperties": false,
+            "properties": {
+              "app_ref": {
+                "type": "string"
+              },
+              "deployment_id": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "app_ref",
+              "deployment_id"
+            ],
+            "type": "object"
+          },
+          "query": {
+            "additionalProperties": false,
+            "properties": {
+              "expires_in": {
+                "type": "integer"
+              }
+            },
+            "type": "object"
+          }
+        },
+        "required": [
+          "path",
+          "method",
+          "path_params"
+        ],
+        "type": "object"
+      },
+      "name": "hosting_v1_apps_deployments_artifact_upload_url_create"
+    },
+    {
+      "description": "Create a draft deployment",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "body": {
+            "additionalProperties": false,
+            "properties": {
+              "app_version": {
+                "description": "Semver of your app build (for example `1.2.3`).",
+                "type": "string"
+              },
+              "pinned": {
+                "description": "When true, rollback skips this deployment unless explicitly selected.",
+                "type": "boolean"
+              },
+              "shellui_version": {
+                "description": "Shellui framework version bundled in the artifact.",
+                "type": "string"
+              }
+            },
+            "required": [
+              "app_version",
+              "shellui_version"
+            ],
+            "type": "object"
+          },
+          "method": {
+            "enum": [
+              "POST"
+            ],
+            "type": "string"
+          },
+          "path": {
+            "const": "/hosting/v1/apps/{app_ref}/deployments",
+            "type": "string"
+          },
+          "path_params": {
+            "additionalProperties": false,
+            "properties": {
+              "app_ref": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "app_ref"
+            ],
+            "type": "object"
+          },
+          "query": {
+            "additionalProperties": false,
+            "properties": {},
+            "type": "object"
+          }
+        },
+        "required": [
+          "path",
+          "method",
+          "path_params"
+        ],
+        "type": "object"
+      },
+      "name": "hosting_v1_apps_deployments_create"
+    },
+    {
+      "description": "Finalize and activate a deployment",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "body": {
+            "additionalProperties": false,
+            "properties": {},
+            "type": "object"
+          },
+          "method": {
+            "enum": [
+              "POST"
+            ],
+            "type": "string"
+          },
+          "path": {
+            "const": "/hosting/v1/apps/{app_ref}/deployments/{deployment_id}/finalize",
+            "type": "string"
+          },
+          "path_params": {
+            "additionalProperties": false,
+            "properties": {
+              "app_ref": {
+                "type": "string"
+              },
+              "deployment_id": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "app_ref",
+              "deployment_id"
+            ],
+            "type": "object"
+          },
+          "query": {
+            "additionalProperties": false,
+            "properties": {},
+            "type": "object"
+          }
+        },
+        "required": [
+          "path",
+          "method",
+          "path_params"
+        ],
+        "type": "object"
+      },
+      "name": "hosting_v1_apps_deployments_finalize_create"
+    },
+    {
+      "description": "List deployments for a site",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "body": {
+            "additionalProperties": false,
+            "properties": {},
+            "type": "object"
+          },
+          "method": {
+            "enum": [
+              "GET"
+            ],
+            "type": "string"
+          },
+          "path": {
+            "const": "/hosting/v1/apps/{app_ref}/deployments",
+            "type": "string"
+          },
+          "path_params": {
+            "additionalProperties": false,
+            "properties": {
+              "app_ref": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "app_ref"
+            ],
+            "type": "object"
+          },
+          "query": {
+            "additionalProperties": false,
+            "properties": {},
+            "type": "object"
+          }
+        },
+        "required": [
+          "path",
+          "method",
+          "path_params"
+        ],
+        "type": "object"
+      },
+      "name": "hosting_v1_apps_deployments_list"
+    },
+    {
+      "description": "Rollback to a previous deployment",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "body": {
+            "additionalProperties": false,
+            "properties": {},
+            "type": "object"
+          },
+          "method": {
+            "enum": [
+              "POST"
+            ],
+            "type": "string"
+          },
+          "path": {
+            "const": "/hosting/v1/apps/{app_ref}/deployments/{deployment_id}/rollback",
+            "type": "string"
+          },
+          "path_params": {
+            "additionalProperties": false,
+            "properties": {
+              "app_ref": {
+                "type": "string"
+              },
+              "deployment_id": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "app_ref",
+              "deployment_id"
+            ],
+            "type": "object"
+          },
+          "query": {
+            "additionalProperties": false,
+            "properties": {},
+            "type": "object"
+          }
+        },
+        "required": [
+          "path",
+          "method",
+          "path_params"
+        ],
+        "type": "object"
+      },
+      "name": "hosting_v1_apps_deployments_rollback_create"
+    },
+    {
+      "description": "Delete a hosted site",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "body": {
+            "additionalProperties": false,
+            "properties": {},
+            "type": "object"
+          },
+          "method": {
+            "enum": [
+              "DELETE"
+            ],
+            "type": "string"
+          },
+          "path": {
+            "const": "/hosting/v1/apps/{app_ref}",
+            "type": "string"
+          },
+          "path_params": {
+            "additionalProperties": false,
+            "properties": {
+              "app_ref": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "app_ref"
+            ],
+            "type": "object"
+          },
+          "query": {
+            "additionalProperties": false,
+            "properties": {},
+            "type": "object"
+          }
+        },
+        "required": [
+          "path",
+          "method",
+          "path_params"
+        ],
+        "type": "object"
+      },
+      "name": "hosting_v1_apps_destroy"
+    },
+    {
+      "description": "Register a custom hostname",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "body": {
+            "additionalProperties": false,
+            "properties": {
+              "hostname": {
+                "description": "Fully qualified hostname (not under the default app hosting domain).",
+                "type": "string"
+              }
+            },
+            "required": [
+              "hostname"
+            ],
+            "type": "object"
+          },
+          "method": {
+            "enum": [
+              "POST"
+            ],
+            "type": "string"
+          },
+          "path": {
+            "const": "/hosting/v1/apps/{app_ref}/domains",
+            "type": "string"
+          },
+          "path_params": {
+            "additionalProperties": false,
+            "properties": {
+              "app_ref": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "app_ref"
+            ],
+            "type": "object"
+          },
+          "query": {
+            "additionalProperties": false,
+            "properties": {},
+            "type": "object"
+          }
+        },
+        "required": [
+          "path",
+          "method",
+          "path_params"
+        ],
+        "type": "object"
+      },
+      "name": "hosting_v1_apps_domains_create"
+    },
+    {
+      "description": "Remove a custom hostname",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "body": {
+            "additionalProperties": false,
+            "properties": {},
+            "type": "object"
+          },
+          "method": {
+            "enum": [
+              "DELETE"
+            ],
+            "type": "string"
+          },
+          "path": {
+            "const": "/hosting/v1/apps/{app_ref}/domains/{domain_id}",
+            "type": "string"
+          },
+          "path_params": {
+            "additionalProperties": false,
+            "properties": {
+              "app_ref": {
+                "type": "string"
+              },
+              "domain_id": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "app_ref",
+              "domain_id"
+            ],
+            "type": "object"
+          },
+          "query": {
+            "additionalProperties": false,
+            "properties": {},
+            "type": "object"
+          }
+        },
+        "required": [
+          "path",
+          "method",
+          "path_params"
+        ],
+        "type": "object"
+      },
+      "name": "hosting_v1_apps_domains_destroy"
+    },
+    {
+      "description": "List custom hostnames for a site",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "body": {
+            "additionalProperties": false,
+            "properties": {},
+            "type": "object"
+          },
+          "method": {
+            "enum": [
+              "GET"
+            ],
+            "type": "string"
+          },
+          "path": {
+            "const": "/hosting/v1/apps/{app_ref}/domains",
+            "type": "string"
+          },
+          "path_params": {
+            "additionalProperties": false,
+            "properties": {
+              "app_ref": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "app_ref"
+            ],
+            "type": "object"
+          },
+          "query": {
+            "additionalProperties": false,
+            "properties": {},
+            "type": "object"
+          }
+        },
+        "required": [
+          "path",
+          "method",
+          "path_params"
+        ],
+        "type": "object"
+      },
+      "name": "hosting_v1_apps_domains_list"
+    },
+    {
+      "description": "Refresh custom domain status",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "body": {
+            "additionalProperties": false,
+            "properties": {},
+            "type": "object"
+          },
+          "method": {
+            "enum": [
+              "POST"
+            ],
+            "type": "string"
+          },
+          "path": {
+            "const": "/hosting/v1/apps/{app_ref}/domains/{domain_id}/refresh",
+            "type": "string"
+          },
+          "path_params": {
+            "additionalProperties": false,
+            "properties": {
+              "app_ref": {
+                "type": "string"
+              },
+              "domain_id": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "app_ref",
+              "domain_id"
+            ],
+            "type": "object"
+          },
+          "query": {
+            "additionalProperties": false,
+            "properties": {},
+            "type": "object"
+          }
+        },
+        "required": [
+          "path",
+          "method",
+          "path_params"
+        ],
+        "type": "object"
+      },
+      "name": "hosting_v1_apps_domains_refresh_create"
+    },
+    {
+      "description": "Read one custom hostname",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "body": {
+            "additionalProperties": false,
+            "properties": {},
+            "type": "object"
+          },
+          "method": {
+            "enum": [
+              "GET"
+            ],
+            "type": "string"
+          },
+          "path": {
+            "const": "/hosting/v1/apps/{app_ref}/domains/{domain_id}",
+            "type": "string"
+          },
+          "path_params": {
+            "additionalProperties": false,
+            "properties": {
+              "app_ref": {
+                "type": "string"
+              },
+              "domain_id": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "app_ref",
+              "domain_id"
+            ],
+            "type": "object"
+          },
+          "query": {
+            "additionalProperties": false,
+            "properties": {},
+            "type": "object"
+          }
+        },
+        "required": [
+          "path",
+          "method",
+          "path_params"
+        ],
+        "type": "object"
+      },
+      "name": "hosting_v1_apps_domains_retrieve"
+    },
+    {
+      "description": "Create or replace an environment variable",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "body": {
+            "additionalProperties": false,
+            "properties": {
+              "key": {
+                "description": "Must match /^[A-Za-z_][A-Za-z0-9_]{0,127}$/.",
+                "type": "string"
+              },
+              "value": {
+                "description": "New value. Never echoed in list or get responses.",
+                "type": "string"
+              }
+            },
+            "required": [
+              "key",
+              "value"
+            ],
+            "type": "object"
+          },
+          "method": {
+            "enum": [
+              "POST"
+            ],
+            "type": "string"
+          },
+          "path": {
+            "const": "/hosting/v1/apps/{app_ref}/environment",
+            "type": "string"
+          },
+          "path_params": {
+            "additionalProperties": false,
+            "properties": {
+              "app_ref": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "app_ref"
+            ],
+            "type": "object"
+          },
+          "query": {
+            "additionalProperties": false,
+            "properties": {},
+            "type": "object"
+          }
+        },
+        "required": [
+          "path",
+          "method",
+          "path_params"
+        ],
+        "type": "object"
+      },
+      "name": "hosting_v1_apps_environment_create"
+    },
+    {
+      "description": "Delete an environment variable",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "body": {
+            "additionalProperties": false,
+            "properties": {},
+            "type": "object"
+          },
+          "method": {
+            "enum": [
+              "DELETE"
+            ],
+            "type": "string"
+          },
+          "path": {
+            "const": "/hosting/v1/apps/{app_ref}/environment/{key}",
+            "type": "string"
+          },
+          "path_params": {
+            "additionalProperties": false,
+            "properties": {
+              "app_ref": {
+                "type": "string"
+              },
+              "key": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "app_ref",
+              "key"
+            ],
+            "type": "object"
+          },
+          "query": {
+            "additionalProperties": false,
+            "properties": {},
+            "type": "object"
+          }
+        },
+        "required": [
+          "path",
+          "method",
+          "path_params"
+        ],
+        "type": "object"
+      },
+      "name": "hosting_v1_apps_environment_destroy"
+    },
+    {
+      "description": "List app environment variables (names only)",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "body": {
+            "additionalProperties": false,
+            "properties": {},
+            "type": "object"
+          },
+          "method": {
+            "enum": [
+              "GET"
+            ],
+            "type": "string"
+          },
+          "path": {
+            "const": "/hosting/v1/apps/{app_ref}/environment",
+            "type": "string"
+          },
+          "path_params": {
+            "additionalProperties": false,
+            "properties": {
+              "app_ref": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "app_ref"
+            ],
+            "type": "object"
+          },
+          "query": {
+            "additionalProperties": false,
+            "properties": {},
+            "type": "object"
+          }
+        },
+        "required": [
+          "path",
+          "method",
+          "path_params"
+        ],
+        "type": "object"
+      },
+      "name": "hosting_v1_apps_environment_list"
+    },
+    {
+      "description": "Read one environment variable (metadata only)",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "body": {
+            "additionalProperties": false,
+            "properties": {},
+            "type": "object"
+          },
+          "method": {
+            "enum": [
+              "GET"
+            ],
+            "type": "string"
+          },
+          "path": {
+            "const": "/hosting/v1/apps/{app_ref}/environment/{key}",
+            "type": "string"
+          },
+          "path_params": {
+            "additionalProperties": false,
+            "properties": {
+              "app_ref": {
+                "type": "string"
+              },
+              "key": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "app_ref",
+              "key"
+            ],
+            "type": "object"
+          },
+          "query": {
+            "additionalProperties": false,
+            "properties": {},
+            "type": "object"
+          }
+        },
+        "required": [
+          "path",
+          "method",
+          "path_params"
+        ],
+        "type": "object"
+      },
+      "name": "hosting_v1_apps_environment_retrieve"
+    },
+    {
+      "description": "Update an environment variable value",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "body": {
+            "additionalProperties": false,
+            "properties": {
+              "value": {
+                "description": "New value. Never echoed in list or get responses.",
+                "type": "string"
+              }
+            },
+            "required": [
+              "value"
+            ],
+            "type": "object"
+          },
+          "method": {
+            "enum": [
+              "PUT"
+            ],
+            "type": "string"
+          },
+          "path": {
+            "const": "/hosting/v1/apps/{app_ref}/environment/{key}",
+            "type": "string"
+          },
+          "path_params": {
+            "additionalProperties": false,
+            "properties": {
+              "app_ref": {
+                "type": "string"
+              },
+              "key": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "app_ref",
+              "key"
+            ],
+            "type": "object"
+          },
+          "query": {
+            "additionalProperties": false,
+            "properties": {},
+            "type": "object"
+          }
+        },
+        "required": [
+          "path",
+          "method",
+          "path_params"
+        ],
+        "type": "object"
+      },
+      "name": "hosting_v1_apps_environment_update"
+    },
+    {
+      "description": "List hosted sites for your company",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "body": {
+            "additionalProperties": false,
+            "properties": {},
+            "type": "object"
+          },
+          "method": {
+            "enum": [
+              "GET"
+            ],
+            "type": "string"
+          },
+          "path": {
+            "const": "/hosting/v1/apps",
+            "type": "string"
+          },
+          "query": {
+            "additionalProperties": false,
+            "properties": {},
+            "type": "object"
+          }
+        },
+        "required": [
+          "path",
+          "method"
+        ],
+        "type": "object"
+      },
+      "name": "hosting_v1_apps_list"
+    },
+    {
+      "description": "Extend preview site expiry",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "body": {
+            "additionalProperties": false,
+            "properties": {},
+            "type": "object"
+          },
+          "method": {
+            "enum": [
+              "POST"
+            ],
+            "type": "string"
+          },
+          "path": {
+            "const": "/hosting/v1/apps/{app_ref}/renew-expiry",
+            "type": "string"
+          },
+          "path_params": {
+            "additionalProperties": false,
+            "properties": {
+              "app_ref": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "app_ref"
+            ],
+            "type": "object"
+          },
+          "query": {
+            "additionalProperties": false,
+            "properties": {},
+            "type": "object"
+          }
+        },
+        "required": [
+          "path",
+          "method",
+          "path_params"
+        ],
+        "type": "object"
+      },
+      "name": "hosting_v1_apps_renew_expiry_create"
+    },
+    {
+      "description": "List recent HTTP requests for the site",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "body": {
+            "additionalProperties": false,
+            "properties": {},
+            "type": "object"
+          },
+          "method": {
+            "enum": [
+              "GET"
+            ],
+            "type": "string"
+          },
+          "path": {
+            "const": "/hosting/v1/apps/{app_ref}/logs/requests",
+            "type": "string"
+          },
+          "path_params": {
+            "additionalProperties": false,
+            "properties": {
+              "app_ref": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "app_ref"
+            ],
+            "type": "object"
+          },
+          "query": {
+            "additionalProperties": false,
+            "properties": {
+              "cursor": {
+                "type": "string"
+              },
+              "limit": {
+                "type": "integer"
+              },
+              "status_max": {
+                "type": "integer"
+              },
+              "status_min": {
+                "type": "integer"
+              }
+            },
+            "type": "object"
+          }
+        },
+        "required": [
+          "path",
+          "method",
+          "path_params"
+        ],
+        "type": "object"
+      },
+      "name": "hosting_v1_apps_request_logs_list"
+    },
+    {
+      "description": "Read one hosted site",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "body": {
+            "additionalProperties": false,
+            "properties": {},
+            "type": "object"
+          },
+          "method": {
+            "enum": [
+              "GET"
+            ],
+            "type": "string"
+          },
+          "path": {
+            "const": "/hosting/v1/apps/{app_ref}",
+            "type": "string"
+          },
+          "path_params": {
+            "additionalProperties": false,
+            "properties": {
+              "app_ref": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "app_ref"
+            ],
+            "type": "object"
+          },
+          "query": {
+            "additionalProperties": false,
+            "properties": {},
+            "type": "object"
+          }
+        },
+        "required": [
+          "path",
+          "method",
+          "path_params"
+        ],
+        "type": "object"
+      },
+      "name": "hosting_v1_apps_retrieve"
+    },
+    {
+      "description": "Read runtime logs (availability contract)",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "body": {
+            "additionalProperties": false,
+            "properties": {},
+            "type": "object"
+          },
+          "method": {
+            "enum": [
+              "GET"
+            ],
+            "type": "string"
+          },
+          "path": {
+            "const": "/hosting/v1/apps/{app_ref}/logs/runtime",
+            "type": "string"
+          },
+          "path_params": {
+            "additionalProperties": false,
+            "properties": {
+              "app_ref": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "app_ref"
+            ],
+            "type": "object"
+          },
+          "query": {
+            "additionalProperties": false,
+            "properties": {
+              "limit": {
+                "type": "integer"
+              }
+            },
+            "type": "object"
+          }
+        },
+        "required": [
+          "path",
+          "method",
+          "path_params"
+        ],
+        "type": "object"
+      },
+      "name": "hosting_v1_apps_runtime_logs_list"
+    },
+    {
+      "description": "List company deploy tokens",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "body": {
+            "additionalProperties": false,
+            "properties": {},
+            "type": "object"
+          },
+          "method": {
+            "enum": [
+              "GET"
+            ],
+            "type": "string"
+          },
+          "path": {
+            "const": "/hosting/v1/deploy-tokens",
+            "type": "string"
+          },
+          "query": {
+            "additionalProperties": false,
+            "properties": {},
+            "type": "object"
+          }
+        },
+        "required": [
+          "path",
+          "method"
+        ],
+        "type": "object"
+      },
+      "name": "hosting_v1_deploy_tokens_retrieve"
+    },
+    {
+      "description": "Revoke a deploy token",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "body": {
+            "additionalProperties": false,
+            "properties": {},
+            "type": "object"
+          },
+          "method": {
+            "enum": [
+              "POST"
+            ],
+            "type": "string"
+          },
+          "path": {
+            "const": "/hosting/v1/deploy-tokens/{token_id}/revoke",
+            "type": "string"
+          },
+          "path_params": {
+            "additionalProperties": false,
+            "properties": {
+              "token_id": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "token_id"
+            ],
+            "type": "object"
+          },
+          "query": {
+            "additionalProperties": false,
+            "properties": {},
+            "type": "object"
+          }
+        },
+        "required": [
+          "path",
+          "method",
+          "path_params"
+        ],
+        "type": "object"
+      },
+      "name": "hosting_v1_deploy_tokens_revoke_create"
+    },
+    {
+      "description": "Prepare a preview deploy",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "body": {
+            "additionalProperties": false,
+            "properties": {
+              "app_version": {
+                "description": "Semver of the preview build.",
+                "type": "string"
+              },
+              "display_name": {
+                "type": "string"
+              },
+              "shellui_version": {
+                "description": "Shellui framework version in the bundle.",
+                "type": "string"
+              },
+              "slug": {
+                "description": "Optional preview slug. Omit to allocate a new slug.",
+                "type": "string"
+              }
+            },
+            "required": [
+              "app_version",
+              "shellui_version"
+            ],
+            "type": "object"
+          },
+          "method": {
+            "enum": [
+              "POST"
+            ],
+            "type": "string"
+          },
+          "path": {
+            "const": "/hosting/v1/preview",
+            "type": "string"
+          },
+          "query": {
+            "additionalProperties": false,
+            "properties": {},
+            "type": "object"
+          }
+        },
+        "required": [
+          "path",
+          "method"
+        ],
+        "type": "object"
+      },
+      "name": "hosting_v1_preview_create"
+    },
+    {
+      "description": "Read hosting usage stats",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "body": {
+            "additionalProperties": false,
+            "properties": {},
+            "type": "object"
+          },
+          "method": {
+            "enum": [
+              "GET"
+            ],
+            "type": "string"
+          },
+          "path": {
+            "const": "/hosting/v1/stats",
+            "type": "string"
+          },
+          "query": {
+            "additionalProperties": false,
+            "properties": {},
+            "type": "object"
+          }
+        },
+        "required": [
+          "path",
+          "method"
+        ],
+        "type": "object"
+      },
+      "name": "hosting_v1_stats_retrieve"
+    }
+  ]
+}
