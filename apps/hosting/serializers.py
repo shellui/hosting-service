@@ -130,7 +130,11 @@ class PreviewPrepareSerializer(serializers.Serializer):
         allow_blank=True,
         help_text='Optional preview slug. Omit to allocate a new slug.',
     )
-    display_name = serializers.CharField(required=False, allow_blank=True)
+    display_name = serializers.CharField(
+        required=False,
+        allow_blank=True,
+        help_text='Optional label for the preview site.',
+    )
     app_version = serializers.CharField(help_text='Semver of the preview build.')
     shellui_version = serializers.CharField(help_text='Shellui framework version in the bundle.')
 

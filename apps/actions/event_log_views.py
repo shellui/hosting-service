@@ -87,7 +87,13 @@ class _EventLogBase(APIView):
         operation_id='api_v1_actions_event_log_list',
         parameters=[
             COMPANY_QUERY,
-            OpenApiParameter(name='user_id', type=int, location=OpenApiParameter.QUERY, required=False),
+            OpenApiParameter(
+                name='user_id',
+                type=int,
+                location=OpenApiParameter.QUERY,
+                required=False,
+                description='Actor user id to match.',
+            ),
             OpenApiParameter(
                 name='user',
                 type=str,
@@ -100,7 +106,7 @@ class _EventLogBase(APIView):
                 type=str,
                 location=OpenApiParameter.QUERY,
                 required=False,
-                description='Catalog event type; comma-separate several types.',
+                description='One catalog event id to match.',
             ),
             OpenApiParameter(
                 name='created_after',
@@ -116,8 +122,20 @@ class _EventLogBase(APIView):
                 required=False,
                 description='ISO 8601 datetime (exclusive upper bound).',
             ),
-            OpenApiParameter(name='page', type=int, location=OpenApiParameter.QUERY, required=False),
-            OpenApiParameter(name='page_size', type=int, location=OpenApiParameter.QUERY, required=False),
+            OpenApiParameter(
+                name='page',
+                type=int,
+                location=OpenApiParameter.QUERY,
+                required=False,
+                description='Page number, starting at 1.',
+            ),
+            OpenApiParameter(
+                name='page_size',
+                type=int,
+                location=OpenApiParameter.QUERY,
+                required=False,
+                description='Page size. The server caps this at 100.',
+            ),
         ],
         responses={200: EventLogListSerializer, **_API_ERRORS},
         **mcp_openapi_fields('api_v1_actions_event_log_list'),

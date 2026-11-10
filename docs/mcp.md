@@ -72,7 +72,7 @@ Use a Bearer agent access token from Identity with the `hosting` service scope a
 
 **CLI vs AI gateway:** Personal regional tokens use `resource={hosting_origin}/mcp` at `POST /oauth/mcp/token` on Identity. The **per-company AI gateway** uses `{AI_SERVICE_URL}/c/<company_id>/mcp` as `resource` for the same token endpoint; downstream tools still call hosting with `Bearer` tokens whose `aud` is that resource URL, while tool names are the gateway names `hosting_<verb>_<noun>` (for example `hosting_list_apps`, not the OpenAPI `operationId` and not a URL path). Direct `POST /mcp` `tools/list` is driven by `x-mcp` markers and returns this service's full catalog. `x-mcp.tool_name` is the service-local verb and noun. Hosting publishes it with a `hosting_` prefix so the name matches the ai-service gateway.
 
-Tool **`arguments.path`** values use **hyphenated** OpenAPI path templates (for example `/hosting/v1/apps/{app_ref}/deployments/{id}`); that is the registry string passed to `resolve()`, not an underscored alias.
+Tool arguments are the operation's path, query, and body fields, flattened. Agents do not pass HTTP `method`, `path`, or a raw URL. `hosting_create_apps_deployments` takes `app_ref`, `app_version`, and `shellui_version`. Hosting still resolves the hyphenated OpenAPI path internally. Company scope comes from the JWT, so `company_id` is not a tool argument. Webhook rule `url` is the HTTPS endpoint that receives the event, not the tool's request URL.
 
 After a company owner approves a pending write in Identity, the agent retries the same tool call; hosting checks approval state with Identity and runs the write once. If Identity reports the approval as already consumed (`executed`), hosting records **`failed`** with fixed **`approval_expired`** (not `session_used`). **`session_used`** is reserved for a distinct reuse case outside this flow.
 
@@ -99,7 +99,7 @@ The legacy `PUT /hosting/v1/apps/{app_ref}/deployments/{id}/upload` route remain
 
 Agent JWT claims mirror Identity: `mcp_access` (`read_only`, `ask`, `full`), `mcp_read` (`safe`, `sensitive`), and `mcp_destructive`. Read-only agents cannot call write routes. Ask mode creates an approval request in Identity before mutating data.
 
-The shared `shellui-django` write gate treats **every destructive operation as approval-gated**, even when `mcp_access` is `full`. The `mcp_destructive` claim does not skip approval for destructive tools. Non-destructive writes in `full` mode run without a pending approval.
+The shared `shellui-django` write gate treats **every destructive operation as approval-gated**, even when `mcp_access` is `full`. The `mcp_destructive` claim does not skip approval for destructive tools. Non-destructive writes in `full` mode run without a pending approval. Destructive tools are deletes, deployment finalize and rollback, custom domain changes, environment variable writes, deploy-token revoke, and Shellui Actions secret rotation. Each tool publishes `readOnlyHint` and `destructiveHint` for that routing.
 
 ## Internal assertions to Identity
 

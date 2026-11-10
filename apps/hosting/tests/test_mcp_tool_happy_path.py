@@ -228,20 +228,14 @@ class McpToolHappyPathTests(TestCase):
         self._ensure_catalog()
         tool = self.by_name[name]
         props = tool['inputSchema']['properties']
-        required = tool['inputSchema']['required']
-        arguments = {'path': props['path']['const'], 'method': props['method']['enum'][0]}
-        if 'path_params' in required:
-            names = props['path_params']['required']
-            supplied = dict(self.ids)
-            if path_params:
-                supplied.update(path_params)
-            missing = [key for key in names if key not in supplied]
-            self.assertEqual(missing, [], name)
-            arguments['path_params'] = {key: supplied[key] for key in names}
-        if query is not None:
-            arguments['query'] = query
-        if body is not None:
-            arguments['body'] = body
+        required = list(tool['inputSchema'].get('required') or [])
+        arguments = {key: self.ids[key] for key in props if key in self.ids}
+        for source in (path_params, query, body):
+            for key, value in (source or {}).items():
+                self.assertIn(key, props, name)
+                arguments[key] = value
+        missing = [key for key in required if key not in arguments]
+        self.assertEqual(missing, [], name)
         return arguments
 
     def _call_tool(self, name, *, path_params=None, query=None, body=None):
@@ -568,7 +562,7 @@ class McpToolHappyPathTests(TestCase):
     def _case_api_v1_actions_event_log_retrieve(self):
         body = self._call_tool(
             'hosting_get_action_event_log',
-            path_params={'id': str(self.event.pk), 'pk': str(self.event.pk)},
+            path_params={'id': str(self.event.pk)},
         )
         self.assertEqual(body['event_type'], 'hosting.app.created')
         self.assertEqual(body['id'], self.event.pk)

@@ -154,14 +154,24 @@ class McpArtifactUploadFlowTests(TestCase):
         complete_body = self._result_json(complete_resp)
         self.assertGreaterEqual(int(complete_body['artifact_size']), len(tarball) // 4)
 
-        finalize_resp = self._tool(
-            'hosting_create_apps_deployments_finalize',
-            {
-                'path': '/hosting/v1/apps/{app_ref}/deployments/{deployment_id}/finalize',
-                'method': 'POST',
-                'path_params': {'app_ref': app.slug, 'deployment_id': str(deployment.id)},
-            },
-        )
+        def _approved(payload, use_mcp_approval_protocol=True):
+            payload['approval_id'] = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa'
+            return 'approved'
+
+        from apps.hosting import mcp_views
+
+        with (
+            patch('apps.hosting.mcp_views.approval_state', _approved),
+            patch('apps.hosting.mcp_views.consume_approval', return_value=True),
+        ):
+            mcp_views._server = None
+            finalize_resp = self._tool(
+                'hosting_create_apps_deployments_finalize',
+                {
+                    'app_ref': app.slug,
+                    'deployment_id': str(deployment.id),
+                },
+            )
         self.assertFalse(finalize_resp.json()['result'].get('isError'))
         finalized = self._result_json(finalize_resp)
         self.assertEqual(finalized['status'], DeploymentStatus.ACTIVE)
