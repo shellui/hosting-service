@@ -780,10 +780,10 @@
     "hosting_requeue_action_deliveries": {
       "body_fields": [],
       "body_required": [],
-      "destructive": false,
-      "destructiveHint": false,
+      "destructive": true,
+      "destructiveHint": true,
       "method": "POST",
-      "needs_approval": false,
+      "needs_approval": true,
       "path": "/api/v1/actions/deliveries/{delivery_id}/requeue",
       "path_params": [
         "delivery_id"
@@ -837,10 +837,10 @@
     "hosting_send_test_rule": {
       "body_fields": [],
       "body_required": [],
-      "destructive": false,
-      "destructiveHint": false,
+      "destructive": true,
+      "destructiveHint": true,
       "method": "POST",
-      "needs_approval": false,
+      "needs_approval": true,
       "path": "/api/v1/actions/rules/{id}/send-test",
       "path_params": [
         "id"
@@ -1880,7 +1880,7 @@
     },
     {
       "annotations": {
-        "destructiveHint": false,
+        "destructiveHint": true,
         "readOnlyHint": false
       },
       "description": "Requeues a failed or dead Shellui Actions delivery delivery_id and returns it with status pending.",
@@ -1945,7 +1945,7 @@
     },
     {
       "annotations": {
-        "destructiveHint": false,
+        "destructiveHint": true,
         "readOnlyHint": false
       },
       "description": "Sends a sample webhook to the URL on Shellui Actions rule id and returns whether that delivery succeeded. This does not send email.",

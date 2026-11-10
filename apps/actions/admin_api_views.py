@@ -342,7 +342,7 @@ class ShellUIAdminActionRuleRotateSecretView(APIView):
         request=None,
         responses={200: ActionTestResultSerializer, **_API_ERRORS},
         **mcp_openapi_fields('api_v1_actions_rules_send_test'),
-        **mcp_tool(operation_id='api_v1_actions_rules_send_test', read_only=False, sensitive=True),
+        **mcp_tool(operation_id='api_v1_actions_rules_send_test', read_only=False, destructive=True, sensitive=True),
     ),
 )
 class ShellUIAdminActionRuleSendTestView(APIView):
@@ -545,7 +545,7 @@ class ShellUIAdminActionDeliveryDetailView(APIView):
         request=None,
         responses={200: DeliverySerializer, **_API_ERRORS},
         **mcp_openapi_fields('api_v1_actions_deliveries_requeue'),
-        **mcp_tool(operation_id='api_v1_actions_deliveries_requeue', read_only=False, sensitive=True),
+        **mcp_tool(operation_id='api_v1_actions_deliveries_requeue', read_only=False, destructive=True, sensitive=True),
     ),
 )
 class ShellUIAdminActionDeliveryRequeueView(APIView):
