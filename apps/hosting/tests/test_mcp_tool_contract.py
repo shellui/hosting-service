@@ -15,11 +15,11 @@ from unittest.mock import patch
 from django.test import Client, TestCase, override_settings
 from django.urls import Resolver404, resolve, reverse
 from drf_spectacular.generators import SchemaGenerator
-from shellui_django.mcp.openapi_tools import tools_from_schema
+from shellui_django.mcp.openapi_tools import tools_from_schema as shellui_tools_from_schema
 from shellui_django.mcp.routing import materialize_openapi_path
 from shellui_django.mcp.write_gate import decide_write
 
-from apps.authapi.mcp_openapi import MCP_REQUIRED_OPERATION_IDS
+from apps.authapi.mcp_openapi import MCP_GATEWAY_TOOL_NAMES, apply_gateway_mcp_names
 from apps.hosting.tests.signing_helpers import MCP_SIGNING_TEST_SETTINGS
 from apps.hosting.tests.test_mcp import _agent_token, _clear_revocation_cache
 
@@ -40,7 +40,7 @@ _PATH_SAMPLES = {
 def build_mcp_tool_contract() -> dict:
     """Client-visible tools plus the access flags the server enforces."""
     schema = SchemaGenerator().get_schema(request=None, public=True)
-    tools = tools_from_schema(schema)
+    tools = apply_gateway_mcp_names(shellui_tools_from_schema(schema))
     client_tools = []
     access = {}
     for tool in tools:
@@ -133,11 +133,14 @@ class McpToolContractTests(TestCase):
         listed = response.json()['result']['tools']
         self.assertEqual(listed, pinned['tools'])
         self.assertEqual([tool['name'] for tool in listed], sorted(tool['name'] for tool in listed))
-        self.assertEqual({tool['name'] for tool in listed}, set(MCP_REQUIRED_OPERATION_IDS))
+        self.assertEqual({tool['name'] for tool in listed}, set(MCP_GATEWAY_TOOL_NAMES.values()))
         live = build_mcp_tool_contract()
         self.assertEqual(live['tools'], pinned['tools'])
         self.assertEqual(live['access'], pinned['access'])
         for tool in listed:
+            self.assertFalse(tool['name'].startswith('api_v1_'), tool['name'])
+            self.assertTrue(tool['name'].startswith('hosting_'), tool['name'])
+            self.assertNotIn('_v1_', tool['name'], tool['name'])
             required = tool['inputSchema']['required']
             self.assertIn('path', required, tool['name'])
             self.assertIn('method', required, tool['name'])

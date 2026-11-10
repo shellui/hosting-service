@@ -12,7 +12,7 @@ def _base(**kwargs):
         'agent_id': 'a1',
         'company_id': 42,
         'service': 'hosting',
-        'tool': 'hosting_v1_apps_list',
+        'tool': 'hosting_list_apps',
         'path': '/mcp',
         'method': 'POST',
         'status': 200,
@@ -30,7 +30,7 @@ class CallLogBodyTests(SimpleTestCase):
         body = build_identity_call_log_body(_base())
         self.assertIsNotNone(body)
         assert body is not None
-        self.assertEqual(body['tool'], 'hosting_v1_apps_list')
+        self.assertEqual(body['tool'], 'hosting_list_apps')
         self.assertEqual(body['path'], '/mcp')
         self.assertEqual(body['method'], 'POST')
         self.assertNotIn('operation_title', body)

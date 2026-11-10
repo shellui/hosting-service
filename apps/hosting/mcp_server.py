@@ -18,6 +18,7 @@ from shellui_django.mcp.routing import McpToolArgumentError, materialize_openapi
 from shellui_django.mcp.server import McpServer
 from shellui_django.mcp.write_gate import decide_write, is_destructive_operation
 
+from apps.authapi.mcp_openapi import apply_gateway_mcp_names
 from apps.authapi.mcp_authority import (
     authority_context_for_call_log,
     is_exchange_delegated_regional_agent,
@@ -41,7 +42,7 @@ from apps.hosting.mcp_live_authority import (
 )
 
 _BODYLESS_METHODS = frozenset({'GET', 'HEAD', 'OPTIONS', 'TRACE'})
-_ARTIFACT_UPLOAD_URL_TOOL = 'hosting_v1_apps_deployments_artifact_upload_url_create'
+_ARTIFACT_UPLOAD_URL_TOOL = 'hosting_create_apps_deployments_artifact_upload_url'
 
 
 def _strip_agent_company_overrides(arguments: dict[str, Any]) -> dict[str, Any]:
@@ -195,7 +196,10 @@ class HostingMcpServer(McpServer):
             return JsonResponse(self._result(req_id, {'protocolVersion': '2024-11-05', 'capabilities': {'tools': {}}}))
         if method == 'tools/list':
             schema = self.schema_provider()
-            tools = [{k: v for k, v in t.items() if not k.startswith('_')} for t in tools_from_schema(schema)]
+            tools = [
+                {k: v for k, v in t.items() if not k.startswith('_')}
+                for t in apply_gateway_mcp_names(tools_from_schema(schema))
+            ]
             return JsonResponse(self._result(req_id, {'tools': tools}))
         if method == 'tools/call':
             return self._tools_call(request, req_id, params, agent_claims)
@@ -213,7 +217,7 @@ class HostingMcpServer(McpServer):
         if agent_claims.get('agent_id'):
             arguments = _strip_agent_company_overrides(arguments if isinstance(arguments, dict) else {})
         schema = self.schema_provider()
-        tools = tools_from_schema(schema)
+        tools = apply_gateway_mcp_names(tools_from_schema(schema))
         tool = next((t for t in tools if t['name'] == tool_name), None)
         if tool is None:
             return JsonResponse(self._error(req_id, -32602, 'Unknown tool'))

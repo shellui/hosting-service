@@ -27,7 +27,7 @@ class McpIdentityConsumeTests(SimpleTestCase):
             "agent_id": "agent-1",
             "company_id": 42,
             "service": "hosting",
-            "action": "hosting_v1_preview_create",
+            "action": "hosting_create_preview",
             "arguments_hash": "abc",
         }
 

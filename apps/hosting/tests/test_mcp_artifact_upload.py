@@ -86,8 +86,8 @@ class McpArtifactUploadFlowTests(TestCase):
         mock_jwks.return_value.get_signing_key.return_value = None
         response = self._rpc('tools/list')
         names = {t['name'] for t in response.json()['result']['tools']}
-        self.assertIn('hosting_v1_apps_deployments_artifact_upload_url_create', names)
-        self.assertIn('hosting_v1_apps_deployments_artifact_upload_complete_create', names)
+        self.assertIn('hosting_create_apps_deployments_artifact_upload_url', names)
+        self.assertIn('hosting_create_apps_deployments_artifact_upload_complete', names)
         self.assertNotIn('hosting_v1_apps_deployments_upload_update', names)
 
     @patch('apps.authapi.authentication.get_jwks_client')
@@ -112,7 +112,7 @@ class McpArtifactUploadFlowTests(TestCase):
         )
 
         url_resp = self._tool(
-            'hosting_v1_apps_deployments_artifact_upload_url_create',
+            'hosting_create_apps_deployments_artifact_upload_url',
             {
                 'path': '/hosting/v1/apps/{app_ref}/deployments/{deployment_id}/artifact-upload-url',
                 'method': 'POST',
@@ -143,7 +143,7 @@ class McpArtifactUploadFlowTests(TestCase):
         self.assertEqual(put_resp.status_code, 200)
 
         complete_resp = self._tool(
-            'hosting_v1_apps_deployments_artifact_upload_complete_create',
+            'hosting_create_apps_deployments_artifact_upload_complete',
             {
                 'path': '/hosting/v1/apps/{app_ref}/deployments/{deployment_id}/artifact-upload-complete',
                 'method': 'POST',
@@ -155,7 +155,7 @@ class McpArtifactUploadFlowTests(TestCase):
         self.assertGreaterEqual(int(complete_body['artifact_size']), len(tarball) // 4)
 
         finalize_resp = self._tool(
-            'hosting_v1_apps_deployments_finalize_create',
+            'hosting_create_apps_deployments_finalize',
             {
                 'path': '/hosting/v1/apps/{app_ref}/deployments/{deployment_id}/finalize',
                 'method': 'POST',
@@ -198,7 +198,7 @@ class McpArtifactUploadFlowTests(TestCase):
         )
 
         url_resp = self._tool(
-            'hosting_v1_apps_deployments_artifact_upload_url_create',
+            'hosting_create_apps_deployments_artifact_upload_url',
             {
                 'path': '/hosting/v1/apps/{app_ref}/deployments/{deployment_id}/artifact-upload-url',
                 'method': 'POST',
@@ -215,7 +215,7 @@ class McpArtifactUploadFlowTests(TestCase):
             'django.core.files.storage.default_storage.size', return_value=len(tarball)
         ):
             complete_resp = self._tool(
-                'hosting_v1_apps_deployments_artifact_upload_complete_create',
+                'hosting_create_apps_deployments_artifact_upload_complete',
                 {
                     'path': '/hosting/v1/apps/{app_ref}/deployments/{deployment_id}/artifact-upload-complete',
                     'method': 'POST',
@@ -250,7 +250,7 @@ class McpArtifactUploadFlowTests(TestCase):
             status=DeploymentStatus.DRAFT,
         )
         url_resp = self._tool(
-            'hosting_v1_apps_deployments_artifact_upload_url_create',
+            'hosting_create_apps_deployments_artifact_upload_url',
             {
                 'path': '/hosting/v1/apps/{app_ref}/deployments/{deployment_id}/artifact-upload-url',
                 'method': 'POST',

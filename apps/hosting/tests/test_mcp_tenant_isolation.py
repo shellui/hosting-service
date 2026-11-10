@@ -131,7 +131,7 @@ class McpTenantIsolationTests(TestCase):
         mock_jwks.return_value.get_signing_key.return_value = None
         cases = [
             (
-                'hosting_v1_apps_retrieve',
+                'hosting_get_apps',
                 {
                     'path': '/hosting/v1/apps/{app_ref}',
                     'method': 'GET',
@@ -140,7 +140,7 @@ class McpTenantIsolationTests(TestCase):
                 },
             ),
             (
-                'hosting_v1_apps_retrieve',
+                'hosting_get_apps',
                 {
                     'path': '/hosting/v1/apps/{app_ref}',
                     'method': 'GET',
@@ -149,7 +149,7 @@ class McpTenantIsolationTests(TestCase):
                 },
             ),
             (
-                'hosting_v1_apps_destroy',
+                'hosting_delete_apps',
                 {
                     'path': '/hosting/v1/apps/{app_ref}',
                     'method': 'DELETE',
@@ -159,7 +159,7 @@ class McpTenantIsolationTests(TestCase):
                 },
             ),
             (
-                'hosting_v1_apps_deployments_list',
+                'hosting_list_apps_deployments',
                 {
                     'path': '/hosting/v1/apps/{app_ref}/deployments',
                     'method': 'GET',
@@ -168,7 +168,7 @@ class McpTenantIsolationTests(TestCase):
                 },
             ),
             (
-                'hosting_v1_apps_deployments_finalize_create',
+                'hosting_create_apps_deployments_finalize',
                 {
                     'path': '/hosting/v1/apps/{app_ref}/deployments/{deployment_id}/finalize',
                     'method': 'POST',
@@ -181,7 +181,7 @@ class McpTenantIsolationTests(TestCase):
                 },
             ),
             (
-                'hosting_v1_deploy_tokens_revoke_create',
+                'hosting_revoke_deploy_token',
                 {
                     'path': '/hosting/v1/deploy-tokens/{token_id}/revoke',
                     'method': 'POST',
@@ -201,7 +201,7 @@ class McpTenantIsolationTests(TestCase):
     def test_actions_query_company_id_ignored_for_agents(self, mock_jwks):
         mock_jwks.return_value.get_signing_key.return_value = None
         response = self._rpc_call(
-            'api_v1_actions_rules_list',
+            'hosting_list_action_rules',
             {
                 'path': '/api/v1/actions/rules',
                 'method': 'GET',
@@ -219,7 +219,7 @@ class McpTenantIsolationTests(TestCase):
         mock_jwks.return_value.get_signing_key.return_value = None
         before = App.objects.filter(company_id=self.company_b, slug=self.app_b.slug).count()
         response = self._rpc_call(
-            'hosting_v1_preview_create',
+            'hosting_create_preview',
             {
                 'path': '/hosting/v1/preview',
                 'method': 'POST',
