@@ -8,6 +8,7 @@ a full-access agent still needs a human approval (destructive tools).
 from __future__ import annotations
 
 import json
+import uuid
 from pathlib import Path
 from unittest.mock import patch
 
