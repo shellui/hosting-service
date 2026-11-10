@@ -66,8 +66,10 @@ DESTRUCTIVE_TOOLS = frozenset(
         'hosting_delete_apps_domains',
         'hosting_delete_apps_environment',
         'hosting_replace_apps_environment',
+        'hosting_requeue_action_deliveries',
         'hosting_revoke_deploy_token',
         'hosting_rotate_rule_secret',
+        'hosting_send_test_rule',
     }
 )
 _TRANSPORT_PROPERTIES = TRANSPORT_ARGUMENT_NAMES | frozenset({'path_params', 'query', 'body'})

@@ -99,7 +99,7 @@ The legacy `PUT /hosting/v1/apps/{app_ref}/deployments/{id}/upload` route remain
 
 Agent JWT claims mirror Identity: `mcp_access` (`read_only`, `ask`, `full`), `mcp_read` (`safe`, `sensitive`), and `mcp_destructive`. Read-only agents cannot call write routes. Ask mode creates an approval request in Identity before mutating data.
 
-The shared `shellui-django` write gate treats **every destructive operation as approval-gated**, even when `mcp_access` is `full`. The `mcp_destructive` claim does not skip approval for destructive tools. Non-destructive writes in `full` mode run without a pending approval. Destructive tools are deletes, deployment finalize and rollback, custom domain changes, environment variable writes, deploy-token revoke, and Shellui Actions secret rotation. Each tool publishes `readOnlyHint` and `destructiveHint` for that routing.
+The shared `shellui-django` write gate treats **every destructive operation as approval-gated**, even when `mcp_access` is `full`. The `mcp_destructive` claim does not skip approval for destructive tools. Non-destructive writes in `full` mode run without a pending approval. Destructive tools are deletes, deployment finalize and rollback, custom domain changes, environment variable writes, deploy-token revoke, Shellui Actions secret rotation, sample webhook sends, and requeued deliveries. Creating or updating a Shellui Actions rule stays non-destructive. Each tool publishes `readOnlyHint` and `destructiveHint` for that routing.
 
 ## Internal assertions to Identity
 

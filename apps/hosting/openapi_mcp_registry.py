@@ -334,7 +334,7 @@ MCP_SPECS: dict[str, _McpSpec] = {
     'api_v1_actions_rules_send_test': _McpSpec(
         'Queue a sample webhook delivery',
         'Sends a synthetic domain event payload to the rule URL for connectivity testing.',
-        'Records a delivery attempt.', sends_email=False,
+        'Records a delivery attempt.', sends_email=False, destructive=True,
         notes='Does not send email. Delivers an HTTPS webhook only.',
         agent='Sends a sample webhook to the URL on Shellui Actions rule id and returns whether that delivery succeeded. This does not send email.',
     ),
@@ -358,6 +358,7 @@ MCP_SPECS: dict[str, _McpSpec] = {
         'Requeue a failed webhook delivery',
         'Resets a failed or dead delivery to pending for another attempt.',
         'Updates outbox status and schedule.',
+        destructive=True,
         agent='Requeues a failed or dead Shellui Actions delivery delivery_id and returns it with status pending.',
     ),
     'api_v1_actions_event_log_list': _McpSpec(
