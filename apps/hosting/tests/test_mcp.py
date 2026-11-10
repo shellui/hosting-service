@@ -116,14 +116,14 @@ class McpEndpointTests(TestCase):
         self.assertEqual(response.status_code, 200)
         tools = response.json()['result']['tools']
         names = {t['name'] for t in tools}
-        self.assertIn('hosting_v1_apps_list', names)
+        self.assertIn('hosting_list_apps', names)
         self.assertNotIn('hosting_v1_deploy_tokens_create', names)
         self.assertNotIn('hosting_v1_health_retrieve', names)
         self.assertNotIn('api_v1_internal_company_deletions_create', names)
         self.assertNotIn('hosting_v1_apps_deployments_upload_update', names)
-        self.assertIn('hosting_v1_apps_deployments_artifact_upload_url_create', names)
-        self.assertIn('hosting_v1_apps_deployments_artifact_upload_complete_create', names)
-        self.assertIn('hosting_v1_apps_domains_list', names)
+        self.assertIn('hosting_create_apps_deployments_artifact_upload_url', names)
+        self.assertIn('hosting_create_apps_deployments_artifact_upload_complete', names)
+        self.assertIn('hosting_list_apps_domains', names)
 
     @patch('apps.authapi.authentication.get_jwks_client')
     def test_wrong_service_scope_forbidden(self, mock_jwks):
@@ -249,7 +249,7 @@ class McpEndpointTests(TestCase):
         response = self._rpc(
             'tools/call',
             {
-                'name': 'hosting_v1_preview_create',
+                'name': 'hosting_create_preview',
                 'arguments': {
                     'path': '/hosting/v1/preview',
                     'method': 'POST',
@@ -270,7 +270,7 @@ class McpEndpointTests(TestCase):
         response = self._rpc(
             'tools/call',
             {
-                'name': 'hosting_v1_preview_create',
+                'name': 'hosting_create_preview',
                 'arguments': {
                     'path': '/hosting/v1/preview',
                     'method': 'POST',
@@ -294,7 +294,7 @@ class McpEndpointTests(TestCase):
             response = self._rpc(
                 'tools/call',
                 {
-                    'name': 'hosting_v1_preview_create',
+                    'name': 'hosting_create_preview',
                     'arguments': {
                         'path': '/hosting/v1/preview',
                         'method': 'POST',
@@ -322,7 +322,7 @@ class McpEndpointTests(TestCase):
             response = self._rpc(
                 'tools/call',
                 {
-                    'name': 'hosting_v1_preview_create',
+                    'name': 'hosting_create_preview',
                     'arguments': {
                         'path': '/hosting/v1/preview',
                         'method': 'POST',
@@ -407,7 +407,7 @@ class McpEndpointTests(TestCase):
             response = self._rpc(
                 'tools/call',
                 {
-                    'name': 'hosting_v1_preview_create',
+                    'name': 'hosting_create_preview',
                     'arguments': {
                         'path': '/hosting/v1/preview',
                         'method': 'POST',
@@ -432,7 +432,7 @@ class McpEndpointTests(TestCase):
         response = self._rpc(
             'tools/call',
             {
-                'name': 'hosting_v1_deploy_tokens_retrieve',
+                'name': 'hosting_get_deploy_tokens',
                 'arguments': {'path': '/hosting/v1/deploy-tokens', 'method': 'GET'},
             },
         )

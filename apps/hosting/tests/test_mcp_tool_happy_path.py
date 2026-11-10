@@ -23,7 +23,11 @@ from django.urls import reverse
 from django.utils import timezone
 
 from apps.actions.models import ActionOutbox, ActionRule, EventLog
-from apps.authapi.mcp_openapi import MCP_EXPLICIT_REGISTRY, MCP_REQUIRED_OPERATION_IDS
+from apps.authapi.mcp_openapi import (
+    MCP_EXPLICIT_REGISTRY,
+    MCP_REQUIRED_OPERATION_IDS,
+    operation_id_for_gateway_tool,
+)
 from apps.hosting.deploy_tokens import create_deploy_token
 from apps.hosting.env_crypto import encrypt_env_value
 from apps.hosting.models import (
@@ -242,7 +246,7 @@ class McpToolHappyPathTests(TestCase):
 
     def _call_tool(self, name, *, path_params=None, query=None, body=None):
         arguments = self._arguments(name, path_params=path_params, query=query, body=body)
-        approve = bool(MCP_EXPLICIT_REGISTRY[name]['destructive'])
+        approve = bool(MCP_EXPLICIT_REGISTRY[operation_id_for_gateway_tool(name)]['destructive'])
 
         def _post():
             payload = {
@@ -284,13 +288,13 @@ class McpToolHappyPathTests(TestCase):
         self.assertEqual(response.status_code, 200, response.content[:800])
 
     def _case_hosting_v1_access_request_create(self):
-        body = self._call_tool('hosting_v1_access_request_create')
+        body = self._call_tool('hosting_create_access_request')
         self.assertEqual(body['company_id'], self.company_id)
         self.assertEqual(body['status'], AccessStatus.APPROVED)
 
     def _case_hosting_v1_preview_create(self):
         body = self._call_tool(
-            'hosting_v1_preview_create',
+            'hosting_create_preview',
             body={'display_name': 'New preview', 'app_version': '1.2.3', 'shellui_version': '0.5.0'},
         )
         self.assertTrue(body['slug'])
@@ -298,13 +302,13 @@ class McpToolHappyPathTests(TestCase):
         self.assertEqual(body['app']['company_id'], self.company_id)
 
     def _case_hosting_v1_apps_list(self):
-        rows = self._call_tool('hosting_v1_apps_list')
+        rows = self._call_tool('hosting_list_apps')
         self.assertIsInstance(rows, list)
         self.assertIn(self.app.slug, {row['slug'] for row in rows})
 
     def _case_hosting_v1_apps_create(self):
         body = self._call_tool(
-            'hosting_v1_apps_create',
+            'hosting_create_apps',
             body={'name': 'audit-created', 'display_name': 'Created'},
         )
         self.assertEqual(body['name'], 'audit-created')
@@ -313,18 +317,18 @@ class McpToolHappyPathTests(TestCase):
         self.assertTrue(App.objects.filter(company_id=self.company_id, name='audit-created').exists())
 
     def _case_hosting_v1_apps_retrieve(self):
-        body = self._call_tool('hosting_v1_apps_retrieve')
+        body = self._call_tool('hosting_get_apps')
         self.assertEqual(body['slug'], self.app.slug)
         self.assertEqual(body['id'], str(self.app.id))
 
     def _case_hosting_v1_apps_destroy(self):
-        self._call_tool('hosting_v1_apps_destroy')
+        self._call_tool('hosting_delete_apps')
         self.assertFalse(App.objects.filter(pk=self.app.pk).exists())
 
     def _case_hosting_v1_apps_renew_expiry_create(self):
         before = self.preview.expires_at
         body = self._call_tool(
-            'hosting_v1_apps_renew_expiry_create',
+            'hosting_create_apps_renew_expiry',
             path_params={'app_ref': self.preview.slug},
         )
         self.assertEqual(body['slug'], self.preview.slug)
@@ -332,13 +336,13 @@ class McpToolHappyPathTests(TestCase):
         self.assertGreater(self.preview.expires_at, before)
 
     def _case_hosting_v1_apps_deployments_list(self):
-        rows = self._call_tool('hosting_v1_apps_deployments_list')
+        rows = self._call_tool('hosting_list_apps_deployments')
         self.assertIsInstance(rows, list)
         self.assertIn(str(self.draft.id), {row['id'] for row in rows})
 
     def _case_hosting_v1_apps_deployments_create(self):
         body = self._call_tool(
-            'hosting_v1_apps_deployments_create',
+            'hosting_create_apps_deployments',
             body={'app_version': '1.1.0', 'shellui_version': '0.5.0'},
         )
         self.assertEqual(body['status'], DeploymentStatus.DRAFT)
@@ -346,7 +350,7 @@ class McpToolHappyPathTests(TestCase):
 
     def _case_hosting_v1_apps_deployments_artifact_upload_url_create(self):
         body = self._call_tool(
-            'hosting_v1_apps_deployments_artifact_upload_url_create',
+            'hosting_create_apps_deployments_artifact_upload_url',
             query={'expires_in': 120},
         )
         self.assertEqual(body['method'], 'PUT')
@@ -357,28 +361,28 @@ class McpToolHappyPathTests(TestCase):
 
     def _case_hosting_v1_apps_deployments_artifact_upload_complete_create(self):
         self._put_draft_artifact()
-        body = self._call_tool('hosting_v1_apps_deployments_artifact_upload_complete_create')
+        body = self._call_tool('hosting_create_apps_deployments_artifact_upload_complete')
         self.assertGreater(int(body['artifact_size']), 0)
         self.draft.refresh_from_db()
         self.assertEqual(self.draft.status, DeploymentStatus.UPLOADING)
 
     def _case_hosting_v1_apps_deployments_finalize_create(self):
         self._put_draft_artifact()
-        body = self._call_tool('hosting_v1_apps_deployments_finalize_create')
+        body = self._call_tool('hosting_create_apps_deployments_finalize')
         self.assertEqual(body['status'], DeploymentStatus.ACTIVE)
         self.app.refresh_from_db()
         self.assertEqual(self.app.current_deployment_id, self.draft.id)
 
     def _case_hosting_v1_apps_deployments_rollback_create(self):
         body = self._call_tool(
-            'hosting_v1_apps_deployments_rollback_create',
+            'hosting_create_apps_deployments_rollback',
             path_params={'deployment_id': str(self.rollback_target.id)},
         )
         self.assertEqual(body['status'], DeploymentStatus.ACTIVE)
         self.assertEqual(body['id'], str(self.rollback_target.id))
 
     def _case_hosting_v1_deploy_tokens_retrieve(self):
-        rows = self._call_tool('hosting_v1_deploy_tokens_retrieve')
+        rows = self._call_tool('hosting_get_deploy_tokens')
         self.assertIsInstance(rows, list)
         self.assertIn(str(self.deploy_token.id), {row['id'] for row in rows})
         text = json.dumps(rows)
@@ -386,25 +390,25 @@ class McpToolHappyPathTests(TestCase):
         self.assertNotIn('"token"', text)
 
     def _case_hosting_v1_deploy_tokens_revoke_create(self):
-        body = self._call_tool('hosting_v1_deploy_tokens_revoke_create')
+        body = self._call_tool('hosting_revoke_deploy_token')
         self.assertIsNotNone(body.get('revoked_at'))
         self.deploy_token.refresh_from_db()
         self.assertIsNotNone(self.deploy_token.revoked_at)
 
     def _case_hosting_v1_stats_retrieve(self):
-        body = self._call_tool('hosting_v1_stats_retrieve')
+        body = self._call_tool('hosting_get_stats')
         self.assertEqual(body['company_id'], self.company_id)
         self.assertGreaterEqual(body['apps'], 1)
 
     def _case_hosting_v1_apps_domains_list(self):
-        rows = self._call_tool('hosting_v1_apps_domains_list')
+        rows = self._call_tool('hosting_list_apps_domains')
         self.assertIsInstance(rows, list)
         self.assertIn('audit.example.com', {row['hostname'] for row in rows})
         self.assertFalse(any(row['verified'] or row['serving'] for row in rows))
 
     def _case_hosting_v1_apps_domains_create(self):
         body = self._call_tool(
-            'hosting_v1_apps_domains_create',
+            'hosting_create_apps_domains',
             body={'hostname': 'created.example.com'},
         )
         self.assertEqual(body['hostname'], 'created.example.com')
@@ -413,23 +417,23 @@ class McpToolHappyPathTests(TestCase):
         self.assertIn('dns', body)
 
     def _case_hosting_v1_apps_domains_retrieve(self):
-        body = self._call_tool('hosting_v1_apps_domains_retrieve')
+        body = self._call_tool('hosting_get_apps_domains')
         self.assertEqual(body['id'], str(self.domain.id))
         self.assertEqual(body['hostname'], 'audit.example.com')
         self.assertFalse(body['verified'])
 
     def _case_hosting_v1_apps_domains_destroy(self):
-        self._call_tool('hosting_v1_apps_domains_destroy')
+        self._call_tool('hosting_delete_apps_domains')
         self.assertFalse(AppCustomDomain.objects.filter(pk=self.domain.pk).exists())
 
     def _case_hosting_v1_apps_domains_refresh_create(self):
-        body = self._call_tool('hosting_v1_apps_domains_refresh_create')
+        body = self._call_tool('hosting_create_apps_domains_refresh')
         self.assertEqual(body['status'], 'awaiting_platform')
         self.assertFalse(body['verified'])
         self.assertFalse(body['serving'])
 
     def _case_hosting_v1_apps_environment_list(self):
-        rows = self._call_tool('hosting_v1_apps_environment_list')
+        rows = self._call_tool('hosting_list_apps_environment')
         self.assertIsInstance(rows, list)
         match = next(row for row in rows if row['key'] == 'AUDIT_FLAG')
         self.assertTrue(match['value_present'])
@@ -437,7 +441,7 @@ class McpToolHappyPathTests(TestCase):
 
     def _case_hosting_v1_apps_environment_create(self):
         body = self._call_tool(
-            'hosting_v1_apps_environment_create',
+            'hosting_create_apps_environment',
             body={'key': 'CREATED_FLAG', 'value': 'super-secret-value'},
         )
         self.assertEqual(body['key'], 'CREATED_FLAG')
@@ -445,14 +449,14 @@ class McpToolHappyPathTests(TestCase):
         self.assertNotIn('super-secret-value', json.dumps(body))
 
     def _case_hosting_v1_apps_environment_retrieve(self):
-        body = self._call_tool('hosting_v1_apps_environment_retrieve')
+        body = self._call_tool('hosting_get_apps_environment')
         self.assertEqual(body['key'], 'AUDIT_FLAG')
         self.assertTrue(body['value_present'])
         self.assertNotIn('value', body)
 
     def _case_hosting_v1_apps_environment_update(self):
         body = self._call_tool(
-            'hosting_v1_apps_environment_update',
+            'hosting_replace_apps_environment',
             body={'value': 'rotated-secret-value'},
         )
         self.assertEqual(body['key'], 'AUDIT_FLAG')
@@ -460,35 +464,35 @@ class McpToolHappyPathTests(TestCase):
         self.assertNotIn('rotated-secret-value', json.dumps(body))
 
     def _case_hosting_v1_apps_environment_destroy(self):
-        self._call_tool('hosting_v1_apps_environment_destroy')
+        self._call_tool('hosting_delete_apps_environment')
         self.assertFalse(AppEnvironmentVariable.objects.filter(app=self.app, key='AUDIT_FLAG').exists())
 
     def _case_hosting_v1_apps_runtime_logs_list(self):
-        body = self._call_tool('hosting_v1_apps_runtime_logs_list', query={'limit': 5})
+        body = self._call_tool('hosting_list_apps_runtime_logs', query={'limit': 5})
         self.assertEqual(body['source'], 'none')
         self.assertEqual(body['lines'], [])
         self.assertTrue(body['unavailable_reason'])
 
     def _case_hosting_v1_apps_request_logs_list(self):
         body = self._call_tool(
-            'hosting_v1_apps_request_logs_list',
+            'hosting_list_apps_request_logs',
             query={'limit': 10, 'status_min': 200, 'status_max': 299},
         )
         self.assertEqual(body['limit'], 10)
         self.assertTrue(any(row['path'] == '/index.html' and row['status_code'] == 200 for row in body['results']))
 
     def _case_api_v1_actions_events_list(self):
-        body = self._call_tool('api_v1_actions_events_list')
+        body = self._call_tool('hosting_list_action_events')
         types = {row['type'] for row in body['results']}
         self.assertIn('hosting.app.created', types)
 
     def _case_api_v1_actions_rules_list(self):
-        body = self._call_tool('api_v1_actions_rules_list')
+        body = self._call_tool('hosting_list_action_rules')
         self.assertIn(self.rule.pk, {row['id'] for row in body['results']})
 
     def _case_api_v1_actions_rules_create(self):
         body = self._call_tool(
-            'api_v1_actions_rules_create',
+            'hosting_create_action_rules',
             body={
                 'name': 'Created hook',
                 'event_type': 'hosting.app.created',
@@ -503,14 +507,14 @@ class McpToolHappyPathTests(TestCase):
         self.assertEqual(body.get('secret'), '[redacted]')
 
     def _case_api_v1_actions_rules_retrieve(self):
-        body = self._call_tool('api_v1_actions_rules_retrieve')
+        body = self._call_tool('hosting_get_action_rules')
         self.assertEqual(body['id'], self.rule.pk)
         self.assertEqual(body['name'], 'Audit hook')
         self.assertNotIn('fixture-secret-value', json.dumps(body))
 
     def _case_api_v1_actions_rules_partial_update(self):
         body = self._call_tool(
-            'api_v1_actions_rules_partial_update',
+            'hosting_update_action_rules',
             body={'name': 'Renamed hook', 'enabled': True},
         )
         self.assertEqual(body['name'], 'Renamed hook')
@@ -518,12 +522,12 @@ class McpToolHappyPathTests(TestCase):
         self.assertEqual(self.rule.name, 'Renamed hook')
 
     def _case_api_v1_actions_rules_destroy(self):
-        self._call_tool('api_v1_actions_rules_destroy')
+        self._call_tool('hosting_delete_action_rules')
         self.assertFalse(ActionRule.objects.filter(pk=self.rule.pk).exists())
 
     def _case_api_v1_actions_rules_rotate_secret(self):
         before = (self.rule.config or {})['secret']
-        body = self._call_tool('api_v1_actions_rules_rotate_secret')
+        body = self._call_tool('hosting_rotate_rule_secret')
         self.rule.refresh_from_db()
         after = (self.rule.config or {}).get('secret') or ''
         self.assertNotEqual(before, after)
@@ -533,29 +537,29 @@ class McpToolHappyPathTests(TestCase):
 
     def _case_api_v1_actions_rules_send_test(self):
         with patch('apps.actions.webhook_test_send.deliver_webhook_action', return_value=None):
-            body = self._call_tool('api_v1_actions_rules_send_test')
+            body = self._call_tool('hosting_send_test_rule')
         self.assertTrue(body.get('ok'))
         self.assertEqual(body.get('event_type'), 'hosting.app.created')
 
     def _case_api_v1_actions_deliveries_list(self):
-        body = self._call_tool('api_v1_actions_deliveries_list', query={'status': 'failed'})
+        body = self._call_tool('hosting_list_action_deliveries', query={'status': 'failed'})
         self.assertGreaterEqual(body['count'], 1)
         self.assertIn(str(self.delivery.id), {row['id'] for row in body['results']})
 
     def _case_api_v1_actions_deliveries_retrieve(self):
-        body = self._call_tool('api_v1_actions_deliveries_retrieve')
+        body = self._call_tool('hosting_get_action_deliveries')
         self.assertEqual(body['id'], str(self.delivery.id))
         self.assertEqual(body['status'], ActionOutbox.STATUS_FAILED)
 
     def _case_api_v1_actions_deliveries_requeue(self):
-        body = self._call_tool('api_v1_actions_deliveries_requeue')
+        body = self._call_tool('hosting_requeue_action_deliveries')
         self.assertEqual(body['status'], ActionOutbox.STATUS_PENDING)
         self.delivery.refresh_from_db()
         self.assertEqual(self.delivery.status, ActionOutbox.STATUS_PENDING)
 
     def _case_api_v1_actions_event_log_list(self):
         body = self._call_tool(
-            'api_v1_actions_event_log_list',
+            'hosting_list_action_event_log',
             query={'event_type': 'hosting.app.created'},
         )
         self.assertGreaterEqual(body['count'], 1)
@@ -563,19 +567,19 @@ class McpToolHappyPathTests(TestCase):
 
     def _case_api_v1_actions_event_log_retrieve(self):
         body = self._call_tool(
-            'api_v1_actions_event_log_retrieve',
+            'hosting_get_action_event_log',
             path_params={'id': str(self.event.pk), 'pk': str(self.event.pk)},
         )
         self.assertEqual(body['event_type'], 'hosting.app.created')
         self.assertEqual(body['id'], self.event.pk)
 
     def _case_api_v1_actions_event_log_types_list(self):
-        body = self._call_tool('api_v1_actions_event_log_types_list')
+        body = self._call_tool('hosting_list_action_event_log_types')
         self.assertTrue(body['results'])
         self.assertIn('type', body['results'][0])
 
     def _case_api_v1_actions_event_log_retention_retrieve(self):
-        body = self._call_tool('api_v1_actions_event_log_retention_retrieve')
+        body = self._call_tool('hosting_get_action_event_log_retention')
         self.assertIn('data_retention_days', body)
         self.assertGreaterEqual(body['data_retention_days'], 1)
 

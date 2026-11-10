@@ -36,6 +36,7 @@ See for sample https://raw.githubusercontent.com/favoloso/conventional-changelog
 
 ### 🚨 Changed
 
+- MCP `tools/list` names are the ai-service gateway names (`hosting_<verb>_<noun>`, for example `hosting_list_apps`). OpenAPI `operationId` values are unchanged. `x-mcp.tool_name` is the service-local verb and noun. shellui-django 0.5.1 still derives a slug from `operationId`; hosting applies the gateway name on `tools/list` and `tools/call`.
 - Depend on `shellui-django[mcp]==0.5.0` from PyPI.
 
 ### ✨ Feature
