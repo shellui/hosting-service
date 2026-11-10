@@ -305,7 +305,10 @@ SPECTACULAR_SETTINGS = {
         {'name': 'mcp-tools', 'description': 'Operations exposed to Shellui MCP agents.'},
     ],
     'PREPROCESSING_HOOKS': ['apps.authapi.spectacular_hooks.preprocessing_exclude_internal_endpoints'],
-    'POSTPROCESSING_HOOKS': ['apps.authapi.spectacular_hooks.postprocess_mcp_tool_tags'],
+    'POSTPROCESSING_HOOKS': [
+        'apps.authapi.spectacular_hooks.postprocess_mcp_tool_tags',
+        'apps.hosting.mcp_openapi_enums.postprocess_mcp_enums',
+    ],
 }
 
 MCP_RATE_LIMITS = {

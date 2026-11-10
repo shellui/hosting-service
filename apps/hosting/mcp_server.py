@@ -12,13 +12,12 @@ from django.http import HttpRequest, JsonResponse
 from django.urls import Resolver404, resolve
 from shellui_django.mcp.masking import redact_mapping
 from shellui_django.mcp.openapi_mcp import marker_tree_for_operation_response
-from shellui_django.mcp.openapi_tools import tools_from_schema
 from shellui_django.mcp.rate_limit import check_agent_rate_limit
 from shellui_django.mcp.routing import McpToolArgumentError, materialize_openapi_path, validate_mcp_tool_arguments
 from shellui_django.mcp.server import McpServer
 from shellui_django.mcp.write_gate import decide_write, is_destructive_operation
 
-from apps.authapi.mcp_openapi import apply_gateway_mcp_names
+from apps.hosting.mcp_catalog import normalize_mcp_arguments, published_mcp_tools
 from apps.authapi.mcp_authority import (
     authority_context_for_call_log,
     is_exchange_delegated_regional_agent,
@@ -197,8 +196,8 @@ class HostingMcpServer(McpServer):
         if method == 'tools/list':
             schema = self.schema_provider()
             tools = [
-                {k: v for k, v in t.items() if not k.startswith('_')}
-                for t in apply_gateway_mcp_names(tools_from_schema(schema))
+                {k: v for k, v in t.items() if not str(k).startswith('_')}
+                for t in published_mcp_tools(schema)
             ]
             return JsonResponse(self._result(req_id, {'tools': tools}))
         if method == 'tools/call':
@@ -217,18 +216,16 @@ class HostingMcpServer(McpServer):
         if agent_claims.get('agent_id'):
             arguments = _strip_agent_company_overrides(arguments if isinstance(arguments, dict) else {})
         schema = self.schema_provider()
-        tools = apply_gateway_mcp_names(tools_from_schema(schema))
+        tools = published_mcp_tools(schema)
         tool = next((t for t in tools if t['name'] == tool_name), None)
         if tool is None:
             return JsonResponse(self._error(req_id, -32602, 'Unknown tool'))
         meta = tool.get('_meta') or {}
         path_template = str(meta.get('path') or '')
-        path = str(arguments.get('path') or path_template)
-        method = str(arguments.get('method') or meta.get('method') or 'GET').upper()
-        if path != path_template or method != meta.get('method'):
-            return JsonResponse(self._error(req_id, -32602, 'Tool path mismatch'))
+        method = str(meta.get('method') or 'GET').upper()
         try:
-            validate_mcp_tool_arguments(arguments if isinstance(arguments, dict) else {}, meta)
+            arguments = normalize_mcp_arguments(arguments if isinstance(arguments, dict) else {}, meta)
+            validate_mcp_tool_arguments(arguments, meta)
             path_params = arguments.get('path_params') if isinstance(arguments.get('path_params'), dict) else {}
             resolved_path = materialize_openapi_path(path_template, path_params)
         except McpToolArgumentError as exc:

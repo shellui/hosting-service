@@ -4,17 +4,16 @@
       "body_fields": [],
       "body_required": [],
       "destructive": false,
+      "destructiveHint": false,
       "method": "POST",
       "needs_approval": false,
       "path": "/hosting/v1/access/request",
       "path_params": [],
       "query_fields": [],
       "query_required": [],
+      "readOnlyHint": false,
       "read_only": false,
-      "required": [
-        "path",
-        "method"
-      ]
+      "required": []
     },
     "hosting_create_action_rules": {
       "body_fields": [
@@ -29,21 +28,23 @@
       ],
       "body_required": [
         "event_type",
-        "name"
+        "name",
+        "url"
       ],
       "destructive": false,
+      "destructiveHint": false,
       "method": "POST",
       "needs_approval": false,
       "path": "/api/v1/actions/rules",
       "path_params": [],
-      "query_fields": [
-        "company_id"
-      ],
+      "query_fields": [],
       "query_required": [],
+      "readOnlyHint": false,
       "read_only": false,
       "required": [
-        "path",
-        "method"
+        "event_type",
+        "name",
+        "url"
       ]
     },
     "hosting_create_apps": {
@@ -55,16 +56,17 @@
         "name"
       ],
       "destructive": false,
+      "destructiveHint": false,
       "method": "POST",
       "needs_approval": false,
       "path": "/hosting/v1/apps",
       "path_params": [],
       "query_fields": [],
       "query_required": [],
+      "readOnlyHint": false,
       "read_only": false,
       "required": [
-        "path",
-        "method"
+        "name"
       ]
     },
     "hosting_create_apps_deployments": {
@@ -78,6 +80,7 @@
         "shellui_version"
       ],
       "destructive": false,
+      "destructiveHint": false,
       "method": "POST",
       "needs_approval": false,
       "path": "/hosting/v1/apps/{app_ref}/deployments",
@@ -86,17 +89,19 @@
       ],
       "query_fields": [],
       "query_required": [],
+      "readOnlyHint": false,
       "read_only": false,
       "required": [
-        "path",
-        "method",
-        "path_params"
+        "app_ref",
+        "app_version",
+        "shellui_version"
       ]
     },
     "hosting_create_apps_deployments_artifact_upload_complete": {
       "body_fields": [],
       "body_required": [],
       "destructive": false,
+      "destructiveHint": false,
       "method": "POST",
       "needs_approval": false,
       "path": "/hosting/v1/apps/{app_ref}/deployments/{deployment_id}/artifact-upload-complete",
@@ -106,17 +111,18 @@
       ],
       "query_fields": [],
       "query_required": [],
+      "readOnlyHint": false,
       "read_only": false,
       "required": [
-        "path",
-        "method",
-        "path_params"
+        "app_ref",
+        "deployment_id"
       ]
     },
     "hosting_create_apps_deployments_artifact_upload_url": {
       "body_fields": [],
       "body_required": [],
       "destructive": false,
+      "destructiveHint": false,
       "method": "POST",
       "needs_approval": false,
       "path": "/hosting/v1/apps/{app_ref}/deployments/{deployment_id}/artifact-upload-url",
@@ -128,19 +134,20 @@
         "expires_in"
       ],
       "query_required": [],
+      "readOnlyHint": false,
       "read_only": false,
       "required": [
-        "path",
-        "method",
-        "path_params"
+        "app_ref",
+        "deployment_id"
       ]
     },
     "hosting_create_apps_deployments_finalize": {
       "body_fields": [],
       "body_required": [],
-      "destructive": false,
+      "destructive": true,
+      "destructiveHint": true,
       "method": "POST",
-      "needs_approval": false,
+      "needs_approval": true,
       "path": "/hosting/v1/apps/{app_ref}/deployments/{deployment_id}/finalize",
       "path_params": [
         "app_ref",
@@ -148,17 +155,18 @@
       ],
       "query_fields": [],
       "query_required": [],
+      "readOnlyHint": false,
       "read_only": false,
       "required": [
-        "path",
-        "method",
-        "path_params"
+        "app_ref",
+        "deployment_id"
       ]
     },
     "hosting_create_apps_deployments_rollback": {
       "body_fields": [],
       "body_required": [],
       "destructive": true,
+      "destructiveHint": true,
       "method": "POST",
       "needs_approval": true,
       "path": "/hosting/v1/apps/{app_ref}/deployments/{deployment_id}/rollback",
@@ -168,11 +176,11 @@
       ],
       "query_fields": [],
       "query_required": [],
+      "readOnlyHint": false,
       "read_only": false,
       "required": [
-        "path",
-        "method",
-        "path_params"
+        "app_ref",
+        "deployment_id"
       ]
     },
     "hosting_create_apps_domains": {
@@ -182,28 +190,30 @@
       "body_required": [
         "hostname"
       ],
-      "destructive": false,
+      "destructive": true,
+      "destructiveHint": true,
       "method": "POST",
-      "needs_approval": false,
+      "needs_approval": true,
       "path": "/hosting/v1/apps/{app_ref}/domains",
       "path_params": [
         "app_ref"
       ],
       "query_fields": [],
       "query_required": [],
+      "readOnlyHint": false,
       "read_only": false,
       "required": [
-        "path",
-        "method",
-        "path_params"
+        "app_ref",
+        "hostname"
       ]
     },
     "hosting_create_apps_domains_refresh": {
       "body_fields": [],
       "body_required": [],
-      "destructive": false,
+      "destructive": true,
+      "destructiveHint": true,
       "method": "POST",
-      "needs_approval": false,
+      "needs_approval": true,
       "path": "/hosting/v1/apps/{app_ref}/domains/{domain_id}/refresh",
       "path_params": [
         "app_ref",
@@ -211,11 +221,11 @@
       ],
       "query_fields": [],
       "query_required": [],
+      "readOnlyHint": false,
       "read_only": false,
       "required": [
-        "path",
-        "method",
-        "path_params"
+        "app_ref",
+        "domain_id"
       ]
     },
     "hosting_create_apps_environment": {
@@ -227,26 +237,29 @@
         "key",
         "value"
       ],
-      "destructive": false,
+      "destructive": true,
+      "destructiveHint": true,
       "method": "POST",
-      "needs_approval": false,
+      "needs_approval": true,
       "path": "/hosting/v1/apps/{app_ref}/environment",
       "path_params": [
         "app_ref"
       ],
       "query_fields": [],
       "query_required": [],
+      "readOnlyHint": false,
       "read_only": false,
       "required": [
-        "path",
-        "method",
-        "path_params"
+        "app_ref",
+        "key",
+        "value"
       ]
     },
     "hosting_create_apps_renew_expiry": {
       "body_fields": [],
       "body_required": [],
       "destructive": false,
+      "destructiveHint": false,
       "method": "POST",
       "needs_approval": false,
       "path": "/hosting/v1/apps/{app_ref}/renew-expiry",
@@ -255,11 +268,10 @@
       ],
       "query_fields": [],
       "query_required": [],
+      "readOnlyHint": false,
       "read_only": false,
       "required": [
-        "path",
-        "method",
-        "path_params"
+        "app_ref"
       ]
     },
     "hosting_create_preview": {
@@ -274,22 +286,25 @@
         "shellui_version"
       ],
       "destructive": false,
+      "destructiveHint": false,
       "method": "POST",
       "needs_approval": false,
       "path": "/hosting/v1/preview",
       "path_params": [],
       "query_fields": [],
       "query_required": [],
+      "readOnlyHint": false,
       "read_only": false,
       "required": [
-        "path",
-        "method"
+        "app_version",
+        "shellui_version"
       ]
     },
     "hosting_delete_action_rules": {
       "body_fields": [],
       "body_required": [],
       "destructive": true,
+      "destructiveHint": true,
       "method": "DELETE",
       "needs_approval": true,
       "path": "/api/v1/actions/rules/{id}",
@@ -298,17 +313,17 @@
       ],
       "query_fields": [],
       "query_required": [],
+      "readOnlyHint": false,
       "read_only": false,
       "required": [
-        "path",
-        "method",
-        "path_params"
+        "id"
       ]
     },
     "hosting_delete_apps": {
       "body_fields": [],
       "body_required": [],
       "destructive": true,
+      "destructiveHint": true,
       "method": "DELETE",
       "needs_approval": true,
       "path": "/hosting/v1/apps/{app_ref}",
@@ -317,17 +332,17 @@
       ],
       "query_fields": [],
       "query_required": [],
+      "readOnlyHint": false,
       "read_only": false,
       "required": [
-        "path",
-        "method",
-        "path_params"
+        "app_ref"
       ]
     },
     "hosting_delete_apps_domains": {
       "body_fields": [],
       "body_required": [],
       "destructive": true,
+      "destructiveHint": true,
       "method": "DELETE",
       "needs_approval": true,
       "path": "/hosting/v1/apps/{app_ref}/domains/{domain_id}",
@@ -337,17 +352,18 @@
       ],
       "query_fields": [],
       "query_required": [],
+      "readOnlyHint": false,
       "read_only": false,
       "required": [
-        "path",
-        "method",
-        "path_params"
+        "app_ref",
+        "domain_id"
       ]
     },
     "hosting_delete_apps_environment": {
       "body_fields": [],
       "body_required": [],
       "destructive": true,
+      "destructiveHint": true,
       "method": "DELETE",
       "needs_approval": true,
       "path": "/hosting/v1/apps/{app_ref}/environment/{key}",
@@ -357,17 +373,18 @@
       ],
       "query_fields": [],
       "query_required": [],
+      "readOnlyHint": false,
       "read_only": false,
       "required": [
-        "path",
-        "method",
-        "path_params"
+        "app_ref",
+        "key"
       ]
     },
     "hosting_get_action_deliveries": {
       "body_fields": [],
       "body_required": [],
       "destructive": false,
+      "destructiveHint": false,
       "method": "GET",
       "needs_approval": false,
       "path": "/api/v1/actions/deliveries/{delivery_id}",
@@ -376,17 +393,17 @@
       ],
       "query_fields": [],
       "query_required": [],
+      "readOnlyHint": true,
       "read_only": true,
       "required": [
-        "path",
-        "method",
-        "path_params"
+        "delivery_id"
       ]
     },
     "hosting_get_action_event_log": {
       "body_fields": [],
       "body_required": [],
       "destructive": false,
+      "destructiveHint": false,
       "method": "GET",
       "needs_approval": false,
       "path": "/api/v1/actions/event-log/{id}",
@@ -395,35 +412,32 @@
       ],
       "query_fields": [],
       "query_required": [],
+      "readOnlyHint": true,
       "read_only": true,
       "required": [
-        "path",
-        "method",
-        "path_params"
+        "id"
       ]
     },
     "hosting_get_action_event_log_retention": {
       "body_fields": [],
       "body_required": [],
       "destructive": false,
+      "destructiveHint": false,
       "method": "GET",
       "needs_approval": false,
       "path": "/api/v1/actions/event-log/retention",
       "path_params": [],
-      "query_fields": [
-        "company_id"
-      ],
+      "query_fields": [],
       "query_required": [],
+      "readOnlyHint": true,
       "read_only": true,
-      "required": [
-        "path",
-        "method"
-      ]
+      "required": []
     },
     "hosting_get_action_rules": {
       "body_fields": [],
       "body_required": [],
       "destructive": false,
+      "destructiveHint": false,
       "method": "GET",
       "needs_approval": false,
       "path": "/api/v1/actions/rules/{id}",
@@ -432,17 +446,17 @@
       ],
       "query_fields": [],
       "query_required": [],
+      "readOnlyHint": true,
       "read_only": true,
       "required": [
-        "path",
-        "method",
-        "path_params"
+        "id"
       ]
     },
     "hosting_get_apps": {
       "body_fields": [],
       "body_required": [],
       "destructive": false,
+      "destructiveHint": false,
       "method": "GET",
       "needs_approval": false,
       "path": "/hosting/v1/apps/{app_ref}",
@@ -451,17 +465,17 @@
       ],
       "query_fields": [],
       "query_required": [],
+      "readOnlyHint": true,
       "read_only": true,
       "required": [
-        "path",
-        "method",
-        "path_params"
+        "app_ref"
       ]
     },
     "hosting_get_apps_domains": {
       "body_fields": [],
       "body_required": [],
       "destructive": false,
+      "destructiveHint": false,
       "method": "GET",
       "needs_approval": false,
       "path": "/hosting/v1/apps/{app_ref}/domains/{domain_id}",
@@ -471,17 +485,18 @@
       ],
       "query_fields": [],
       "query_required": [],
+      "readOnlyHint": true,
       "read_only": true,
       "required": [
-        "path",
-        "method",
-        "path_params"
+        "app_ref",
+        "domain_id"
       ]
     },
     "hosting_get_apps_environment": {
       "body_fields": [],
       "body_required": [],
       "destructive": false,
+      "destructiveHint": false,
       "method": "GET",
       "needs_approval": false,
       "path": "/hosting/v1/apps/{app_ref}/environment/{key}",
@@ -491,81 +506,76 @@
       ],
       "query_fields": [],
       "query_required": [],
+      "readOnlyHint": true,
       "read_only": true,
       "required": [
-        "path",
-        "method",
-        "path_params"
+        "app_ref",
+        "key"
       ]
     },
     "hosting_get_deploy_tokens": {
       "body_fields": [],
       "body_required": [],
       "destructive": false,
+      "destructiveHint": false,
       "method": "GET",
       "needs_approval": false,
       "path": "/hosting/v1/deploy-tokens",
       "path_params": [],
       "query_fields": [],
       "query_required": [],
+      "readOnlyHint": true,
       "read_only": true,
-      "required": [
-        "path",
-        "method"
-      ]
+      "required": []
     },
     "hosting_get_stats": {
       "body_fields": [],
       "body_required": [],
       "destructive": false,
+      "destructiveHint": false,
       "method": "GET",
       "needs_approval": false,
       "path": "/hosting/v1/stats",
       "path_params": [],
       "query_fields": [],
       "query_required": [],
+      "readOnlyHint": true,
       "read_only": true,
-      "required": [
-        "path",
-        "method"
-      ]
+      "required": []
     },
     "hosting_list_action_deliveries": {
       "body_fields": [],
       "body_required": [],
       "destructive": false,
+      "destructiveHint": false,
       "method": "GET",
       "needs_approval": false,
       "path": "/api/v1/actions/deliveries",
       "path_params": [],
       "query_fields": [
         "action_rule_id",
-        "company_id",
         "created_after",
         "created_before",
         "event_type",
         "page",
         "page_size",
-        "scheduled_job_run_id",
         "status"
       ],
       "query_required": [],
+      "readOnlyHint": true,
       "read_only": true,
-      "required": [
-        "path",
-        "method"
-      ]
+      "required": []
     },
     "hosting_list_action_event_log": {
       "body_fields": [],
       "body_required": [],
       "destructive": false,
+      "destructiveHint": false,
       "method": "GET",
       "needs_approval": false,
       "path": "/api/v1/actions/event-log",
       "path_params": [],
       "query_fields": [
-        "company_id",
         "created_after",
         "created_before",
         "event_type",
@@ -575,86 +585,75 @@
         "user_id"
       ],
       "query_required": [],
+      "readOnlyHint": true,
       "read_only": true,
-      "required": [
-        "path",
-        "method"
-      ]
+      "required": []
     },
     "hosting_list_action_event_log_types": {
       "body_fields": [],
       "body_required": [],
       "destructive": false,
+      "destructiveHint": false,
       "method": "GET",
       "needs_approval": false,
       "path": "/api/v1/actions/event-log/types",
       "path_params": [],
-      "query_fields": [
-        "company_id"
-      ],
+      "query_fields": [],
       "query_required": [],
+      "readOnlyHint": true,
       "read_only": true,
-      "required": [
-        "path",
-        "method"
-      ]
+      "required": []
     },
     "hosting_list_action_events": {
       "body_fields": [],
       "body_required": [],
       "destructive": false,
+      "destructiveHint": false,
       "method": "GET",
       "needs_approval": false,
       "path": "/api/v1/actions/events",
       "path_params": [],
-      "query_fields": [
-        "company_id"
-      ],
+      "query_fields": [],
       "query_required": [],
+      "readOnlyHint": true,
       "read_only": true,
-      "required": [
-        "path",
-        "method"
-      ]
+      "required": []
     },
     "hosting_list_action_rules": {
       "body_fields": [],
       "body_required": [],
       "destructive": false,
+      "destructiveHint": false,
       "method": "GET",
       "needs_approval": false,
       "path": "/api/v1/actions/rules",
       "path_params": [],
-      "query_fields": [
-        "company_id"
-      ],
+      "query_fields": [],
       "query_required": [],
+      "readOnlyHint": true,
       "read_only": true,
-      "required": [
-        "path",
-        "method"
-      ]
+      "required": []
     },
     "hosting_list_apps": {
       "body_fields": [],
       "body_required": [],
       "destructive": false,
+      "destructiveHint": false,
       "method": "GET",
       "needs_approval": false,
       "path": "/hosting/v1/apps",
       "path_params": [],
       "query_fields": [],
       "query_required": [],
+      "readOnlyHint": true,
       "read_only": true,
-      "required": [
-        "path",
-        "method"
-      ]
+      "required": []
     },
     "hosting_list_apps_deployments": {
       "body_fields": [],
       "body_required": [],
       "destructive": false,
+      "destructiveHint": false,
       "method": "GET",
       "needs_approval": false,
       "path": "/hosting/v1/apps/{app_ref}/deployments",
@@ -663,17 +662,17 @@
       ],
       "query_fields": [],
       "query_required": [],
+      "readOnlyHint": true,
       "read_only": true,
       "required": [
-        "path",
-        "method",
-        "path_params"
+        "app_ref"
       ]
     },
     "hosting_list_apps_domains": {
       "body_fields": [],
       "body_required": [],
       "destructive": false,
+      "destructiveHint": false,
       "method": "GET",
       "needs_approval": false,
       "path": "/hosting/v1/apps/{app_ref}/domains",
@@ -682,17 +681,17 @@
       ],
       "query_fields": [],
       "query_required": [],
+      "readOnlyHint": true,
       "read_only": true,
       "required": [
-        "path",
-        "method",
-        "path_params"
+        "app_ref"
       ]
     },
     "hosting_list_apps_environment": {
       "body_fields": [],
       "body_required": [],
       "destructive": false,
+      "destructiveHint": false,
       "method": "GET",
       "needs_approval": false,
       "path": "/hosting/v1/apps/{app_ref}/environment",
@@ -701,17 +700,17 @@
       ],
       "query_fields": [],
       "query_required": [],
+      "readOnlyHint": true,
       "read_only": true,
       "required": [
-        "path",
-        "method",
-        "path_params"
+        "app_ref"
       ]
     },
     "hosting_list_apps_request_logs": {
       "body_fields": [],
       "body_required": [],
       "destructive": false,
+      "destructiveHint": false,
       "method": "GET",
       "needs_approval": false,
       "path": "/hosting/v1/apps/{app_ref}/logs/requests",
@@ -725,17 +724,17 @@
         "status_min"
       ],
       "query_required": [],
+      "readOnlyHint": true,
       "read_only": true,
       "required": [
-        "path",
-        "method",
-        "path_params"
+        "app_ref"
       ]
     },
     "hosting_list_apps_runtime_logs": {
       "body_fields": [],
       "body_required": [],
       "destructive": false,
+      "destructiveHint": false,
       "method": "GET",
       "needs_approval": false,
       "path": "/hosting/v1/apps/{app_ref}/logs/runtime",
@@ -746,11 +745,10 @@
         "limit"
       ],
       "query_required": [],
+      "readOnlyHint": true,
       "read_only": true,
       "required": [
-        "path",
-        "method",
-        "path_params"
+        "app_ref"
       ]
     },
     "hosting_replace_apps_environment": {
@@ -760,9 +758,10 @@
       "body_required": [
         "value"
       ],
-      "destructive": false,
+      "destructive": true,
+      "destructiveHint": true,
       "method": "PUT",
-      "needs_approval": false,
+      "needs_approval": true,
       "path": "/hosting/v1/apps/{app_ref}/environment/{key}",
       "path_params": [
         "app_ref",
@@ -770,17 +769,19 @@
       ],
       "query_fields": [],
       "query_required": [],
+      "readOnlyHint": false,
       "read_only": false,
       "required": [
-        "path",
-        "method",
-        "path_params"
+        "app_ref",
+        "key",
+        "value"
       ]
     },
     "hosting_requeue_action_deliveries": {
       "body_fields": [],
       "body_required": [],
       "destructive": false,
+      "destructiveHint": false,
       "method": "POST",
       "needs_approval": false,
       "path": "/api/v1/actions/deliveries/{delivery_id}/requeue",
@@ -789,17 +790,17 @@
       ],
       "query_fields": [],
       "query_required": [],
+      "readOnlyHint": false,
       "read_only": false,
       "required": [
-        "path",
-        "method",
-        "path_params"
+        "delivery_id"
       ]
     },
     "hosting_revoke_deploy_token": {
       "body_fields": [],
       "body_required": [],
       "destructive": true,
+      "destructiveHint": true,
       "method": "POST",
       "needs_approval": true,
       "path": "/hosting/v1/deploy-tokens/{token_id}/revoke",
@@ -808,36 +809,36 @@
       ],
       "query_fields": [],
       "query_required": [],
+      "readOnlyHint": false,
       "read_only": false,
       "required": [
-        "path",
-        "method",
-        "path_params"
+        "token_id"
       ]
     },
     "hosting_rotate_rule_secret": {
       "body_fields": [],
       "body_required": [],
-      "destructive": false,
+      "destructive": true,
+      "destructiveHint": true,
       "method": "POST",
-      "needs_approval": false,
+      "needs_approval": true,
       "path": "/api/v1/actions/rules/{id}/rotate-secret",
       "path_params": [
         "id"
       ],
       "query_fields": [],
       "query_required": [],
+      "readOnlyHint": false,
       "read_only": false,
       "required": [
-        "path",
-        "method",
-        "path_params"
+        "id"
       ]
     },
     "hosting_send_test_rule": {
       "body_fields": [],
       "body_required": [],
       "destructive": false,
+      "destructiveHint": false,
       "method": "POST",
       "needs_approval": false,
       "path": "/api/v1/actions/rules/{id}/send-test",
@@ -846,11 +847,10 @@
       ],
       "query_fields": [],
       "query_required": [],
+      "readOnlyHint": false,
       "read_only": false,
       "required": [
-        "path",
-        "method",
-        "path_params"
+        "id"
       ]
     },
     "hosting_update_action_rules": {
@@ -866,6 +866,7 @@
       ],
       "body_required": [],
       "destructive": false,
+      "destructiveHint": false,
       "method": "PATCH",
       "needs_approval": false,
       "path": "/api/v1/actions/rules/{id}",
@@ -874,2130 +875,1157 @@
       ],
       "query_fields": [],
       "query_required": [],
+      "readOnlyHint": false,
       "read_only": false,
       "required": [
-        "path",
-        "method",
-        "path_params"
+        "id"
       ]
     }
   },
   "tools": [
     {
-      "description": "Request hosting access for your company",
+      "annotations": {
+        "destructiveHint": false,
+        "readOnlyHint": false
+      },
+      "description": "Adds your company to the Shellui hosting waitlist and returns the access row with status pending. Staff approve or deny it separately.",
       "inputSchema": {
         "additionalProperties": false,
-        "properties": {
-          "body": {
-            "additionalProperties": false,
-            "properties": {},
-            "type": "object"
-          },
-          "method": {
-            "enum": [
-              "POST"
-            ],
-            "type": "string"
-          },
-          "path": {
-            "const": "/hosting/v1/access/request",
-            "type": "string"
-          },
-          "query": {
-            "additionalProperties": false,
-            "properties": {},
-            "type": "object"
-          }
-        },
-        "required": [
-          "path",
-          "method"
-        ],
+        "properties": {},
+        "required": [],
         "type": "object"
       },
       "name": "hosting_create_access_request"
     },
     {
-      "description": "Create a Shellui Actions webhook rule",
+      "annotations": {
+        "destructiveHint": false,
+        "readOnlyHint": false
+      },
+      "description": "Creates a Shellui Actions webhook rule from name, event_type, and url, and returns the rule metadata. The plaintext signing secret is omitted.",
       "inputSchema": {
         "additionalProperties": false,
         "properties": {
-          "body": {
-            "additionalProperties": false,
-            "properties": {
-              "allow_private_urls": {
-                "type": "boolean"
-              },
-              "authorization_header": {
-                "type": "string"
-              },
-              "description": {
-                "type": "string"
-              },
-              "enabled": {
-                "type": "boolean"
-              },
-              "event_type": {
-                "type": "string"
-              },
-              "name": {
-                "type": "string"
-              },
-              "secret": {
-                "type": "string"
-              },
-              "url": {
-                "format": "uri",
-                "type": "string"
-              }
-            },
-            "required": [
-              "event_type",
-              "name"
-            ],
-            "type": "object"
+          "allow_private_urls": {
+            "description": "Staff only. Allow a private or loopback webhook URL.",
+            "type": "boolean"
           },
-          "method": {
+          "authorization_header": {
+            "description": "Optional Authorization header value sent with the webhook.",
+            "type": "string"
+          },
+          "description": {
+            "description": "Optional note about what this rule is for.",
+            "type": "string"
+          },
+          "enabled": {
+            "description": "When false, the rule does not send webhooks.",
+            "type": "boolean"
+          },
+          "event_type": {
+            "description": "Shellui Actions event id this rule subscribes to.",
             "enum": [
-              "POST"
+              "hosting.app.created",
+              "hosting.app.deleted",
+              "hosting.custom_domain.created",
+              "hosting.custom_domain.deleted",
+              "hosting.custom_domain.updated",
+              "hosting.deployment.created",
+              "hosting.deployment.failed",
+              "hosting.deployment.succeeded",
+              "hosting.environment_variable.created",
+              "hosting.environment_variable.deleted",
+              "hosting.environment_variable.updated"
             ],
             "type": "string"
           },
-          "path": {
-            "const": "/api/v1/actions/rules",
+          "name": {
+            "description": "Rule name shown in the Shellui Actions list.",
             "type": "string"
           },
-          "query": {
-            "additionalProperties": false,
-            "properties": {
-              "company_id": {
-                "type": "integer"
-              }
-            },
-            "type": "object"
+          "secret": {
+            "description": "Optional signing secret. Omit it and Shellui generates one.",
+            "type": "string"
+          },
+          "url": {
+            "description": "HTTPS endpoint that receives the signed webhook.",
+            "format": "uri",
+            "type": "string"
           }
         },
         "required": [
-          "path",
-          "method"
+          "event_type",
+          "name",
+          "url"
         ],
         "type": "object"
       },
       "name": "hosting_create_action_rules"
     },
     {
-      "description": "Register a hosted site slug",
+      "annotations": {
+        "destructiveHint": false,
+        "readOnlyHint": false
+      },
+      "description": "Registers a hosted site from name (the slug) and optional display_name, and returns the new app. Upload and finalize a deployment in later calls.",
       "inputSchema": {
         "additionalProperties": false,
         "properties": {
-          "body": {
-            "additionalProperties": false,
-            "properties": {
-              "display_name": {
-                "description": "Optional display label.",
-                "type": "string"
-              },
-              "name": {
-                "description": "Unique slug under the company (lowercase, hyphens).",
-                "type": "string"
-              }
-            },
-            "required": [
-              "name"
-            ],
-            "type": "object"
-          },
-          "method": {
-            "enum": [
-              "POST"
-            ],
+          "display_name": {
+            "description": "Optional display label.",
             "type": "string"
           },
-          "path": {
-            "const": "/hosting/v1/apps",
+          "name": {
+            "description": "Unique slug under the company (lowercase, hyphens).",
             "type": "string"
-          },
-          "query": {
-            "additionalProperties": false,
-            "properties": {},
-            "type": "object"
           }
         },
         "required": [
-          "path",
-          "method"
+          "name"
         ],
         "type": "object"
       },
       "name": "hosting_create_apps"
     },
     {
-      "description": "Create a draft deployment",
+      "annotations": {
+        "destructiveHint": false,
+        "readOnlyHint": false
+      },
+      "description": "Opens a draft deployment for app_ref from app_version and shellui_version, and returns the draft deployment id used for upload and finalize.",
       "inputSchema": {
         "additionalProperties": false,
         "properties": {
-          "body": {
-            "additionalProperties": false,
-            "properties": {
-              "app_version": {
-                "description": "Semver of your app build (for example `1.2.3`).",
-                "type": "string"
-              },
-              "pinned": {
-                "description": "When true, rollback skips this deployment unless explicitly selected.",
-                "type": "boolean"
-              },
-              "shellui_version": {
-                "description": "Shellui framework version bundled in the artifact.",
-                "type": "string"
-              }
-            },
-            "required": [
-              "app_version",
-              "shellui_version"
-            ],
-            "type": "object"
-          },
-          "method": {
-            "enum": [
-              "POST"
-            ],
+          "app_ref": {
+            "description": "Site slug (for example `my-app`) or app UUID.",
             "type": "string"
           },
-          "path": {
-            "const": "/hosting/v1/apps/{app_ref}/deployments",
+          "app_version": {
+            "description": "Semver of your app build (for example `1.2.3`).",
             "type": "string"
           },
-          "path_params": {
-            "additionalProperties": false,
-            "properties": {
-              "app_ref": {
-                "type": "string"
-              }
-            },
-            "required": [
-              "app_ref"
-            ],
-            "type": "object"
+          "pinned": {
+            "description": "When true, rollback skips this deployment unless explicitly selected.",
+            "type": "boolean"
           },
-          "query": {
-            "additionalProperties": false,
-            "properties": {},
-            "type": "object"
+          "shellui_version": {
+            "description": "Shellui framework version bundled in the artifact.",
+            "type": "string"
           }
         },
         "required": [
-          "path",
-          "method",
-          "path_params"
+          "app_ref",
+          "app_version",
+          "shellui_version"
         ],
         "type": "object"
       },
       "name": "hosting_create_apps_deployments"
     },
     {
-      "description": "Hosting: confirm artifact upload",
+      "annotations": {
+        "destructiveHint": false,
+        "readOnlyHint": false
+      },
+      "description": "Confirms the artifact for deployment_id on app_ref is in storage, records its size, and returns the deployment with status uploading.",
       "inputSchema": {
         "additionalProperties": false,
         "properties": {
-          "body": {
-            "additionalProperties": false,
-            "properties": {},
-            "type": "object"
-          },
-          "method": {
-            "enum": [
-              "POST"
-            ],
+          "app_ref": {
+            "description": "Site slug (for example `my-app`) or app UUID.",
             "type": "string"
           },
-          "path": {
-            "const": "/hosting/v1/apps/{app_ref}/deployments/{deployment_id}/artifact-upload-complete",
+          "deployment_id": {
+            "description": "Deployment UUID from list or create responses.",
+            "format": "uuid",
             "type": "string"
-          },
-          "path_params": {
-            "additionalProperties": false,
-            "properties": {
-              "app_ref": {
-                "type": "string"
-              },
-              "deployment_id": {
-                "type": "string"
-              }
-            },
-            "required": [
-              "app_ref",
-              "deployment_id"
-            ],
-            "type": "object"
-          },
-          "query": {
-            "additionalProperties": false,
-            "properties": {},
-            "type": "object"
           }
         },
         "required": [
-          "path",
-          "method",
-          "path_params"
+          "app_ref",
+          "deployment_id"
         ],
         "type": "object"
       },
       "name": "hosting_create_apps_deployments_artifact_upload_complete"
     },
     {
-      "description": "Hosting: mint artifact upload URL",
+      "annotations": {
+        "destructiveHint": false,
+        "readOnlyHint": false
+      },
+      "description": "Returns a time-limited PUT URL and headers so you can upload the .tar.gz for deployment_id on app_ref outside this tool. Optional expires_in is how many seconds the URL stays valid.",
       "inputSchema": {
         "additionalProperties": false,
         "properties": {
-          "body": {
-            "additionalProperties": false,
-            "properties": {},
-            "type": "object"
-          },
-          "method": {
-            "enum": [
-              "POST"
-            ],
+          "app_ref": {
+            "description": "Site slug (for example `my-app`) or app UUID.",
             "type": "string"
           },
-          "path": {
-            "const": "/hosting/v1/apps/{app_ref}/deployments/{deployment_id}/artifact-upload-url",
+          "deployment_id": {
+            "description": "Deployment UUID from list or create responses.",
+            "format": "uuid",
             "type": "string"
           },
-          "path_params": {
-            "additionalProperties": false,
-            "properties": {
-              "app_ref": {
-                "type": "string"
-              },
-              "deployment_id": {
-                "type": "string"
-              }
-            },
-            "required": [
-              "app_ref",
-              "deployment_id"
-            ],
-            "type": "object"
-          },
-          "query": {
-            "additionalProperties": false,
-            "properties": {
-              "expires_in": {
-                "type": "integer"
-              }
-            },
-            "type": "object"
+          "expires_in": {
+            "description": "Seconds until the upload URL expires (60 to server default).",
+            "type": "integer"
           }
         },
         "required": [
-          "path",
-          "method",
-          "path_params"
+          "app_ref",
+          "deployment_id"
         ],
         "type": "object"
       },
       "name": "hosting_create_apps_deployments_artifact_upload_url"
     },
     {
-      "description": "Finalize and activate a deployment",
+      "annotations": {
+        "destructiveHint": true,
+        "readOnlyHint": false
+      },
+      "description": "Activates deployment_id on app_ref so the site serves that artifact, and returns the deployment. Preview sites reset the 7-day expiry timer on success.",
       "inputSchema": {
         "additionalProperties": false,
         "properties": {
-          "body": {
-            "additionalProperties": false,
-            "properties": {},
-            "type": "object"
-          },
-          "method": {
-            "enum": [
-              "POST"
-            ],
+          "app_ref": {
+            "description": "Site slug (for example `my-app`) or app UUID.",
             "type": "string"
           },
-          "path": {
-            "const": "/hosting/v1/apps/{app_ref}/deployments/{deployment_id}/finalize",
+          "deployment_id": {
+            "description": "Deployment UUID from list or create responses.",
+            "format": "uuid",
             "type": "string"
-          },
-          "path_params": {
-            "additionalProperties": false,
-            "properties": {
-              "app_ref": {
-                "type": "string"
-              },
-              "deployment_id": {
-                "type": "string"
-              }
-            },
-            "required": [
-              "app_ref",
-              "deployment_id"
-            ],
-            "type": "object"
-          },
-          "query": {
-            "additionalProperties": false,
-            "properties": {},
-            "type": "object"
           }
         },
         "required": [
-          "path",
-          "method",
-          "path_params"
+          "app_ref",
+          "deployment_id"
         ],
         "type": "object"
       },
       "name": "hosting_create_apps_deployments_finalize"
     },
     {
-      "description": "Rollback to a previous deployment",
+      "annotations": {
+        "destructiveHint": true,
+        "readOnlyHint": false
+      },
+      "description": "Serves the older deployment_id on app_ref again and returns that deployment as active. Artifact files stay in storage.",
       "inputSchema": {
         "additionalProperties": false,
         "properties": {
-          "body": {
-            "additionalProperties": false,
-            "properties": {},
-            "type": "object"
-          },
-          "method": {
-            "enum": [
-              "POST"
-            ],
+          "app_ref": {
+            "description": "Site slug (for example `my-app`) or app UUID.",
             "type": "string"
           },
-          "path": {
-            "const": "/hosting/v1/apps/{app_ref}/deployments/{deployment_id}/rollback",
+          "deployment_id": {
+            "description": "Deployment UUID from list or create responses.",
+            "format": "uuid",
             "type": "string"
-          },
-          "path_params": {
-            "additionalProperties": false,
-            "properties": {
-              "app_ref": {
-                "type": "string"
-              },
-              "deployment_id": {
-                "type": "string"
-              }
-            },
-            "required": [
-              "app_ref",
-              "deployment_id"
-            ],
-            "type": "object"
-          },
-          "query": {
-            "additionalProperties": false,
-            "properties": {},
-            "type": "object"
           }
         },
         "required": [
-          "path",
-          "method",
-          "path_params"
+          "app_ref",
+          "deployment_id"
         ],
         "type": "object"
       },
       "name": "hosting_create_apps_deployments_rollback"
     },
     {
-      "description": "Register a custom hostname",
+      "annotations": {
+        "destructiveHint": true,
+        "readOnlyHint": false
+      },
+      "description": "Registers hostname on app_ref and returns DNS TXT instructions plus a verification token. This does not verify DNS or issue TLS.",
       "inputSchema": {
         "additionalProperties": false,
         "properties": {
-          "body": {
-            "additionalProperties": false,
-            "properties": {
-              "hostname": {
-                "description": "Fully qualified hostname (not under the default app hosting domain).",
-                "type": "string"
-              }
-            },
-            "required": [
-              "hostname"
-            ],
-            "type": "object"
-          },
-          "method": {
-            "enum": [
-              "POST"
-            ],
+          "app_ref": {
+            "description": "Site slug (for example `my-app`) or app UUID.",
             "type": "string"
           },
-          "path": {
-            "const": "/hosting/v1/apps/{app_ref}/domains",
+          "hostname": {
+            "description": "Fully qualified hostname (not under the default app hosting domain).",
             "type": "string"
-          },
-          "path_params": {
-            "additionalProperties": false,
-            "properties": {
-              "app_ref": {
-                "type": "string"
-              }
-            },
-            "required": [
-              "app_ref"
-            ],
-            "type": "object"
-          },
-          "query": {
-            "additionalProperties": false,
-            "properties": {},
-            "type": "object"
           }
         },
         "required": [
-          "path",
-          "method",
-          "path_params"
+          "app_ref",
+          "hostname"
         ],
         "type": "object"
       },
       "name": "hosting_create_apps_domains"
     },
     {
-      "description": "Refresh custom domain status",
+      "annotations": {
+        "destructiveHint": true,
+        "readOnlyHint": false
+      },
+      "description": "Refreshes custom hostname domain_id on app_ref, moves pending_dns to awaiting_platform, and returns the updated hostname. verified and serving stay false.",
       "inputSchema": {
         "additionalProperties": false,
         "properties": {
-          "body": {
-            "additionalProperties": false,
-            "properties": {},
-            "type": "object"
-          },
-          "method": {
-            "enum": [
-              "POST"
-            ],
+          "app_ref": {
+            "description": "Site slug (for example `my-app`) or app UUID.",
             "type": "string"
           },
-          "path": {
-            "const": "/hosting/v1/apps/{app_ref}/domains/{domain_id}/refresh",
+          "domain_id": {
+            "description": "Custom domain UUID from list or create responses.",
+            "format": "uuid",
             "type": "string"
-          },
-          "path_params": {
-            "additionalProperties": false,
-            "properties": {
-              "app_ref": {
-                "type": "string"
-              },
-              "domain_id": {
-                "type": "string"
-              }
-            },
-            "required": [
-              "app_ref",
-              "domain_id"
-            ],
-            "type": "object"
-          },
-          "query": {
-            "additionalProperties": false,
-            "properties": {},
-            "type": "object"
           }
         },
         "required": [
-          "path",
-          "method",
-          "path_params"
+          "app_ref",
+          "domain_id"
         ],
         "type": "object"
       },
       "name": "hosting_create_apps_domains_refresh"
     },
     {
-      "description": "Create or replace an environment variable",
+      "annotations": {
+        "destructiveHint": true,
+        "readOnlyHint": false
+      },
+      "description": "Creates or replaces an environment variable on app_ref from key and value, and returns key plus value_present. The value is encrypted and is not echoed.",
       "inputSchema": {
         "additionalProperties": false,
         "properties": {
-          "body": {
-            "additionalProperties": false,
-            "properties": {
-              "key": {
-                "description": "Must match /^[A-Za-z_][A-Za-z0-9_]{0,127}$/.",
-                "type": "string"
-              },
-              "value": {
-                "description": "New value. Never echoed in list or get responses.",
-                "type": "string"
-              }
-            },
-            "required": [
-              "key",
-              "value"
-            ],
-            "type": "object"
-          },
-          "method": {
-            "enum": [
-              "POST"
-            ],
+          "app_ref": {
+            "description": "Site slug (for example `my-app`) or app UUID.",
             "type": "string"
           },
-          "path": {
-            "const": "/hosting/v1/apps/{app_ref}/environment",
+          "key": {
+            "description": "Must match /^[A-Za-z_][A-Za-z0-9_]{0,127}$/.",
             "type": "string"
           },
-          "path_params": {
-            "additionalProperties": false,
-            "properties": {
-              "app_ref": {
-                "type": "string"
-              }
-            },
-            "required": [
-              "app_ref"
-            ],
-            "type": "object"
-          },
-          "query": {
-            "additionalProperties": false,
-            "properties": {},
-            "type": "object"
+          "value": {
+            "description": "New value. Never echoed in list or get responses.",
+            "type": "string"
           }
         },
         "required": [
-          "path",
-          "method",
-          "path_params"
+          "app_ref",
+          "key",
+          "value"
         ],
         "type": "object"
       },
       "name": "hosting_create_apps_environment"
     },
     {
-      "description": "Extend preview site expiry",
+      "annotations": {
+        "destructiveHint": false,
+        "readOnlyHint": false
+      },
+      "description": "Extends preview site app_ref by 7 days and returns the updated app. Production sites ignore this call.",
       "inputSchema": {
         "additionalProperties": false,
         "properties": {
-          "body": {
-            "additionalProperties": false,
-            "properties": {},
-            "type": "object"
-          },
-          "method": {
-            "enum": [
-              "POST"
-            ],
+          "app_ref": {
+            "description": "Site slug (for example `my-app`) or app UUID.",
             "type": "string"
-          },
-          "path": {
-            "const": "/hosting/v1/apps/{app_ref}/renew-expiry",
-            "type": "string"
-          },
-          "path_params": {
-            "additionalProperties": false,
-            "properties": {
-              "app_ref": {
-                "type": "string"
-              }
-            },
-            "required": [
-              "app_ref"
-            ],
-            "type": "object"
-          },
-          "query": {
-            "additionalProperties": false,
-            "properties": {},
-            "type": "object"
           }
         },
         "required": [
-          "path",
-          "method",
-          "path_params"
+          "app_ref"
         ],
         "type": "object"
       },
       "name": "hosting_create_apps_renew_expiry"
     },
     {
-      "description": "Prepare a preview deploy",
+      "annotations": {
+        "destructiveHint": false,
+        "readOnlyHint": false
+      },
+      "description": "Creates or refreshes a preview site from app_version and shellui_version (optional slug) and returns the app, a draft deployment, and public URLs. Preview sites expire 7 days after the last successful finalize or renew-expiry call.",
       "inputSchema": {
         "additionalProperties": false,
         "properties": {
-          "body": {
-            "additionalProperties": false,
-            "properties": {
-              "app_version": {
-                "description": "Semver of the preview build.",
-                "type": "string"
-              },
-              "display_name": {
-                "type": "string"
-              },
-              "shellui_version": {
-                "description": "Shellui framework version in the bundle.",
-                "type": "string"
-              },
-              "slug": {
-                "description": "Optional preview slug. Omit to allocate a new slug.",
-                "type": "string"
-              }
-            },
-            "required": [
-              "app_version",
-              "shellui_version"
-            ],
-            "type": "object"
-          },
-          "method": {
-            "enum": [
-              "POST"
-            ],
+          "app_version": {
+            "description": "Semver of the preview build.",
             "type": "string"
           },
-          "path": {
-            "const": "/hosting/v1/preview",
+          "display_name": {
+            "description": "Optional label for the preview site.",
             "type": "string"
           },
-          "query": {
-            "additionalProperties": false,
-            "properties": {},
-            "type": "object"
+          "shellui_version": {
+            "description": "Shellui framework version in the bundle.",
+            "type": "string"
+          },
+          "slug": {
+            "description": "Optional preview slug. Omit to allocate a new slug.",
+            "type": "string"
           }
         },
         "required": [
-          "path",
-          "method"
+          "app_version",
+          "shellui_version"
         ],
         "type": "object"
       },
       "name": "hosting_create_preview"
     },
     {
-      "description": "Delete a Shellui Actions webhook rule",
+      "annotations": {
+        "destructiveHint": true,
+        "readOnlyHint": false
+      },
+      "description": "Deletes Shellui Actions webhook rule id and returns an empty result. In-flight deliveries may still finish.",
       "inputSchema": {
         "additionalProperties": false,
         "properties": {
-          "body": {
-            "additionalProperties": false,
-            "properties": {},
-            "type": "object"
-          },
-          "method": {
-            "enum": [
-              "DELETE"
-            ],
-            "type": "string"
-          },
-          "path": {
-            "const": "/api/v1/actions/rules/{id}",
-            "type": "string"
-          },
-          "path_params": {
-            "additionalProperties": false,
-            "properties": {
-              "id": {
-                "type": "string"
-              }
-            },
-            "required": [
-              "id"
-            ],
-            "type": "object"
-          },
-          "query": {
-            "additionalProperties": false,
-            "properties": {},
-            "type": "object"
+          "id": {
+            "description": "Shellui Actions webhook rule id.",
+            "type": "integer"
           }
         },
         "required": [
-          "path",
-          "method",
-          "path_params"
+          "id"
         ],
         "type": "object"
       },
       "name": "hosting_delete_action_rules"
     },
     {
-      "description": "Delete a hosted site",
+      "annotations": {
+        "destructiveHint": true,
+        "readOnlyHint": false
+      },
+      "description": "Deletes the hosted site app_ref, including deployments and stored artifacts, and returns an empty result. This cannot be undone.",
       "inputSchema": {
         "additionalProperties": false,
         "properties": {
-          "body": {
-            "additionalProperties": false,
-            "properties": {},
-            "type": "object"
-          },
-          "method": {
-            "enum": [
-              "DELETE"
-            ],
+          "app_ref": {
+            "description": "Site slug (for example `my-app`) or app UUID.",
             "type": "string"
-          },
-          "path": {
-            "const": "/hosting/v1/apps/{app_ref}",
-            "type": "string"
-          },
-          "path_params": {
-            "additionalProperties": false,
-            "properties": {
-              "app_ref": {
-                "type": "string"
-              }
-            },
-            "required": [
-              "app_ref"
-            ],
-            "type": "object"
-          },
-          "query": {
-            "additionalProperties": false,
-            "properties": {},
-            "type": "object"
           }
         },
         "required": [
-          "path",
-          "method",
-          "path_params"
+          "app_ref"
         ],
         "type": "object"
       },
       "name": "hosting_delete_apps"
     },
     {
-      "description": "Remove a custom hostname",
+      "annotations": {
+        "destructiveHint": true,
+        "readOnlyHint": false
+      },
+      "description": "Removes custom hostname domain_id from app_ref and returns an empty result. This cannot be undone.",
       "inputSchema": {
         "additionalProperties": false,
         "properties": {
-          "body": {
-            "additionalProperties": false,
-            "properties": {},
-            "type": "object"
-          },
-          "method": {
-            "enum": [
-              "DELETE"
-            ],
+          "app_ref": {
+            "description": "Site slug (for example `my-app`) or app UUID.",
             "type": "string"
           },
-          "path": {
-            "const": "/hosting/v1/apps/{app_ref}/domains/{domain_id}",
+          "domain_id": {
+            "description": "Custom domain UUID from list or create responses.",
+            "format": "uuid",
             "type": "string"
-          },
-          "path_params": {
-            "additionalProperties": false,
-            "properties": {
-              "app_ref": {
-                "type": "string"
-              },
-              "domain_id": {
-                "type": "string"
-              }
-            },
-            "required": [
-              "app_ref",
-              "domain_id"
-            ],
-            "type": "object"
-          },
-          "query": {
-            "additionalProperties": false,
-            "properties": {},
-            "type": "object"
           }
         },
         "required": [
-          "path",
-          "method",
-          "path_params"
+          "app_ref",
+          "domain_id"
         ],
         "type": "object"
       },
       "name": "hosting_delete_apps_domains"
     },
     {
-      "description": "Delete an environment variable",
+      "annotations": {
+        "destructiveHint": true,
+        "readOnlyHint": false
+      },
+      "description": "Deletes environment variable key from app_ref and returns an empty result. This cannot be undone.",
       "inputSchema": {
         "additionalProperties": false,
         "properties": {
-          "body": {
-            "additionalProperties": false,
-            "properties": {},
-            "type": "object"
-          },
-          "method": {
-            "enum": [
-              "DELETE"
-            ],
+          "app_ref": {
+            "description": "Site slug (for example `my-app`) or app UUID.",
             "type": "string"
           },
-          "path": {
-            "const": "/hosting/v1/apps/{app_ref}/environment/{key}",
+          "key": {
+            "description": "Environment variable name (letters, digits, underscore).",
             "type": "string"
-          },
-          "path_params": {
-            "additionalProperties": false,
-            "properties": {
-              "app_ref": {
-                "type": "string"
-              },
-              "key": {
-                "type": "string"
-              }
-            },
-            "required": [
-              "app_ref",
-              "key"
-            ],
-            "type": "object"
-          },
-          "query": {
-            "additionalProperties": false,
-            "properties": {},
-            "type": "object"
           }
         },
         "required": [
-          "path",
-          "method",
-          "path_params"
+          "app_ref",
+          "key"
         ],
         "type": "object"
       },
       "name": "hosting_delete_apps_environment"
     },
     {
-      "description": "Read one webhook delivery",
+      "annotations": {
+        "destructiveHint": false,
+        "readOnlyHint": true
+      },
+      "description": "Reads Shellui Actions webhook delivery delivery_id and returns attempts, HTTP statuses, and the signed envelope.",
       "inputSchema": {
         "additionalProperties": false,
         "properties": {
-          "body": {
-            "additionalProperties": false,
-            "properties": {},
-            "type": "object"
-          },
-          "method": {
-            "enum": [
-              "GET"
-            ],
+          "delivery_id": {
+            "description": "Webhook delivery id (UUID string).",
+            "format": "uuid",
             "type": "string"
-          },
-          "path": {
-            "const": "/api/v1/actions/deliveries/{delivery_id}",
-            "type": "string"
-          },
-          "path_params": {
-            "additionalProperties": false,
-            "properties": {
-              "delivery_id": {
-                "type": "string"
-              }
-            },
-            "required": [
-              "delivery_id"
-            ],
-            "type": "object"
-          },
-          "query": {
-            "additionalProperties": false,
-            "properties": {},
-            "type": "object"
           }
         },
         "required": [
-          "path",
-          "method",
-          "path_params"
+          "delivery_id"
         ],
         "type": "object"
       },
       "name": "hosting_get_action_deliveries"
     },
     {
-      "description": "Read one domain event log entry",
+      "annotations": {
+        "destructiveHint": false,
+        "readOnlyHint": true
+      },
+      "description": "Reads domain event log row id and returns the full event payload for that row.",
       "inputSchema": {
         "additionalProperties": false,
         "properties": {
-          "body": {
-            "additionalProperties": false,
-            "properties": {},
-            "type": "object"
-          },
-          "method": {
-            "enum": [
-              "GET"
-            ],
-            "type": "string"
-          },
-          "path": {
-            "const": "/api/v1/actions/event-log/{id}",
-            "type": "string"
-          },
-          "path_params": {
-            "additionalProperties": false,
-            "properties": {
-              "id": {
-                "type": "string"
-              }
-            },
-            "required": [
-              "id"
-            ],
-            "type": "object"
-          },
-          "query": {
-            "additionalProperties": false,
-            "properties": {},
-            "type": "object"
+          "id": {
+            "description": "Event log row id.",
+            "type": "integer"
           }
         },
         "required": [
-          "path",
-          "method",
-          "path_params"
+          "id"
         ],
         "type": "object"
       },
       "name": "hosting_get_action_event_log"
     },
     {
-      "description": "Read event log retention settings",
+      "annotations": {
+        "destructiveHint": false,
+        "readOnlyHint": true
+      },
+      "description": "Returns how many days Shellui keeps company domain events, the oldest event time, and whether older rows suggest the purge job is behind.",
       "inputSchema": {
         "additionalProperties": false,
-        "properties": {
-          "body": {
-            "additionalProperties": false,
-            "properties": {},
-            "type": "object"
-          },
-          "method": {
-            "enum": [
-              "GET"
-            ],
-            "type": "string"
-          },
-          "path": {
-            "const": "/api/v1/actions/event-log/retention",
-            "type": "string"
-          },
-          "query": {
-            "additionalProperties": false,
-            "properties": {
-              "company_id": {
-                "type": "integer"
-              }
-            },
-            "type": "object"
-          }
-        },
-        "required": [
-          "path",
-          "method"
-        ],
+        "properties": {},
+        "required": [],
         "type": "object"
       },
       "name": "hosting_get_action_event_log_retention"
     },
     {
-      "description": "Read one Shellui Actions webhook rule",
+      "annotations": {
+        "destructiveHint": false,
+        "readOnlyHint": true
+      },
+      "description": "Reads Shellui Actions webhook rule id and returns its metadata with a masked secret hint. The plaintext secret is omitted.",
       "inputSchema": {
         "additionalProperties": false,
         "properties": {
-          "body": {
-            "additionalProperties": false,
-            "properties": {},
-            "type": "object"
-          },
-          "method": {
-            "enum": [
-              "GET"
-            ],
-            "type": "string"
-          },
-          "path": {
-            "const": "/api/v1/actions/rules/{id}",
-            "type": "string"
-          },
-          "path_params": {
-            "additionalProperties": false,
-            "properties": {
-              "id": {
-                "type": "string"
-              }
-            },
-            "required": [
-              "id"
-            ],
-            "type": "object"
-          },
-          "query": {
-            "additionalProperties": false,
-            "properties": {},
-            "type": "object"
+          "id": {
+            "description": "Shellui Actions webhook rule id.",
+            "type": "integer"
           }
         },
         "required": [
-          "path",
-          "method",
-          "path_params"
+          "id"
         ],
         "type": "object"
       },
       "name": "hosting_get_action_rules"
     },
     {
-      "description": "Read one hosted site",
+      "annotations": {
+        "destructiveHint": false,
+        "readOnlyHint": true
+      },
+      "description": "Reads the hosted site app_ref (slug or UUID) and returns its metadata, including preview expires_at when set.",
       "inputSchema": {
         "additionalProperties": false,
         "properties": {
-          "body": {
-            "additionalProperties": false,
-            "properties": {},
-            "type": "object"
-          },
-          "method": {
-            "enum": [
-              "GET"
-            ],
+          "app_ref": {
+            "description": "Site slug (for example `my-app`) or app UUID.",
             "type": "string"
-          },
-          "path": {
-            "const": "/hosting/v1/apps/{app_ref}",
-            "type": "string"
-          },
-          "path_params": {
-            "additionalProperties": false,
-            "properties": {
-              "app_ref": {
-                "type": "string"
-              }
-            },
-            "required": [
-              "app_ref"
-            ],
-            "type": "object"
-          },
-          "query": {
-            "additionalProperties": false,
-            "properties": {},
-            "type": "object"
           }
         },
         "required": [
-          "path",
-          "method",
-          "path_params"
+          "app_ref"
         ],
         "type": "object"
       },
       "name": "hosting_get_apps"
     },
     {
-      "description": "Read one custom hostname",
+      "annotations": {
+        "destructiveHint": false,
+        "readOnlyHint": true
+      },
+      "description": "Reads custom hostname domain_id on app_ref and returns hostname, DNS instructions, and status.",
       "inputSchema": {
         "additionalProperties": false,
         "properties": {
-          "body": {
-            "additionalProperties": false,
-            "properties": {},
-            "type": "object"
-          },
-          "method": {
-            "enum": [
-              "GET"
-            ],
+          "app_ref": {
+            "description": "Site slug (for example `my-app`) or app UUID.",
             "type": "string"
           },
-          "path": {
-            "const": "/hosting/v1/apps/{app_ref}/domains/{domain_id}",
+          "domain_id": {
+            "description": "Custom domain UUID from list or create responses.",
+            "format": "uuid",
             "type": "string"
-          },
-          "path_params": {
-            "additionalProperties": false,
-            "properties": {
-              "app_ref": {
-                "type": "string"
-              },
-              "domain_id": {
-                "type": "string"
-              }
-            },
-            "required": [
-              "app_ref",
-              "domain_id"
-            ],
-            "type": "object"
-          },
-          "query": {
-            "additionalProperties": false,
-            "properties": {},
-            "type": "object"
           }
         },
         "required": [
-          "path",
-          "method",
-          "path_params"
+          "app_ref",
+          "domain_id"
         ],
         "type": "object"
       },
       "name": "hosting_get_apps_domains"
     },
     {
-      "description": "Read one environment variable (metadata only)",
+      "annotations": {
+        "destructiveHint": false,
+        "readOnlyHint": true
+      },
+      "description": "Reads environment variable key on app_ref and returns key, value_present, and updated_at. The stored value is not included.",
       "inputSchema": {
         "additionalProperties": false,
         "properties": {
-          "body": {
-            "additionalProperties": false,
-            "properties": {},
-            "type": "object"
-          },
-          "method": {
-            "enum": [
-              "GET"
-            ],
+          "app_ref": {
+            "description": "Site slug (for example `my-app`) or app UUID.",
             "type": "string"
           },
-          "path": {
-            "const": "/hosting/v1/apps/{app_ref}/environment/{key}",
+          "key": {
+            "description": "Environment variable name (letters, digits, underscore).",
             "type": "string"
-          },
-          "path_params": {
-            "additionalProperties": false,
-            "properties": {
-              "app_ref": {
-                "type": "string"
-              },
-              "key": {
-                "type": "string"
-              }
-            },
-            "required": [
-              "app_ref",
-              "key"
-            ],
-            "type": "object"
-          },
-          "query": {
-            "additionalProperties": false,
-            "properties": {},
-            "type": "object"
           }
         },
         "required": [
-          "path",
-          "method",
-          "path_params"
+          "app_ref",
+          "key"
         ],
         "type": "object"
       },
       "name": "hosting_get_apps_environment"
     },
     {
-      "description": "List company deploy tokens",
+      "annotations": {
+        "destructiveHint": false,
+        "readOnlyHint": true
+      },
+      "description": "Lists deploy token metadata for your company and returns prefix, expiry, and last used time. Plaintext secrets are never included.",
       "inputSchema": {
         "additionalProperties": false,
-        "properties": {
-          "body": {
-            "additionalProperties": false,
-            "properties": {},
-            "type": "object"
-          },
-          "method": {
-            "enum": [
-              "GET"
-            ],
-            "type": "string"
-          },
-          "path": {
-            "const": "/hosting/v1/deploy-tokens",
-            "type": "string"
-          },
-          "query": {
-            "additionalProperties": false,
-            "properties": {},
-            "type": "object"
-          }
-        },
-        "required": [
-          "path",
-          "method"
-        ],
+        "properties": {},
+        "required": [],
         "type": "object"
       },
       "name": "hosting_get_deploy_tokens"
     },
     {
-      "description": "Read hosting usage stats",
+      "annotations": {
+        "destructiveHint": false,
+        "readOnlyHint": true
+      },
+      "description": "Returns aggregate app and deployment counts for your company.",
       "inputSchema": {
         "additionalProperties": false,
-        "properties": {
-          "body": {
-            "additionalProperties": false,
-            "properties": {},
-            "type": "object"
-          },
-          "method": {
-            "enum": [
-              "GET"
-            ],
-            "type": "string"
-          },
-          "path": {
-            "const": "/hosting/v1/stats",
-            "type": "string"
-          },
-          "query": {
-            "additionalProperties": false,
-            "properties": {},
-            "type": "object"
-          }
-        },
-        "required": [
-          "path",
-          "method"
-        ],
+        "properties": {},
+        "required": [],
         "type": "object"
       },
       "name": "hosting_get_stats"
     },
     {
-      "description": "List recent webhook deliveries",
+      "annotations": {
+        "destructiveHint": false,
+        "readOnlyHint": true
+      },
+      "description": "Lists recent Shellui Actions webhook deliveries and returns status, attempt counts, and errors. Optional status filters to pending, delivered, failed, or dead.",
       "inputSchema": {
         "additionalProperties": false,
         "properties": {
-          "body": {
-            "additionalProperties": false,
-            "properties": {},
-            "type": "object"
+          "action_rule_id": {
+            "description": "Shellui Actions webhook rule id to match.",
+            "type": "integer"
           },
-          "method": {
+          "created_after": {
+            "description": "ISO 8601 datetime. Include deliveries created at or after this time.",
+            "type": "string"
+          },
+          "created_before": {
+            "description": "ISO 8601 datetime. Include deliveries created at or before this time.",
+            "type": "string"
+          },
+          "event_type": {
+            "description": "Catalog event id to match.",
             "enum": [
-              "GET"
+              "hosting.app.created",
+              "hosting.app.deleted",
+              "hosting.custom_domain.created",
+              "hosting.custom_domain.deleted",
+              "hosting.custom_domain.updated",
+              "hosting.deployment.created",
+              "hosting.deployment.failed",
+              "hosting.deployment.succeeded",
+              "hosting.environment_variable.created",
+              "hosting.environment_variable.deleted",
+              "hosting.environment_variable.updated"
             ],
             "type": "string"
           },
-          "path": {
-            "const": "/api/v1/actions/deliveries",
-            "type": "string"
+          "page": {
+            "description": "Page number, starting at 1.",
+            "type": "integer"
           },
-          "query": {
-            "additionalProperties": false,
-            "properties": {
-              "action_rule_id": {
-                "type": "integer"
-              },
-              "company_id": {
-                "type": "integer"
-              },
-              "created_after": {
-                "type": "string"
-              },
-              "created_before": {
-                "type": "string"
-              },
-              "event_type": {
-                "type": "string"
-              },
-              "page": {
-                "type": "integer"
-              },
-              "page_size": {
-                "type": "integer"
-              },
-              "scheduled_job_run_id": {
-                "type": "integer"
-              },
-              "status": {
-                "type": "string"
-              }
-            },
-            "type": "object"
+          "page_size": {
+            "description": "Page size. The server caps this at 100.",
+            "type": "integer"
+          },
+          "status": {
+            "description": "Delivery status to include.",
+            "enum": [
+              "pending",
+              "delivered",
+              "failed",
+              "dead"
+            ],
+            "type": "string"
           }
         },
-        "required": [
-          "path",
-          "method"
-        ],
+        "required": [],
         "type": "object"
       },
       "name": "hosting_list_action_deliveries"
     },
     {
-      "description": "List recent domain events for the company",
+      "annotations": {
+        "destructiveHint": false,
+        "readOnlyHint": true
+      },
+      "description": "Lists recent domain events for your company and returns the matching rows. Optional event_type filters to one catalog event id.",
       "inputSchema": {
         "additionalProperties": false,
         "properties": {
-          "body": {
-            "additionalProperties": false,
-            "properties": {},
-            "type": "object"
+          "created_after": {
+            "description": "ISO 8601 datetime (inclusive lower bound).",
+            "type": "string"
           },
-          "method": {
+          "created_before": {
+            "description": "ISO 8601 datetime (exclusive upper bound).",
+            "type": "string"
+          },
+          "event_type": {
+            "description": "One catalog event id to match.",
             "enum": [
-              "GET"
+              "hosting.app.created",
+              "hosting.app.deleted",
+              "hosting.custom_domain.created",
+              "hosting.custom_domain.deleted",
+              "hosting.custom_domain.updated",
+              "hosting.deployment.created",
+              "hosting.deployment.failed",
+              "hosting.deployment.succeeded",
+              "hosting.environment_variable.created",
+              "hosting.environment_variable.deleted",
+              "hosting.environment_variable.updated"
             ],
             "type": "string"
           },
-          "path": {
-            "const": "/api/v1/actions/event-log",
+          "page": {
+            "description": "Page number, starting at 1.",
+            "type": "integer"
+          },
+          "page_size": {
+            "description": "Page size. The server caps this at 100.",
+            "type": "integer"
+          },
+          "user": {
+            "description": "Case-insensitive substring of the actor email.",
             "type": "string"
           },
-          "query": {
-            "additionalProperties": false,
-            "properties": {
-              "company_id": {
-                "type": "integer"
-              },
-              "created_after": {
-                "type": "string"
-              },
-              "created_before": {
-                "type": "string"
-              },
-              "event_type": {
-                "type": "string"
-              },
-              "page": {
-                "type": "integer"
-              },
-              "page_size": {
-                "type": "integer"
-              },
-              "user": {
-                "type": "string"
-              },
-              "user_id": {
-                "type": "integer"
-              }
-            },
-            "type": "object"
+          "user_id": {
+            "description": "Actor user id to match.",
+            "type": "integer"
           }
         },
-        "required": [
-          "path",
-          "method"
-        ],
+        "required": [],
         "type": "object"
       },
       "name": "hosting_list_action_event_log"
     },
     {
-      "description": "List domain event type ids",
+      "annotations": {
+        "destructiveHint": false,
+        "readOnlyHint": true
+      },
+      "description": "Lists domain event type ids you can use in event log filters and Shellui Actions rules, and returns each type, label, and description.",
       "inputSchema": {
         "additionalProperties": false,
-        "properties": {
-          "body": {
-            "additionalProperties": false,
-            "properties": {},
-            "type": "object"
-          },
-          "method": {
-            "enum": [
-              "GET"
-            ],
-            "type": "string"
-          },
-          "path": {
-            "const": "/api/v1/actions/event-log/types",
-            "type": "string"
-          },
-          "query": {
-            "additionalProperties": false,
-            "properties": {
-              "company_id": {
-                "type": "integer"
-              }
-            },
-            "type": "object"
-          }
-        },
-        "required": [
-          "path",
-          "method"
-        ],
+        "properties": {},
+        "required": [],
         "type": "object"
       },
       "name": "hosting_list_action_event_log_types"
     },
     {
-      "description": "List Shellui Actions event types",
+      "annotations": {
+        "destructiveHint": false,
+        "readOnlyHint": true
+      },
+      "description": "Lists Shellui Actions event types you can subscribe to and returns each event id, label, and payload field docs.",
       "inputSchema": {
         "additionalProperties": false,
-        "properties": {
-          "body": {
-            "additionalProperties": false,
-            "properties": {},
-            "type": "object"
-          },
-          "method": {
-            "enum": [
-              "GET"
-            ],
-            "type": "string"
-          },
-          "path": {
-            "const": "/api/v1/actions/events",
-            "type": "string"
-          },
-          "query": {
-            "additionalProperties": false,
-            "properties": {
-              "company_id": {
-                "type": "integer"
-              }
-            },
-            "type": "object"
-          }
-        },
-        "required": [
-          "path",
-          "method"
-        ],
+        "properties": {},
+        "required": [],
         "type": "object"
       },
       "name": "hosting_list_action_events"
     },
     {
-      "description": "List Shellui Actions webhook rules",
+      "annotations": {
+        "destructiveHint": false,
+        "readOnlyHint": true
+      },
+      "description": "Lists Shellui Actions webhook rules for your company and returns rule metadata. Signing secrets are omitted.",
       "inputSchema": {
         "additionalProperties": false,
-        "properties": {
-          "body": {
-            "additionalProperties": false,
-            "properties": {},
-            "type": "object"
-          },
-          "method": {
-            "enum": [
-              "GET"
-            ],
-            "type": "string"
-          },
-          "path": {
-            "const": "/api/v1/actions/rules",
-            "type": "string"
-          },
-          "query": {
-            "additionalProperties": false,
-            "properties": {
-              "company_id": {
-                "type": "integer"
-              }
-            },
-            "type": "object"
-          }
-        },
-        "required": [
-          "path",
-          "method"
-        ],
+        "properties": {},
+        "required": [],
         "type": "object"
       },
       "name": "hosting_list_action_rules"
     },
     {
-      "description": "List hosted sites for your company",
+      "annotations": {
+        "destructiveHint": false,
+        "readOnlyHint": true
+      },
+      "description": "Lists every hosted site for your company and returns each app id, slug, display name, current deployment, and preview expiry when set.",
       "inputSchema": {
         "additionalProperties": false,
-        "properties": {
-          "body": {
-            "additionalProperties": false,
-            "properties": {},
-            "type": "object"
-          },
-          "method": {
-            "enum": [
-              "GET"
-            ],
-            "type": "string"
-          },
-          "path": {
-            "const": "/hosting/v1/apps",
-            "type": "string"
-          },
-          "query": {
-            "additionalProperties": false,
-            "properties": {},
-            "type": "object"
-          }
-        },
-        "required": [
-          "path",
-          "method"
-        ],
+        "properties": {},
+        "required": [],
         "type": "object"
       },
       "name": "hosting_list_apps"
     },
     {
-      "description": "List deployments for a site",
+      "annotations": {
+        "destructiveHint": false,
+        "readOnlyHint": true
+      },
+      "description": "Lists deployments for site app_ref, newest first, and returns each deployment status and artifact metadata.",
       "inputSchema": {
         "additionalProperties": false,
         "properties": {
-          "body": {
-            "additionalProperties": false,
-            "properties": {},
-            "type": "object"
-          },
-          "method": {
-            "enum": [
-              "GET"
-            ],
+          "app_ref": {
+            "description": "Site slug (for example `my-app`) or app UUID.",
             "type": "string"
-          },
-          "path": {
-            "const": "/hosting/v1/apps/{app_ref}/deployments",
-            "type": "string"
-          },
-          "path_params": {
-            "additionalProperties": false,
-            "properties": {
-              "app_ref": {
-                "type": "string"
-              }
-            },
-            "required": [
-              "app_ref"
-            ],
-            "type": "object"
-          },
-          "query": {
-            "additionalProperties": false,
-            "properties": {},
-            "type": "object"
           }
         },
         "required": [
-          "path",
-          "method",
-          "path_params"
+          "app_ref"
         ],
         "type": "object"
       },
       "name": "hosting_list_apps_deployments"
     },
     {
-      "description": "List custom hostnames for a site",
+      "annotations": {
+        "destructiveHint": false,
+        "readOnlyHint": true
+      },
+      "description": "Lists custom hostnames on app_ref and returns hostname, DNS instructions, and status. verified and serving stay false until the platform confirms DNS.",
       "inputSchema": {
         "additionalProperties": false,
         "properties": {
-          "body": {
-            "additionalProperties": false,
-            "properties": {},
-            "type": "object"
-          },
-          "method": {
-            "enum": [
-              "GET"
-            ],
+          "app_ref": {
+            "description": "Site slug (for example `my-app`) or app UUID.",
             "type": "string"
-          },
-          "path": {
-            "const": "/hosting/v1/apps/{app_ref}/domains",
-            "type": "string"
-          },
-          "path_params": {
-            "additionalProperties": false,
-            "properties": {
-              "app_ref": {
-                "type": "string"
-              }
-            },
-            "required": [
-              "app_ref"
-            ],
-            "type": "object"
-          },
-          "query": {
-            "additionalProperties": false,
-            "properties": {},
-            "type": "object"
           }
         },
         "required": [
-          "path",
-          "method",
-          "path_params"
+          "app_ref"
         ],
         "type": "object"
       },
       "name": "hosting_list_apps_domains"
     },
     {
-      "description": "List app environment variables (names only)",
+      "annotations": {
+        "destructiveHint": false,
+        "readOnlyHint": true
+      },
+      "description": "Lists environment variable names on app_ref and returns key, value_present, and updated_at. Values are never included.",
       "inputSchema": {
         "additionalProperties": false,
         "properties": {
-          "body": {
-            "additionalProperties": false,
-            "properties": {},
-            "type": "object"
-          },
-          "method": {
-            "enum": [
-              "GET"
-            ],
+          "app_ref": {
+            "description": "Site slug (for example `my-app`) or app UUID.",
             "type": "string"
-          },
-          "path": {
-            "const": "/hosting/v1/apps/{app_ref}/environment",
-            "type": "string"
-          },
-          "path_params": {
-            "additionalProperties": false,
-            "properties": {
-              "app_ref": {
-                "type": "string"
-              }
-            },
-            "required": [
-              "app_ref"
-            ],
-            "type": "object"
-          },
-          "query": {
-            "additionalProperties": false,
-            "properties": {},
-            "type": "object"
           }
         },
         "required": [
-          "path",
-          "method",
-          "path_params"
+          "app_ref"
         ],
         "type": "object"
       },
       "name": "hosting_list_apps_environment"
     },
     {
-      "description": "List recent HTTP requests for the site",
+      "annotations": {
+        "destructiveHint": false,
+        "readOnlyHint": true
+      },
+      "description": "Lists recent HTTP requests for app_ref and returns status code, request path, and HTTP method for each row. Optional limit, cursor, status_min, and status_max page and filter the list.",
       "inputSchema": {
         "additionalProperties": false,
         "properties": {
-          "body": {
-            "additionalProperties": false,
-            "properties": {},
-            "type": "object"
-          },
-          "method": {
-            "enum": [
-              "GET"
-            ],
+          "app_ref": {
+            "description": "Site slug (for example `my-app`) or app UUID.",
             "type": "string"
           },
-          "path": {
-            "const": "/hosting/v1/apps/{app_ref}/logs/requests",
+          "cursor": {
+            "description": "Opaque pagination cursor from a previous response (`next_cursor`).",
             "type": "string"
           },
-          "path_params": {
-            "additionalProperties": false,
-            "properties": {
-              "app_ref": {
-                "type": "string"
-              }
-            },
-            "required": [
-              "app_ref"
-            ],
-            "type": "object"
+          "limit": {
+            "description": "Page size (default 50, capped by the server).",
+            "type": "integer"
           },
-          "query": {
-            "additionalProperties": false,
-            "properties": {
-              "cursor": {
-                "type": "string"
-              },
-              "limit": {
-                "type": "integer"
-              },
-              "status_max": {
-                "type": "integer"
-              },
-              "status_min": {
-                "type": "integer"
-              }
-            },
-            "type": "object"
+          "status_max": {
+            "description": "Include responses with status_code less than or equal to this value.",
+            "type": "integer"
+          },
+          "status_min": {
+            "description": "Include responses with status_code greater than or equal to this value.",
+            "type": "integer"
           }
         },
         "required": [
-          "path",
-          "method",
-          "path_params"
+          "app_ref"
         ],
         "type": "object"
       },
       "name": "hosting_list_apps_request_logs"
     },
     {
-      "description": "Read runtime logs (availability contract)",
+      "annotations": {
+        "destructiveHint": false,
+        "readOnlyHint": true
+      },
+      "description": "Reads runtime logs for app_ref (optional limit) and returns source none, an unavailable_reason, and an empty lines list because static hosting has no process output.",
       "inputSchema": {
         "additionalProperties": false,
         "properties": {
-          "body": {
-            "additionalProperties": false,
-            "properties": {},
-            "type": "object"
-          },
-          "method": {
-            "enum": [
-              "GET"
-            ],
+          "app_ref": {
+            "description": "Site slug (for example `my-app`) or app UUID.",
             "type": "string"
           },
-          "path": {
-            "const": "/hosting/v1/apps/{app_ref}/logs/runtime",
-            "type": "string"
-          },
-          "path_params": {
-            "additionalProperties": false,
-            "properties": {
-              "app_ref": {
-                "type": "string"
-              }
-            },
-            "required": [
-              "app_ref"
-            ],
-            "type": "object"
-          },
-          "query": {
-            "additionalProperties": false,
-            "properties": {
-              "limit": {
-                "type": "integer"
-              }
-            },
-            "type": "object"
+          "limit": {
+            "description": "Max lines to return (capped by the server).",
+            "type": "integer"
           }
         },
         "required": [
-          "path",
-          "method",
-          "path_params"
+          "app_ref"
         ],
         "type": "object"
       },
       "name": "hosting_list_apps_runtime_logs"
     },
     {
-      "description": "Update an environment variable value",
+      "annotations": {
+        "destructiveHint": true,
+        "readOnlyHint": false
+      },
+      "description": "Replaces the value of environment variable key on app_ref and returns key plus value_present. The previous value cannot be read back.",
       "inputSchema": {
         "additionalProperties": false,
         "properties": {
-          "body": {
-            "additionalProperties": false,
-            "properties": {
-              "value": {
-                "description": "New value. Never echoed in list or get responses.",
-                "type": "string"
-              }
-            },
-            "required": [
-              "value"
-            ],
-            "type": "object"
-          },
-          "method": {
-            "enum": [
-              "PUT"
-            ],
+          "app_ref": {
+            "description": "Site slug (for example `my-app`) or app UUID.",
             "type": "string"
           },
-          "path": {
-            "const": "/hosting/v1/apps/{app_ref}/environment/{key}",
+          "key": {
+            "description": "Environment variable name (letters, digits, underscore).",
             "type": "string"
           },
-          "path_params": {
-            "additionalProperties": false,
-            "properties": {
-              "app_ref": {
-                "type": "string"
-              },
-              "key": {
-                "type": "string"
-              }
-            },
-            "required": [
-              "app_ref",
-              "key"
-            ],
-            "type": "object"
-          },
-          "query": {
-            "additionalProperties": false,
-            "properties": {},
-            "type": "object"
+          "value": {
+            "description": "New value. Never echoed in list or get responses.",
+            "type": "string"
           }
         },
         "required": [
-          "path",
-          "method",
-          "path_params"
+          "app_ref",
+          "key",
+          "value"
         ],
         "type": "object"
       },
       "name": "hosting_replace_apps_environment"
     },
     {
-      "description": "Requeue a failed webhook delivery",
+      "annotations": {
+        "destructiveHint": false,
+        "readOnlyHint": false
+      },
+      "description": "Requeues a failed or dead Shellui Actions delivery delivery_id and returns it with status pending.",
       "inputSchema": {
         "additionalProperties": false,
         "properties": {
-          "body": {
-            "additionalProperties": false,
-            "properties": {},
-            "type": "object"
-          },
-          "method": {
-            "enum": [
-              "POST"
-            ],
+          "delivery_id": {
+            "description": "Webhook delivery id (UUID string).",
+            "format": "uuid",
             "type": "string"
-          },
-          "path": {
-            "const": "/api/v1/actions/deliveries/{delivery_id}/requeue",
-            "type": "string"
-          },
-          "path_params": {
-            "additionalProperties": false,
-            "properties": {
-              "delivery_id": {
-                "type": "string"
-              }
-            },
-            "required": [
-              "delivery_id"
-            ],
-            "type": "object"
-          },
-          "query": {
-            "additionalProperties": false,
-            "properties": {},
-            "type": "object"
           }
         },
         "required": [
-          "path",
-          "method",
-          "path_params"
+          "delivery_id"
         ],
         "type": "object"
       },
       "name": "hosting_requeue_action_deliveries"
     },
     {
-      "description": "Revoke a deploy token",
+      "annotations": {
+        "destructiveHint": true,
+        "readOnlyHint": false
+      },
+      "description": "Revokes deploy token token_id so it cannot upload or finalize preview deploys, and returns the row with revoked_at set. This cannot be undone.",
       "inputSchema": {
         "additionalProperties": false,
         "properties": {
-          "body": {
-            "additionalProperties": false,
-            "properties": {},
-            "type": "object"
-          },
-          "method": {
-            "enum": [
-              "POST"
-            ],
+          "token_id": {
+            "description": "Deploy token UUID from list or create responses.",
+            "format": "uuid",
             "type": "string"
-          },
-          "path": {
-            "const": "/hosting/v1/deploy-tokens/{token_id}/revoke",
-            "type": "string"
-          },
-          "path_params": {
-            "additionalProperties": false,
-            "properties": {
-              "token_id": {
-                "type": "string"
-              }
-            },
-            "required": [
-              "token_id"
-            ],
-            "type": "object"
-          },
-          "query": {
-            "additionalProperties": false,
-            "properties": {},
-            "type": "object"
           }
         },
         "required": [
-          "path",
-          "method",
-          "path_params"
+          "token_id"
         ],
         "type": "object"
       },
       "name": "hosting_revoke_deploy_token"
     },
     {
-      "description": "Rotate a webhook signing secret",
+      "annotations": {
+        "destructiveHint": true,
+        "readOnlyHint": false
+      },
+      "description": "Rotates the signing secret for Shellui Actions webhook rule id and returns the rule with the secret masked. Update your receiver before you rely on the new secret.",
       "inputSchema": {
         "additionalProperties": false,
         "properties": {
-          "body": {
-            "additionalProperties": false,
-            "properties": {},
-            "type": "object"
-          },
-          "method": {
-            "enum": [
-              "POST"
-            ],
-            "type": "string"
-          },
-          "path": {
-            "const": "/api/v1/actions/rules/{id}/rotate-secret",
-            "type": "string"
-          },
-          "path_params": {
-            "additionalProperties": false,
-            "properties": {
-              "id": {
-                "type": "string"
-              }
-            },
-            "required": [
-              "id"
-            ],
-            "type": "object"
-          },
-          "query": {
-            "additionalProperties": false,
-            "properties": {},
-            "type": "object"
+          "id": {
+            "description": "Shellui Actions webhook rule id.",
+            "type": "integer"
           }
         },
         "required": [
-          "path",
-          "method",
-          "path_params"
+          "id"
         ],
         "type": "object"
       },
       "name": "hosting_rotate_rule_secret"
     },
     {
-      "description": "Queue a sample webhook delivery",
+      "annotations": {
+        "destructiveHint": false,
+        "readOnlyHint": false
+      },
+      "description": "Sends a sample webhook to the URL on Shellui Actions rule id and returns whether that delivery succeeded. This does not send email.",
       "inputSchema": {
         "additionalProperties": false,
         "properties": {
-          "body": {
-            "additionalProperties": false,
-            "properties": {},
-            "type": "object"
-          },
-          "method": {
-            "enum": [
-              "POST"
-            ],
-            "type": "string"
-          },
-          "path": {
-            "const": "/api/v1/actions/rules/{id}/send-test",
-            "type": "string"
-          },
-          "path_params": {
-            "additionalProperties": false,
-            "properties": {
-              "id": {
-                "type": "string"
-              }
-            },
-            "required": [
-              "id"
-            ],
-            "type": "object"
-          },
-          "query": {
-            "additionalProperties": false,
-            "properties": {},
-            "type": "object"
+          "id": {
+            "description": "Shellui Actions webhook rule id.",
+            "type": "integer"
           }
         },
         "required": [
-          "path",
-          "method",
-          "path_params"
+          "id"
         ],
         "type": "object"
       },
       "name": "hosting_send_test_rule"
     },
     {
-      "description": "Update a Shellui Actions webhook rule",
+      "annotations": {
+        "destructiveHint": false,
+        "readOnlyHint": false
+      },
+      "description": "Updates Shellui Actions webhook rule id (name, description, enabled, url, or authorization header) and returns the rule.",
       "inputSchema": {
         "additionalProperties": false,
         "properties": {
-          "body": {
-            "additionalProperties": false,
-            "properties": {
-              "allow_private_urls": {
-                "type": "boolean"
-              },
-              "authorization_header": {
-                "type": "string"
-              },
-              "description": {
-                "type": "string"
-              },
-              "enabled": {
-                "type": "boolean"
-              },
-              "event_type": {
-                "type": "string"
-              },
-              "name": {
-                "type": "string"
-              },
-              "secret": {
-                "type": "string"
-              },
-              "url": {
-                "format": "uri",
-                "type": "string"
-              }
-            },
-            "type": "object"
+          "allow_private_urls": {
+            "description": "Staff only. Allow a private or loopback webhook URL.",
+            "type": "boolean"
           },
-          "method": {
+          "authorization_header": {
+            "description": "Optional Authorization header value sent with the webhook.",
+            "type": "string"
+          },
+          "description": {
+            "description": "Optional note about what this rule is for.",
+            "type": "string"
+          },
+          "enabled": {
+            "description": "When false, the rule does not send webhooks.",
+            "type": "boolean"
+          },
+          "event_type": {
+            "description": "Shellui Actions event id this rule subscribes to.",
             "enum": [
-              "PATCH"
+              "hosting.app.created",
+              "hosting.app.deleted",
+              "hosting.custom_domain.created",
+              "hosting.custom_domain.deleted",
+              "hosting.custom_domain.updated",
+              "hosting.deployment.created",
+              "hosting.deployment.failed",
+              "hosting.deployment.succeeded",
+              "hosting.environment_variable.created",
+              "hosting.environment_variable.deleted",
+              "hosting.environment_variable.updated"
             ],
             "type": "string"
           },
-          "path": {
-            "const": "/api/v1/actions/rules/{id}",
+          "id": {
+            "description": "Shellui Actions webhook rule id.",
+            "type": "integer"
+          },
+          "name": {
+            "description": "Rule name shown in the Shellui Actions list.",
             "type": "string"
           },
-          "path_params": {
-            "additionalProperties": false,
-            "properties": {
-              "id": {
-                "type": "string"
-              }
-            },
-            "required": [
-              "id"
-            ],
-            "type": "object"
+          "secret": {
+            "description": "Optional signing secret. Omit it and Shellui generates one.",
+            "type": "string"
           },
-          "query": {
-            "additionalProperties": false,
-            "properties": {},
-            "type": "object"
+          "url": {
+            "description": "HTTPS endpoint that receives the signed webhook.",
+            "format": "uri",
+            "type": "string"
           }
         },
         "required": [
-          "path",
-          "method",
-          "path_params"
+          "id"
         ],
         "type": "object"
       },

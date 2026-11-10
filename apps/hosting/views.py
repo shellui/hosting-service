@@ -688,7 +688,7 @@ class DeploymentFinalizeView(APIView):
         request=None,
         responses={200: DeploymentSerializer, **_API_ERRORS},
         **mcp_openapi_fields('hosting_v1_apps_deployments_finalize_create'),
-        **mcp_tool(operation_id='hosting_v1_apps_deployments_finalize_create', read_only=False),
+        **mcp_tool(operation_id='hosting_v1_apps_deployments_finalize_create', read_only=False, destructive=True),
     )
     def post(self, request, app_ref, deployment_id):
         try:
@@ -767,7 +767,7 @@ class AppCustomDomainListCreateView(APIView):
         request=CustomDomainCreateSerializer,
         responses={201: CustomDomainSerializer, **_API_ERRORS},
         **mcp_openapi_fields('hosting_v1_apps_domains_create'),
-        **mcp_tool(operation_id='hosting_v1_apps_domains_create', read_only=False),
+        **mcp_tool(operation_id='hosting_v1_apps_domains_create', read_only=False, destructive=True),
     )
     def post(self, request, app_ref):
         app, err = _owner_app(request, app_ref)
@@ -847,7 +847,7 @@ class AppCustomDomainRefreshView(APIView):
         request=None,
         responses={200: CustomDomainSerializer, **_API_ERRORS},
         **mcp_openapi_fields('hosting_v1_apps_domains_refresh_create'),
-        **mcp_tool(operation_id='hosting_v1_apps_domains_refresh_create', read_only=False),
+        **mcp_tool(operation_id='hosting_v1_apps_domains_refresh_create', read_only=False, destructive=True),
     )
     def post(self, request, app_ref, domain_id):
         app, err = _owner_app(request, app_ref)
@@ -891,7 +891,7 @@ class AppEnvironmentListCreateView(APIView):
         request=EnvVariableUpsertSerializer,
         responses={200: EnvVariableListSerializer, **_API_ERRORS},
         **mcp_openapi_fields('hosting_v1_apps_environment_create'),
-        **mcp_tool(operation_id='hosting_v1_apps_environment_create', read_only=False, sensitive=True),
+        **mcp_tool(operation_id='hosting_v1_apps_environment_create', read_only=False, destructive=True, sensitive=True),
     )
     def post(self, request, app_ref):
         app, err = _owner_app(request, app_ref)
@@ -939,7 +939,7 @@ class AppEnvironmentKeyView(APIView):
         request=EnvVariableValueSerializer,
         responses={200: EnvVariableListSerializer, **_API_ERRORS},
         **mcp_openapi_fields('hosting_v1_apps_environment_update'),
-        **mcp_tool(operation_id='hosting_v1_apps_environment_update', read_only=False, sensitive=True),
+        **mcp_tool(operation_id='hosting_v1_apps_environment_update', read_only=False, destructive=True, sensitive=True),
     )
     def put(self, request, app_ref, key):
         app, err = _owner_app(request, app_ref)
