@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import threading
+
 from django.conf import settings
 from django.http import HttpRequest, JsonResponse
 from django.views.decorators.csrf import csrf_exempt
@@ -20,11 +22,21 @@ from apps.hosting.mcp_revocation import agent_revocation_denied
 from apps.hosting.mcp_server import HostingMcpServer
 
 _server: HostingMcpServer | None = None
+_schema_cache: dict | None = None
+_schema_lock = threading.Lock()
 
 
 def _schema() -> dict:
-    generator = SchemaGenerator()
-    return generator.get_schema(request=None, public=True)
+    """Cached OpenAPI for MCP. Concurrent ``SchemaGenerator`` is not thread-safe."""
+    global _schema_cache
+    cached = _schema_cache
+    if cached is not None:
+        return cached
+    with _schema_lock:
+        if _schema_cache is not None:
+            return _schema_cache
+        _schema_cache = SchemaGenerator().get_schema(request=None, public=True)
+        return _schema_cache
 
 
 def _get_server() -> HostingMcpServer:
