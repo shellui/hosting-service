@@ -307,18 +307,10 @@ class McpEndpointTests(TestCase):
         self.assertEqual(meta.get('status'), 'pending')
 
     @patch('apps.authapi.authentication.get_jwks_client')
-    def test_approval_executed_logs_failed_approval_expired(self, mock_jwks):
+    def test_approval_executed_returns_error(self, mock_jwks):
         mock_jwks.return_value.get_signing_key.return_value = None
         token = _agent_token(mcp_access='ask')
-        captured: list[dict] = []
-
-        def _capture(entry):
-            captured.append(entry)
-
-        with (
-            patch('apps.hosting.mcp_views.approval_state', return_value='executed'),
-            patch('apps.hosting.mcp_views.forward_call_log', side_effect=_capture),
-        ):
+        with patch('apps.hosting.mcp_views.approval_state', return_value='executed'):
             response = self._rpc(
                 'tools/call',
                 {
@@ -334,13 +326,51 @@ class McpEndpointTests(TestCase):
         self.assertEqual(response.status_code, 200)
         payload = response.json()['result']
         self.assertTrue(payload.get('isError'))
-        self.assertEqual(len(captured), 1)
-        self.assertEqual(captured[0].get('outcome'), 'failed')
-        self.assertEqual(captured[0].get('error_code'), 'approval_expired')
-        self.assertEqual(captured[0].get('http_status'), 410)
-        self.assertEqual(captured[0].get('path'), '/mcp')
-        self.assertEqual(captured[0].get('method'), 'POST')
-        self.assertNotIn('operation_title', captured[0])
+        self.assertEqual(payload['content'][0]['text'], 'Approval expired.')
+
+    @patch('apps.authapi.authentication.get_jwks_client')
+    @override_settings(IDENTITY_SERVICE_URL='http://identity.test')
+    @patch('apps.hosting.mcp_identity.requests.post')
+    def test_tools_call_does_not_post_identity_call_logs(self, mock_post, mock_jwks):
+        mock_jwks.return_value.get_signing_key.return_value = None
+        mock_post.return_value.status_code = 201
+        mock_post.return_value.json.return_value = {'id': 'appr-1', 'status': 'pending'}
+        token = _agent_token(mcp_access='ask')
+        with patch('apps.hosting.mcp_identity.lookup_approval_state', return_value=None):
+            response = self._rpc(
+                'tools/call',
+                {
+                    'name': 'hosting_create_preview',
+                    'arguments': {
+                        'path': '/hosting/v1/preview',
+                        'method': 'POST',
+                        'body': {'app_version': '1.0.0', 'shellui_version': '0.2.0'},
+                    },
+                },
+                token=token,
+            )
+        self.assertEqual(response.status_code, 200)
+        urls = [
+            str(call.args[0]) if call.args else str(call.kwargs.get('url', ''))
+            for call in mock_post.call_args_list
+        ]
+        self.assertTrue(any('mcp-approval-requests' in url for url in urls))
+        self.assertFalse(any('mcp-call-logs' in url for url in urls))
+
+    @patch('apps.authapi.authentication.get_jwks_client')
+    @patch('apps.hosting.mcp_identity.requests.post')
+    def test_read_tools_call_does_not_post_identity_call_logs(self, mock_post, mock_jwks):
+        mock_jwks.return_value.get_signing_key.return_value = None
+        response = self._rpc('tools/call', {'name': 'hosting_list_apps', 'arguments': {}})
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()['result']
+        self.assertFalse(payload.get('isError'), payload)
+        urls = [
+            str(call.args[0]) if call.args else str(call.kwargs.get('url', ''))
+            for call in mock_post.call_args_list
+        ]
+        self.assertFalse(any('mcp-call-logs' in url for url in urls))
+        mock_post.assert_not_called()
 
     @patch('apps.authapi.authentication.get_jwks_client')
     def test_global_delegated_profile_refused_before_mcp_dispatch(self, mock_jwks):
