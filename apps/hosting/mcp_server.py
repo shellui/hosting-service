@@ -195,10 +195,13 @@ class HostingMcpServer(McpServer):
             return JsonResponse(self._result(req_id, {'protocolVersion': '2024-11-05', 'capabilities': {'tools': {}}}))
         if method == 'tools/list':
             schema = self.schema_provider()
-            tools = [
-                {k: v for k, v in t.items() if not str(k).startswith('_')}
-                for t in published_mcp_tools(schema)
-            ]
+            tools = []
+            for t in published_mcp_tools(schema):
+                row = {k: v for k, v in t.items() if not str(k).startswith('_')}
+                meta = t.get('_meta')
+                if isinstance(meta, dict):
+                    row['_meta'] = meta
+                tools.append(row)
             return JsonResponse(self._result(req_id, {'tools': tools}))
         if method == 'tools/call':
             return self._tools_call(request, req_id, params, agent_claims)
