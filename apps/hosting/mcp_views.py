@@ -15,7 +15,6 @@ from apps.hosting.mcp_identity import (
     approval_state,
     consume_approval,
     create_approval_request,
-    forward_call_log,
 )
 from apps.hosting.mcp_resource import audience_matches, hosting_mcp_resource_url
 from apps.hosting.mcp_revocation import agent_revocation_denied
@@ -47,7 +46,6 @@ def _get_server() -> HostingMcpServer:
             urlconf=settings.ROOT_URLCONF,
             service_name='hosting',
             identity_revocation_check=agent_revocation_denied,
-            on_call=forward_call_log,
             approval_handler=create_approval_request,
             approval_state=approval_state,
             approval_consume=consume_approval,

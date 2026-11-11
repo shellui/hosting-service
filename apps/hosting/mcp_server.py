@@ -1,10 +1,9 @@
-"""Hosting-specific ``McpServer`` (tenant-safe tool args + Identity-safe call-log audit fields)."""
+"""Hosting-specific ``McpServer`` with tenant-safe tool arguments."""
 
 from __future__ import annotations
 
 import hashlib
 import json
-import time
 from typing import Any
 
 from django.core.serializers.json import DjangoJSONEncoder
@@ -19,19 +18,9 @@ from shellui_django.mcp.write_gate import decide_write, is_destructive_operation
 
 from apps.hosting.mcp_catalog import normalize_mcp_arguments, published_mcp_tools
 from apps.authapi.mcp_authority import (
-    authority_context_for_call_log,
     is_exchange_delegated_regional_agent,
     mcp_personal_agent_rejected,
     strict_non_negative_int_optional,
-)
-from apps.hosting.mcp_call_audit import (
-    OUTCOME_ALLOWED,
-    OUTCOME_DENIED,
-    OUTCOME_FAILED,
-    OUTCOME_WAITING_APPROVAL,
-    call_log_access_kind,
-    openapi_path_for_operation_id,
-    outcome_and_error_for_http,
 )
 from apps.hosting.mcp_identity import APPROVAL_LOOKUP_UNAVAILABLE
 from apps.hosting.mcp_live_authority import (
@@ -115,48 +104,7 @@ def _public_tool_payload(
 
 
 class HostingMcpServer(McpServer):
-    """Same tool dispatch as ``shellui_django.mcp.server.McpServer`` with safe call-log metadata."""
-
-    def _forward_call_log(
-        self,
-        *,
-        schema: dict[str, Any],
-        agent_claims: dict[str, Any],
-        tool_name: str,
-        path_template: str,
-        method: str,
-        tool_read_only: bool,
-        destructive: bool,
-        duration_ms: int,
-        http_status: int,
-        outcome: str,
-        error_code: str | None,
-        approval_request_id: str | None = None,
-    ) -> None:
-        if not self.on_call:
-            return
-        entry: dict[str, Any] = {
-            'agent_id': agent_claims.get('agent_id'),
-            'company_id': agent_claims.get('company_id'),
-            'service': self.service_name,
-            'tool': tool_name,
-            # Identity ``McpInternalCallLogView`` accepts only JSON-RPC MCP traffic: POST ``/mcp``.
-            'path': '/mcp',
-            'method': 'POST',
-            'resource_path': openapi_path_for_operation_id(schema, tool_name) or path_template,
-            'http_method': method,
-            'http_status': http_status,
-            'access_kind': call_log_access_kind(
-                upstream_method=method, tool_read_only=tool_read_only, destructive=destructive
-            ),
-            'outcome': outcome,
-            'error_code': error_code,
-            'duration_ms': duration_ms,
-            **authority_context_for_call_log(agent_claims),
-        }
-        if approval_request_id:
-            entry['approval_request_id'] = approval_request_id
-        self.on_call(entry)
+    """Tool dispatch with tenant-safe arguments."""
 
     def handle(self, request: HttpRequest, *, agent_claims: dict[str, Any] | None) -> JsonResponse:
         if request.method != 'POST':
@@ -249,19 +197,6 @@ class HostingMcpServer(McpServer):
         )
         if decision.needs_approval:
             if is_exchange_delegated_regional_agent(agent_claims):
-                self._forward_call_log(
-                    schema=schema,
-                    agent_claims=agent_claims,
-                    tool_name=tool_name,
-                    path_template=path_template,
-                    method=method,
-                    tool_read_only=tool_read_only,
-                    destructive=destructive,
-                    duration_ms=0,
-                    http_status=403,
-                    outcome=OUTCOME_DENIED,
-                    error_code='forbidden',
-                )
                 return JsonResponse(
                     self._result(
                         req_id,
@@ -289,23 +224,9 @@ class HostingMcpServer(McpServer):
             }
             granted = False
             state = None
-            approval_started = time.perf_counter()
             if self.approval_state:
                 state = self.approval_state(approval_payload, use_mcp_approval_protocol=True)
                 if state == 'executed':
-                    self._forward_call_log(
-                        schema=schema,
-                        agent_claims=agent_claims,
-                        tool_name=tool_name,
-                        path_template=path_template,
-                        method=method,
-                        tool_read_only=tool_read_only,
-                        destructive=destructive,
-                        duration_ms=max(0, int((time.perf_counter() - approval_started) * 1000)),
-                        http_status=410,
-                        outcome=OUTCOME_FAILED,
-                        error_code='approval_expired',
-                    )
                     return JsonResponse(
                         self._result(
                             req_id,
@@ -319,20 +240,6 @@ class HostingMcpServer(McpServer):
                         if consumed:
                             granted = True
                     else:
-                        _fail_o, _fail_e = outcome_and_error_for_http(503)
-                        self._forward_call_log(
-                            schema=schema,
-                            agent_claims=agent_claims,
-                            tool_name=tool_name,
-                            path_template=path_template,
-                            method=method,
-                            tool_read_only=tool_read_only,
-                            destructive=destructive,
-                            duration_ms=max(0, int((time.perf_counter() - approval_started) * 1000)),
-                            http_status=503,
-                            outcome=_fail_o,
-                            error_code=_fail_e,
-                        )
                         return JsonResponse(
                             self._result(
                                 req_id,
@@ -340,19 +247,6 @@ class HostingMcpServer(McpServer):
                             )
                         )
                 elif state == 'pending':
-                    self._forward_call_log(
-                        schema=schema,
-                        agent_claims=agent_claims,
-                        tool_name=tool_name,
-                        path_template=path_template,
-                        method=method,
-                        tool_read_only=tool_read_only,
-                        destructive=destructive,
-                        duration_ms=max(0, int((time.perf_counter() - approval_started) * 1000)),
-                        http_status=0,
-                        outcome=OUTCOME_WAITING_APPROVAL,
-                        error_code='approval_pending',
-                    )
                     return JsonResponse(
                         self._result(
                             req_id,
@@ -363,55 +257,11 @@ class HostingMcpServer(McpServer):
                             },
                         )
                     )
-                elif state == APPROVAL_LOOKUP_UNAVAILABLE:
-                    _fail_o, _fail_e = outcome_and_error_for_http(503)
-                    self._forward_call_log(
-                        schema=schema,
-                        agent_claims=agent_claims,
-                        tool_name=tool_name,
-                        path_template=path_template,
-                        method=method,
-                        tool_read_only=tool_read_only,
-                        destructive=destructive,
-                        duration_ms=max(0, int((time.perf_counter() - approval_started) * 1000)),
-                        http_status=503,
-                        outcome=_fail_o,
-                        error_code=_fail_e,
-                    )
-                elif state is None:
-                    _fail_o, _fail_e = outcome_and_error_for_http(503)
-                    self._forward_call_log(
-                        schema=schema,
-                        agent_claims=agent_claims,
-                        tool_name=tool_name,
-                        path_template=path_template,
-                        method=method,
-                        tool_read_only=tool_read_only,
-                        destructive=destructive,
-                        duration_ms=max(0, int((time.perf_counter() - approval_started) * 1000)),
-                        http_status=503,
-                        outcome=_fail_o,
-                        error_code=_fail_e,
-                    )
             if not granted and self.approval_handler:
                 if state != APPROVAL_LOOKUP_UNAVAILABLE:
                     pending = self.approval_handler(approval_payload)
                     if pending:
                         appr_id = pending.get('id')
-                        self._forward_call_log(
-                            schema=schema,
-                            agent_claims=agent_claims,
-                            tool_name=tool_name,
-                            path_template=path_template,
-                            method=method,
-                            tool_read_only=tool_read_only,
-                            destructive=destructive,
-                            duration_ms=max(0, int((time.perf_counter() - approval_started) * 1000)),
-                            http_status=0,
-                            outcome=OUTCOME_WAITING_APPROVAL,
-                            error_code='approval_pending',
-                            approval_request_id=str(appr_id) if appr_id else None,
-                        )
                         return JsonResponse(
                             self._result(
                                 req_id,
@@ -423,19 +273,6 @@ class HostingMcpServer(McpServer):
                             )
                         )
             if not granted:
-                self._forward_call_log(
-                    schema=schema,
-                    agent_claims=agent_claims,
-                    tool_name=tool_name,
-                    path_template=path_template,
-                    method=method,
-                    tool_read_only=tool_read_only,
-                    destructive=destructive,
-                    duration_ms=max(0, int((time.perf_counter() - approval_started) * 1000)),
-                    http_status=403,
-                    outcome=OUTCOME_DENIED,
-                    error_code='forbidden',
-                )
                 return JsonResponse(
                     self._result(
                         req_id,
@@ -445,19 +282,6 @@ class HostingMcpServer(McpServer):
         # Destructive tools stay ``allowed=False`` after a consumed approval. Do not apply that
         # flag again once the approval block has granted the call.
         elif not decision.allowed:
-            self._forward_call_log(
-                schema=schema,
-                agent_claims=agent_claims,
-                tool_name=tool_name,
-                path_template=path_template,
-                method=method,
-                tool_read_only=tool_read_only,
-                destructive=destructive,
-                duration_ms=0,
-                http_status=403,
-                outcome=OUTCOME_DENIED,
-                error_code='forbidden',
-            )
             return JsonResponse(
                 self._result(
                     req_id,
@@ -472,7 +296,6 @@ class HostingMcpServer(McpServer):
         )
         drf_request = self._factory.generic(method, resolved_path, **inner_kwargs)
         self._attach_request_principal(drf_request, request, agent_claims)
-        started = time.perf_counter()
         try:
             match = resolve(resolved_path, urlconf=self.urlconf)
         except Resolver404:
@@ -490,28 +313,12 @@ class HostingMcpServer(McpServer):
             markers=response_markers,
             tool_name=tool_name,
         )
-        duration_ms = max(0, int((time.perf_counter() - started) * 1000))
-        outcome, error_code = outcome_and_error_for_http(status_code)
-
-        self._forward_call_log(
-            schema=schema,
-            agent_claims=agent_claims,
-            tool_name=tool_name,
-            path_template=path_template,
-            method=method,
-            tool_read_only=tool_read_only,
-            destructive=destructive,
-            duration_ms=duration_ms,
-            http_status=status_code,
-            outcome=outcome,
-            error_code=error_code,
-        )
         return JsonResponse(
             self._result(
                 req_id,
                 {
                     'content': [{'type': 'text', 'text': json.dumps(redacted, cls=DjangoJSONEncoder)}],
-                    'isError': outcome != OUTCOME_ALLOWED,
+                    'isError': not (200 <= int(status_code) <= 299),
                 },
             )
         )

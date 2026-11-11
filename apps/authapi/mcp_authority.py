@@ -202,28 +202,3 @@ def approval_assertion_grant_kwarg(claims: dict[str, Any] | None) -> dict[str, A
     if grant_version is not None:
         out["grant_version"] = grant_version
     return out
-
-
-def authority_context_for_call_log(claims: dict[str, Any] | None) -> dict[str, Any]:
-    """Actor-derived grant or binding context for Identity call logs (no client-supplied text)."""
-    if not isinstance(claims, dict):
-        return {}
-    out: dict[str, Any] = {}
-    try:
-        gv = parse_personal_grant_version(claims)
-        if gv is not None:
-            out["grant_version"] = gv
-    except ValueError:
-        pass
-    gid = global_company_id_in_claims(claims)
-    cbv: int | None = None
-    if claims.get("company_binding_version") not in (None, ""):
-        try:
-            cbv = parse_company_binding_version_claim(claims)
-        except ValueError:
-            cbv = None
-    # Identity delegated ingest: send ``global_company_id`` and ``company_binding_version`` only as a pair.
-    if gid is not None and cbv is not None:
-        out["global_company_id"] = gid
-        out["company_binding_version"] = cbv
-    return out

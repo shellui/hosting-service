@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from django.test import SimpleTestCase
 
-from apps.authapi.mcp_authority import authority_context_for_call_log
 from apps.authapi.principal import principal_from_claims
 
 
@@ -117,42 +116,3 @@ class AgentPrincipalAuthorityTests(SimpleTestCase):
                 }
             )
         self.assertIn("mcp_authority_grant_version_required", str(ctx.exception))
-
-
-class AuthorityContextForCallLogTests(SimpleTestCase):
-    def test_personal_includes_grant_only(self):
-        self.assertEqual(
-            authority_context_for_call_log({"grant_version": 0}),
-            {"grant_version": 0},
-        )
-
-    def test_delegated_includes_global_binding_triplet(self):
-        ctx = authority_context_for_call_log(
-            {
-                "mcp_authority": "delegated",
-                "global_company_id": "01234567-89ab-cdef-0123-456789abcdef",
-                "grant_version": 1,
-                "company_binding_version": 2,
-            }
-        )
-        self.assertEqual(ctx["grant_version"], 1)
-        self.assertEqual(ctx["company_binding_version"], 2)
-        self.assertEqual(
-            ctx["global_company_id"], "01234567-89ab-cdef-0123-456789abcdef"
-        )
-
-    def test_incomplete_binding_pair_omits_global_and_binding(self):
-        """Send neither field unless both ``global_company_id`` and ``company_binding_version`` parse."""
-        self.assertEqual(
-            authority_context_for_call_log(
-                {
-                    "grant_version": 0,
-                    "global_company_id": "01234567-89ab-cdef-0123-456789abcdef",
-                }
-            ),
-            {"grant_version": 0},
-        )
-        self.assertEqual(
-            authority_context_for_call_log({"grant_version": 0, "company_binding_version": 1}),
-            {"grant_version": 0},
-        )

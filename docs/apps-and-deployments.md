@@ -88,7 +88,7 @@ Succeeded and failed events name the caller who finalized. Created events name t
 
 ## MCP agents: production deploy flow
 
-For JSON-RPC wiring, scopes, approvals, and call logs see [Shellui MCP](mcp.md). Below is the HTTP tool sequence. Names are the MCP `tools/list` names (`hosting_<verb>_<noun>`), not the OpenAPI `operationId`. Send **Bearer COMPANY_OWNER_AGENT_TOKEN** on `POST .../mcp` with `company_id` taken only from that token; never copy a tenant id from tool parameters.
+For JSON-RPC wiring, scopes, and approvals see [Shellui MCP](mcp.md). Below is the HTTP tool sequence. Names are the MCP `tools/list` names (`hosting_<verb>_<noun>`), not the OpenAPI `operationId`. Send **Bearer COMPANY_OWNER_AGENT_TOKEN** on `POST .../mcp` with `company_id` taken only from that token; never copy a tenant id from tool parameters.
 
 **Deployment row statuses** (database `deployments.status`) are exactly: `draft`, `uploading`, `active`, `superseded`, `failed`. Preview and production share this set; `expires_at` on the app governs preview lifetime ([Preview sites and public URLs](preview-and-serving.md)).
 

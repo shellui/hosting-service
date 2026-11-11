@@ -1,4 +1,4 @@
-"""Forward MCP approvals and call logs to identity-service."""
+"""Forward MCP approvals to identity-service."""
 
 from __future__ import annotations
 
@@ -11,7 +11,6 @@ from django.conf import settings
 from shellui_django.mcp.internal import (
     InternalAssertionError,
     build_mcp_approval_assertion,
-    build_mcp_call_log_assertion,
     build_mcp_revocation_assertion,
     parse_trusted_revocation_poll_response,
 )
@@ -25,7 +24,6 @@ from apps.hosting.mcp_live_authority import (
     bump_delegated_authority_cache_on_identity_failure,
     delegated_live_authority_ok,
 )
-from apps.hosting.mcp_call_log_body import build_identity_call_log_body
 from apps.hosting.mcp_context import current_mcp_agent_claims
 from config.service_signing import signing_kwargs
 
@@ -266,36 +264,6 @@ def consume_approval(approval_id: str, route_payload: dict | None = None) -> boo
     except Exception as exc:  # noqa: BLE001
         logger.debug('MCP approval consume unavailable: identity_request_failed')
         return False
-
-
-def forward_call_log(entry: dict) -> None:
-    base = _identity_base()
-    if not base:
-        return
-    try:
-        assertion = build_mcp_call_log_assertion(audience_url=_identity_origin(), **signing_kwargs())
-    except InternalAssertionError:
-        logger.warning('MCP call log assertion rejected: mcp_assertion_rule')
-        return
-    except Exception as exc:  # noqa: BLE001
-        logger.warning('MCP call log assertion failed: mcp_assertion_error')
-        return
-    url = f'{base}/api/v1/mcp/internal/mcp-call-logs'
-    body = build_identity_call_log_body(entry if isinstance(entry, dict) else {})
-    if not body:
-        logger.warning('MCP call log skipped: audit_fields_incomplete')
-        return
-    try:
-        response = requests.post(
-            url,
-            json=body,
-            headers={'Authorization': f'Bearer {assertion}'},
-            timeout=getattr(settings, 'IDENTITY_SYNC_TIMEOUT', 10),
-        )
-        if response.status_code >= 400:
-            logger.warning('MCP call log forward failed: HTTP %s', response.status_code)
-    except Exception as exc:  # noqa: BLE001
-        logger.warning('MCP call log forward error: identity_request_failed')
 
 
 def _revocation_verify_kwargs(origin: str) -> dict[str, Any]:
