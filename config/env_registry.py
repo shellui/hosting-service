@@ -33,10 +33,12 @@ REQUIRED = (
     Required('ALLOWED_HOSTS', 'Public host names, comma-separated, no scheme.'),
     Required('CSRF_TRUSTED_ORIGINS', 'Full HTTPS origin of this service.'),
     Required('HOSTING_APP_DOMAIN', 'Domain for hosted apps, for example shellui.app.'),
-    Required('IDENTITY_SERVICE_URL', 'identity-service origin (OAuth redirect sync).'),
+    Required(
+        'IDENTITY_SERVICE_URL',
+        'identity-service origin (OAuth redirect sync and JWKS at {url}/.well-known/jwks.json).',
+    ),
     Required('IDENTITY_ISSUER', 'JWT iss claim, the identity-service URL.'),
     Required('IDENTITY_AUDIENCE', 'JWT aud claim.'),
-    Required('IDENTITY_JWKS', 'Pinned JWKS JSON from {IDENTITY_SERVICE_URL}/.well-known/jwks.json.'),
     Required('REDIS_URL', 'Shared cache and job broker.'),
     Required('POSTGRES_DATABASE_URL', 'PostgreSQL DSN. Leave empty to use SQLite.'),
 )
@@ -45,12 +47,25 @@ OPTIONAL = (
     Var('LOG_LEVEL', 'INFO', 'Runtime'),
     Var('SETUP_TOKEN', ''),
     Var('DJANGO_ADMIN_ENABLED', 'true'),
-    Var('HOSTING_SERVICE_PORT', '8002'),
+    Var('HOSTING_SERVICE_PORT', '8003'),
     Var('SQLITE_PATH', 'db.sqlite3', 'Database: SQLite unless POSTGRES_DATABASE_URL is set'),
     Var('POSTGRES_SSL_REQUIRE', 'true'),
-    Var('IDENTITY_JWKS_FILE', '', 'Identity and JWT'),
+    Var(
+        'IDENTITY_JWKS_FILE',
+        '',
+        'Identity and JWT. Pin JWKS in production (optional if IDENTITY_SERVICE_URL is set).',
+    ),
+    Var('IDENTITY_JWKS', ''),
     Var('IDENTITY_JWKS_URL', ''),
+    Var('HOSTING_SERVICE_ISSUER', '', ''),
+    Var('HOSTING_SERVICE_SIGNING_KEY', ''),
+    Var('HOSTING_SERVICE_SIGNING_KEY_FILE', ''),
     Var('IDENTITY_SYNC_TIMEOUT', '10'),
+    Var(
+        'IDENTITY_DELEGATED_AGENT_AUTHORITY_PATH',
+        '/api/v1/mcp/internal/mcp-agent-delegated-authority',
+        'Identity MCP internal: live delegated RegionalAgent row check (POST body matches JWT triplet)',
+    ),
     Var('JWKS_CACHE_TTL', '900'),
     Var('JWKS_TIMEOUT', '15'),
     Var('JWKS_RETRIES', '2'),
@@ -61,6 +76,10 @@ OPTIONAL = (
     Var('HOSTING_ALLOW_ANY_HOST', 'false'),
     Var('HOSTING_DEBUG_OPEN', 'false'),
     Var('HOSTING_SERVE_CACHE_TTL_SECONDS', '45'),
+    Var('HOSTING_REQUEST_LOG_ENABLED', 'true', 'Operational logs (app subdomains)'),
+    Var('HOSTING_REQUEST_LOG_MAX_PER_APP', '5000'),
+    Var('HOSTING_REQUEST_LOG_PAGE_MAX', '200'),
+    Var('HOSTING_RUNTIME_LOG_MAX_LINES', '500'),
     Var('HOSTING_PREVIEW_TTL_DAYS', '7'),
     Var('HOSTING_MAX_APPS_PER_COMPANY', '5', 'Quotas'),
     Var('HOSTING_MAX_DEPLOYMENTS_PER_APP', '20'),
@@ -110,6 +129,10 @@ OPTIONAL = (
     Var('EMAIL_SERVICE_API_KEY', '', 'Email notifications: off while EMAIL_SERVICE_API_KEY is empty'),
     Var('EMAIL_SERVICE_URL', 'https://email.shellui.com'),
     Var('EMAIL_SERVICE_ALLOW_PRIVATE', 'false'),
+    Var('MCP_RATE_LIMIT_AGENT', '120', 'Shellui MCP (optional)'),
+    Var('HOSTING_MCP_RESOURCE', '', 'RFC 8707 MCP resource aud; default is {public origin}/mcp'),
+    Var('HOSTING_PUBLIC_URL', '', 'Public origin when MCP resource aud cannot use request host'),
+    Var('HOSTING_ARTIFACT_UPLOAD_URL_EXPIRES', '900', 'Presigned or direct artifact upload URL lifetime (seconds)'),
     Var('ROOT_REDIRECT_URL', '', 'Apex landing'),
     Var('SHELLUI_WEBSITE_URL', 'https://shellui.com'),
     Var('SHELLUI_DOCS_URL', 'https://docs.shellui.com'),
@@ -154,8 +177,11 @@ _EXAMPLE_HEADER = """\
 SECRET_KEY=django-insecure-local-development-only-0123456789abcdef
 # Local development only. Unset means false (production).
 DEBUG=true
-# Local identity-service. JWKS is fetched from {url}/.well-known/jwks.json in DEBUG.
-IDENTITY_SERVICE_URL=http://localhost:8000
+# Local identity-service (standalone). In the Shellui dev stack use internal
+# http://identity:8000 plus IDENTITY_JWKS_URL; see docs/local-dev-stack.md.
+IDENTITY_SERVICE_URL=http://localhost:8001
+# Internal JWKS fetch when issuer stays public (dev stack):
+# IDENTITY_JWKS_URL=http://identity:8000/.well-known/jwks.json
 # Local dev: skip the company waitlist (refused when DEBUG=false).
 HOSTING_DEBUG_OPEN=true
 
@@ -165,7 +191,6 @@ CSRF_TRUSTED_ORIGINS=
 HOSTING_APP_DOMAIN=
 IDENTITY_ISSUER=
 IDENTITY_AUDIENCE=
-IDENTITY_JWKS=
 REDIS_URL=
 POSTGRES_DATABASE_URL=
 

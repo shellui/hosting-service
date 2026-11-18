@@ -1,4 +1,4 @@
-from rest_framework.permissions import BasePermission
+from rest_framework.permissions import SAFE_METHODS, BasePermission
 
 
 class IsAuthenticatedPrincipal(BasePermission):
@@ -11,6 +11,13 @@ class IsAuthenticatedPrincipal(BasePermission):
         if getattr(user, 'deploy_token_id', None):
             # Deploy tokens only reach views that opt in, for the listed methods.
             return request.method in getattr(view, 'deploy_token_methods', ())
+        auth = getattr(request, 'auth', None)
+        if isinstance(auth, dict):
+            mcp_access = auth.get('mcp_access')
+        else:
+            mcp_access = (getattr(user, 'claims', None) or {}).get('mcp_access')
+        if mcp_access == 'read_only' and request.method not in SAFE_METHODS:
+            return False
         return True
 
 

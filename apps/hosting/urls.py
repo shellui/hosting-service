@@ -25,6 +25,16 @@ urlpatterns = [
         name='hosting-deployment-upload',
     ),
     path(
+        'apps/<str:app_ref>/deployments/<uuid:deployment_id>/artifact-upload-url',
+        views.DeploymentArtifactUploadUrlView.as_view(),
+        name='hosting-deployment-artifact-upload-url',
+    ),
+    path(
+        'apps/<str:app_ref>/deployments/<uuid:deployment_id>/artifact-upload-complete',
+        views.DeploymentArtifactUploadCompleteView.as_view(),
+        name='hosting-deployment-artifact-upload-complete',
+    ),
+    path(
         'apps/<str:app_ref>/deployments/<uuid:deployment_id>/finalize',
         views.DeploymentFinalizeView.as_view(),
         name='hosting-deployment-finalize',
@@ -33,6 +43,41 @@ urlpatterns = [
         'apps/<str:app_ref>/deployments/<uuid:deployment_id>/rollback',
         views.DeploymentRollbackView.as_view(),
         name='hosting-deployment-rollback',
+    ),
+    path(
+        'apps/<str:app_ref>/domains',
+        views.AppCustomDomainListCreateView.as_view(),
+        name='hosting-app-domains-list',
+    ),
+    path(
+        'apps/<str:app_ref>/domains/<uuid:domain_id>',
+        views.AppCustomDomainDetailView.as_view(),
+        name='hosting-app-domain-detail',
+    ),
+    path(
+        'apps/<str:app_ref>/domains/<uuid:domain_id>/refresh',
+        views.AppCustomDomainRefreshView.as_view(),
+        name='hosting-app-domain-refresh',
+    ),
+    path(
+        'apps/<str:app_ref>/environment',
+        views.AppEnvironmentListCreateView.as_view(),
+        name='hosting-app-environment-list',
+    ),
+    path(
+        'apps/<str:app_ref>/environment/<str:key>',
+        views.AppEnvironmentKeyView.as_view(),
+        name='hosting-app-environment-key',
+    ),
+    path(
+        'apps/<str:app_ref>/logs/runtime',
+        views.AppRuntimeLogsView.as_view(),
+        name='hosting-app-runtime-logs',
+    ),
+    path(
+        'apps/<str:app_ref>/logs/requests',
+        views.AppRequestLogsView.as_view(),
+        name='hosting-app-request-logs',
     ),
     path('deploy-tokens', views.DeployTokenListCreateView.as_view(), name='hosting-deploy-token-list'),
     path(

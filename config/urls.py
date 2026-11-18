@@ -21,13 +21,22 @@ from apps.actions.scheduled_job_views import (
     ScheduledJobRunsView,
     ScheduledJobsView,
 )
+from apps.hosting.mcp_views import mcp_endpoint, oauth_protected_resource_metadata
 from apps.hosting.serve import AppServeView
 
 from . import views
+from .service_signing import jwks_view
 
 urlpatterns = [
     path('', views.root, name='root'),
     path('llms.txt', views.llms_txt, name='llms_txt'),
+    path('.well-known/jwks.json', jwks_view, name='jwks'),
+    path(
+        '.well-known/oauth-protected-resource',
+        oauth_protected_resource_metadata,
+        name='mcp-oauth-protected-resource',
+    ),
+    path('mcp', mcp_endpoint, name='mcp'),
 ]
 if getattr(settings, 'DJANGO_ADMIN_ENABLED', True):
     urlpatterns.append(path('admin/', admin.site.urls))

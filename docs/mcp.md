@@ -1,0 +1,124 @@
+---
+title: Shellui MCP
+description: Company-owner hosting APIs exposed to Shellui MCP agents through OpenAPI markers and the hosting /mcp endpoint.
+---
+
+# Shellui MCP
+
+Shellui MCP connects AI agents to company-owner hosting APIs. Identity-service issues OAuth agent tokens; hosting-service exposes `POST /mcp` and publishes OpenAPI `x-mcp` markers so only opted-in routes become tools.
+
+Company AI clients usually connect through the ai-service gateway (`/c/<company_id>/mcp`), whose `tools/list` defaults to a short discovery list (`ai_search_tools`, `ai_describe_tool`, `ai_call_tool`, plus `hosting_list_apps`). A direct service `POST /mcp` still returns this service's full catalog.
+
+## How tools are chosen
+
+An HTTP operation becomes an MCP tool only when its OpenAPI entry includes an explicit `mcp_tool(...)` decoration (surfaced as `x-mcp` in the schema). Internal routes, scheduled jobs, staff-only access approval, metrics, and the raw binary `PUT .../upload` route are excluded. Agents upload artifacts with JSON MCP tools that mint a PUT URL, then send bytes directly over HTTPS.
+
+Operations carry:
+
+```yaml
+x-mcp:
+  read_only: true|false
+  destructive: true|false
+  sensitive: true|false
+```
+
+Response fields may use `x-mcp-secret` (never return plaintext to agents) or `x-mcp-sensitive` (mask in read-safe modes).
+
+## Agent-visible hosting APIs
+
+| Area | OpenAPI tag | Examples |
+| --- | --- | --- |
+| Sites | `sites` | List, create, read, delete apps |
+| Deployments | `deployments` | List, create, artifact upload URL, upload complete, finalize, rollback |
+| Previews | `previews` | Prepare preview deploy, renew 7-day expiry |
+| Operations | `operations` | Custom domains, app environment keys, request logs, runtime log contract |
+| Deploy tokens | `deploy-tokens` | List metadata and revoke (create stays admin or user JWT only) |
+| Webhooks | `webhooks` | Shellui Actions rules and deliveries |
+| Event log | `event-log` | Company domain events |
+
+Preview sites use a **7-day TTL** (`HOSTING_PREVIEW_TTL_DAYS`). Production sites do not expire through this API.
+
+Deploy tokens are stored hashed. List and read responses never include plaintext tokens. Create returns `token` once for company-owner user JWTs and admin only; Shellui MCP agents cannot create deploy tokens or read plaintext values.
+
+## Operations after deploy
+
+Company scope always comes from the JWT `company_id`, never from a query parameter.
+
+### Custom domains
+
+- `GET/POST /hosting/v1/apps/{app_ref}/domains`, `GET/DELETE .../domains/{domain_id}`, `POST .../domains/{domain_id}/refresh`
+- Responses include DNS TXT instructions and keep `verified` and `serving` false until a future platform integration confirms provisioning. `refresh` only moves local status from `pending_dns` to `awaiting_platform` so agents never see a fake green check.
+
+### Environment variables
+
+- `GET/POST /hosting/v1/apps/{app_ref}/environment`, `GET/PUT/DELETE .../environment/{key}`
+- List and read return `key`, `value_present`, and `updated_at` only. Write bodies mark `value` with `x-mcp-secret`. Values are encrypted at rest and must never be logged by agents.
+
+### Logs
+
+- `GET /hosting/v1/apps/{app_ref}/logs/runtime` returns `source: none` and an explicit `unavailable_reason` because static hosting has no process logs in this release.
+- `GET /hosting/v1/apps/{app_ref}/logs/requests` pages backward with `cursor` and `limit` (server-capped). Rows come from app-subdomain traffic when `HOSTING_REQUEST_LOG_ENABLED` is true. They include method, path, and status only.
+
+## MCP endpoint
+
+| Method | Path | Purpose |
+| --- | --- | --- |
+| `POST` | `/mcp` | JSON-RPC (`initialize`, `tools/list`, `tools/call`) |
+| `GET` | `/.well-known/oauth-protected-resource` | Points agents at Identity for OAuth |
+
+Use a Bearer agent access token from Identity with the `hosting` service scope and an `aud` claim that exactly matches this service's MCP resource URL (RFC 8707, `{origin}/mcp`). Revocation is enforced via Identity `GET /api/v1/mcp/internal/mcp-revocations` with a signed service assertion (cached 30 seconds on hosting). If that poll fails, MCP requests are denied until Identity responds again. When Identity signs the revocation list payload, hosting verifies the response assertion before trusting agent ids. The list's `agents` entries describe revoked or excluded snapshots; **not** being listed does **not** prove an active delegated agent. For regional tokens with `mcp_authority` = `delegated` and SaaS binding claims, hosting also calls Identity **`POST /api/v1/mcp/internal/mcp-agent-delegated-authority`** with a **hosting** service-signed bearer assertion: `aud` = `shellui-mcp-agent-delegated-authority`, `scope` = `mcp.agent.delegated.authority.read`, `target` = Identity issuer (`JWT_ISSUER`). The JSON body matches the token: `agent_id` (uuid), regional `company_id` (positive int), `global_company_id` (uuid), `grant_version`, `company_binding_version` (strict JSON ints; `0` valid). **200** responses are documented at [Identity ``docs/mcp-and-agents.md`` (PR #135 head ``d7fe351``)](https://github.com/shellui/identity-service/blob/d7fe351/docs/mcp-and-agents.md) and [`McpInternalDelegatedAgentAuthorityView`](https://github.com/shellui/identity-service/blob/d7fe351/apps/agents/internal_views.py). Identity returns **exactly** these keys on every **200**: `authorized`, `active`, `revoked`, `paused`, `agent_id`, `company_id`, `global_agent_id`, `global_company_id`, `grant_version`, `company_binding_version`, `access_mode`, `read_level`, `allow_destructive`, `services_allowed`, `revoked_at` (unix seconds or JSON `null`). `allow_destructive` is always `false` for delegated rows. Hosting requires that fixed shape (no extra keys), matching binding ids and versions, `authorized` and `active` true with `revoked` and `paused` false for allow, `access_mode` / `read_level` equal to the JWT `mcp_access` / `mcp_read`, every OAuth `scope` service id listed in `services_allowed` (including `hosting`), and `mcp_destructive` false on the JWT. A body with `authorized` false denies. **403** with `authorized` false is an ordinary deny. **400** is malformed body; **404** is missing agent or not a delegated exchange agent. Hosting treats assertion build failure or Identity **5xx** / network errors as **503** on `POST /mcp` (no substitute for the live row on genuine denies; revocation polling is unchanged). **404** on this route when Identity is older than the canonical path is a configuration mismatch: set `IDENTITY_DELEGATED_AGENT_AUTHORITY_PATH` to the path your Identity build serves, or upgrade Identity. Retire alternate paths such as `mcp-delegated-agent-authority`; only `mcp-agent-delegated-authority` is canonical. Hosting caches a positive authority check for at most five seconds; untrusted revocation polls bump the cache generation so stale allow results are not reused. A revoked id applies only when there is exactly one unambiguous `agents` row that matches this request's agent, regional `company_id`, authority snapshot (`grant_version`, `company_binding_version` when present), and global company UUID when the token carries delegated proof. Absent or conflicting rows fail closed (deny).
+
+**CLI vs AI gateway:** Personal regional tokens use `resource={hosting_origin}/mcp` at `POST /oauth/mcp/token` on Identity. The **per-company AI gateway** uses `{AI_SERVICE_URL}/c/<company_id>/mcp` as `resource` for the same token endpoint; downstream tools still call hosting with `Bearer` tokens whose `aud` is that resource URL, while tool names are the gateway names `hosting_<verb>_<noun>` (for example `hosting_list_apps`, not the OpenAPI `operationId` and not a URL path). Direct `POST /mcp` `tools/list` is driven by `x-mcp` markers and returns this service's full catalog. `x-mcp.tool_name` is the service-local verb and noun. Hosting publishes it with a `hosting_` prefix so the name matches the ai-service gateway.
+
+Tool arguments are the operation's path, query, and body fields, flattened. Agents do not pass HTTP `method`, `path`, or a raw URL. `hosting_create_apps_deployments` takes `app_ref`, `app_version`, and `shellui_version`. Hosting still resolves the hyphenated OpenAPI path internally. Company scope comes from the JWT, so `company_id` is not a tool argument. Webhook rule `url` is the HTTPS endpoint that receives the event, not the tool's request URL.
+
+After a company owner approves a pending write in Identity, the agent retries the same tool call. Hosting checks approval state with Identity and runs the write once. If Identity reports the approval as already consumed (`executed`), hosting returns an error and does not run the write.
+
+A successful consume step is not inferred from HTTP status alone. Identity must return JSON with `"consumed": true` (boolean). Any other 2xx body counts as a failed consume, so the write does not run.
+
+**Personal regional agents** (direct `aud` for this service): JWTs must carry `grant_version` as a JSON non-negative integer (`0` is valid). Signed approvals pass the same value into create, state, and consume assertions to match Identity live authority.
+
+**Profiles:** Identity marks agent access tokens with `mcp_authority`. The SaaS **global** profile (`mcp_authority` = `global_delegated`) must not call hosting MCP directly. A **regional exchanged** token (`mcp_authority` = `delegated`) carries canonical `global_company_id`, `global_agent_id` (SaaS agent uuid), non-negative `grant_version` (`0` is valid), and non-negative `company_binding_version`, with `aud` still the downstream MCP resource URL (hosting `{origin}/mcp` or the per-company AI gateway URL). Personal regional agents omit the global binding triplet. A raw `global_company_id` without the delegated profile and full binding is rejected (`mcp_authority_delegated_on_direct_resource`).
+
+## Deploy a site end to end
+
+Use a company-owner agent token with the `hosting` scope and write access (`mcp_access` `full` or approved `ask` writes). Each step is an MCP `tools/call` except the byte upload, which uses HTTPS PUT outside JSON-RPC.
+
+1. **Register or pick a site** - `hosting_create_apps` or `hosting_create_preview` (preview) or `hosting_list_apps` / `hosting_get_apps`.
+2. **Open a draft deployment** - `hosting_create_apps_deployments` with `app_version` and `shellui_version`.
+3. **Mint an upload URL** - `hosting_create_apps_deployments_artifact_upload_url`. The response includes `upload_url`, `method` (`PUT`), `headers`, and `requires_bearer`.
+4. **Upload the archive** - HTTP `PUT` the `.tar.gz` to `upload_url` with the given headers. When `requires_bearer` is true, send the same `Authorization: Bearer` agent token on the PUT. Do not send the tarball through MCP.
+5. **Confirm upload** - `hosting_create_apps_deployments_artifact_upload_complete`. Required after S3 presigned PUT; idempotent when the direct hosting PUT already registered size.
+6. **Go live** - `hosting_create_apps_deployments_finalize`.
+
+The legacy `PUT /hosting/v1/apps/{app_ref}/deployments/{id}/upload` route remains for the CLI and deploy tokens. It is not an MCP tool because MCP carries JSON only.
+
+## Access modes
+
+Agent JWT claims mirror Identity: `mcp_access` (`read_only`, `ask`, `full`), `mcp_read` (`safe`, `sensitive`), and `mcp_destructive`. Read-only agents cannot call write routes. Ask mode creates an approval request in Identity before mutating data.
+
+The shared `shellui-django` write gate treats **every destructive operation as approval-gated**, even when `mcp_access` is `full`. The `mcp_destructive` claim does not skip approval for destructive tools. Non-destructive writes in `full` mode run without a pending approval. Destructive tools are deletes, deployment finalize and rollback, custom domain changes, environment variable writes, deploy-token revoke, Shellui Actions secret rotation, sample webhook sends, and requeued deliveries. Creating or updating a Shellui Actions rule stays non-destructive. Each tool publishes `readOnlyHint` and `destructiveHint` for that routing.
+
+## Internal assertions to Identity
+
+Revocation polling and approvals send Identity a short-lived RS256 assertion signed with this service's own key (`HOSTING_SERVICE_SIGNING_KEY`, issuer `HOSTING_SERVICE_ISSUER`). Hosting depends on `shellui-django` 0.5.1 from PyPI (see `pyproject.toml`). Ordinary internal assertions use a **60** second lifetime (the library `INTERNAL_ASSERTION_MAX_LIFETIME_SECONDS` cap). First company provisioning or setup flows that Identity documents as longer-lived may use a bounded **600 to 900** second TTL only where Identity accepts that profile; routine tool traffic keeps the 60 second cap. The public key is served at `GET /.well-known/jwks.json`. Identity trusts it only when its own `HOSTING_SERVICE_ISSUER` matches, and reads the key from `HOSTING_SERVICE_JWKS_URL` or a pinned `HOSTING_SERVICE_JWKS`. Without a key, MCP fails closed: agents are refused. Hosting calls Identity's live HTTP APIs for approvals and revocation. Behavior follows those contracts and the deployed services.
+
+### Tool dispatch
+
+Each MCP tool maps to one OpenAPI operation. The tool name is `hosting_<verb>_<noun>` (`x-mcp.tool_name` plus the `hosting_` prefix). `operationId` stays the REST operation id. Django `resolve()` still runs on the materialized path for dispatch.
+
+`POST /api/v1/mcp/internal/mcp-approval-requests` sends an empty JSON body. The signed assertion already binds `arguments_hash`, `agent_id`, strict `company_id`, and authority context.
+
+Logs about failed Identity HTTP calls use fixed reason codes (`identity_request_failed`, `mcp_assertion_rule`, `mcp_assertion_error`), not raw upstream response bodies.
+
+### Tool-call activity
+
+The ai-service gateway records each `tools/call`, including hosting tools reached through `/c/<company_id>/mcp`. Hosting does not store that activity and does not POST it to Identity `/api/v1/mcp/internal/mcp-call-logs`.
+
+You can also call this service directly at `POST /mcp`. Personal regional tokens and the CLI use `aud` `{origin}/mcp` on Identity `POST /oauth/mcp/token`. That path does not pass through the ai-service gateway, so those calls are absent from the gateway log.
+
+### Globally delegated agents and the AI gateway
+
+Direct hosting agent tokens must use an `aud` value that matches this service `{origin}/mcp` only. The SaaS `global_delegated` profile is refused at decode. Regional `delegated` tokens include the triplet in signed service assertions to Identity (matching `build_mcp_approval_assertion` in shellui-django). Gateway-only global flows still rely on exchange plus service-signed proof, not on forging headers at the hosting edge.
+
+Generate a key with `openssl genrsa 3072` and keep it in a secret store or a mounted file (`HOSTING_SERVICE_SIGNING_KEY_FILE`).

@@ -3,19 +3,32 @@
 from __future__ import annotations
 
 import logging
+import uuid
 
 from django.conf import settings
 from django.core.exceptions import RequestDataTooBig
 from django.http import HttpResponse
 from drf_spectacular.types import OpenApiTypes
-from drf_spectacular.utils import OpenApiResponse, extend_schema, extend_schema_view
+from drf_spectacular.utils import OpenApiParameter, OpenApiResponse, extend_schema, extend_schema_view
 from rest_framework import status
 from rest_framework.parsers import BaseParser, MultiPartParser
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from apps.authapi.mcp_openapi import mcp_tool
 from apps.authapi.permissions import IsAuthenticatedPrincipal, IsStaffOrCompanyOwner
+from apps.hosting.openapi_admin import (
+    ADMIN_API_ERRORS,
+    APP_REF_PATH,
+    DEPLOYMENT_ID_PATH,
+    DOMAIN_ID_PATH,
+    ENV_KEY_PATH,
+    TOKEN_ID_PATH,
+    admin_description,
+    mcp_openapi_fields,
+    EXAMPLE_APP,
+)
 from config.throttling import HostingScopeThrottle
 
 from . import metrics as hosting_metrics
@@ -26,12 +39,23 @@ from .serializers import (
     AccessUpdateSerializer,
     AppCreateSerializer,
     AppSerializer,
+    ArtifactUploadUrlResponseSerializer,
     DeploymentCreateSerializer,
     DeploymentSerializer,
+    DeployTokenCreateResponseSerializer,
+    DeployTokenSerializer,
     ErrorSerializer,
     HealthSerializer,
     PreviewPrepareResponseSerializer,
     PreviewPrepareSerializer,
+    CustomDomainSerializer,
+    CustomDomainCreateSerializer,
+    EnvVariableListSerializer,
+    EnvVariableUpsertSerializer,
+    EnvVariableValueSerializer,
+    EnvVariableKeySerializer,
+    RequestLogListResponseSerializer,
+    RuntimeLogResponseSerializer,
 )
 from .deploy_tokens import create_deploy_token, revoke_deploy_token, serialize_deploy_token
 from .models import DeployToken
@@ -53,20 +77,28 @@ from .services import (
     serialize_app,
     serialize_deployment,
     update_access,
+    confirm_deployment_artifact_upload,
     upload_deployment_artifact,
 )
 from .stats import build_hosting_stats
-from .storage import ArtifactTooLarge
+from .storage import ArtifactTooLarge, build_artifact_upload_target
+from .operational import (
+    add_custom_domain,
+    delete_env_variable,
+    get_custom_domain,
+    get_env_variable,
+    list_app_request_logs,
+    list_app_runtime_logs,
+    list_custom_domains,
+    list_env_variables,
+    refresh_custom_domain,
+    remove_custom_domain,
+    set_env_variable,
+)
 
 logger = logging.getLogger(__name__)
 
-_SCHEMA_ERRORS = {
-    400: ErrorSerializer,
-    401: ErrorSerializer,
-    403: ErrorSerializer,
-    404: ErrorSerializer,
-    409: ErrorSerializer,
-}
+_API_ERRORS = ADMIN_API_ERRORS
 
 
 class OctetStreamParser(BaseParser):
@@ -81,6 +113,15 @@ class GzipParser(BaseParser):
 
     def parse(self, stream, media_type=None, parser_context=None):
         return stream
+
+
+class EmptyBodyParser(BaseParser):
+    """Accept MCP ``tools/call`` POST bodies that use ``application/octet-stream`` with no payload."""
+
+    media_type = '*/*'
+
+    def parse(self, stream, media_type=None, parser_context=None):
+        return {}
 
 
 def _error(exc: HostingError) -> Response:
@@ -119,6 +160,18 @@ def _scoped_app(request, app_ref):
     return app
 
 
+def _owner_app(request, app_ref):
+    """Company-scoped app for owner routes. Deploy tokens cannot call operational APIs."""
+    if getattr(request.user, 'deploy_token_id', None):
+        return None, _error_message('Operational APIs require a user or agent JWT.', status_code=403, code='forbidden')
+    try:
+        company_id = require_company_id(request.user)
+        app = resolve_app_ref(app_ref, company_id=company_id)
+    except HostingError as exc:
+        return None, _error(exc)
+    return app, None
+
+
 def _error_message(message: str, *, status_code: int = 400, code: str = 'Error') -> Response:
     return Response(
         {'statusCode': str(status_code), 'error': code, 'message': message},
@@ -146,14 +199,25 @@ class HealthView(APIView):
 @extend_schema_view(
     get=extend_schema(
         tags=['access'],
-        summary='Get company hosting access status',
-        responses={200: AccessSerializer, **_SCHEMA_ERRORS},
+        operation_id='hosting_v1_access_retrieve',
+        summary='Read company hosting access status',
+        description=admin_description(
+            lead='Returns waitlist status (`pending`, `approved`, or `denied`) for the target company.',
+            side_effects='Read-only.',
+        ),
+        responses={200: AccessSerializer, **_API_ERRORS},
     ),
     post=extend_schema(
         tags=['access'],
-        summary='Update company hosting access (staff approve/deny; owners cannot self-approve)',
+        operation_id='hosting_v1_access_create',
+        summary='Update hosting access (staff approve or deny)',
+        description=admin_description(
+            lead='Staff set `approved` or `denied`. Company owners may update notes only; they cannot self-approve.',
+            side_effects='Updates hosting access row and reviewer metadata.',
+            notes='Pass `company_id` in the body when staff act on another company.',
+        ),
         request=AccessUpdateSerializer,
-        responses={200: AccessSerializer, **_SCHEMA_ERRORS},
+        responses={200: AccessSerializer, **_API_ERRORS},
     ),
 )
 class AccessView(APIView):
@@ -205,9 +269,11 @@ class AccessRequestView(APIView):
 
     @extend_schema(
         tags=['access'],
-        summary='Request hosting access for your company',
+        operation_id='hosting_v1_access_request_create',
         request=None,
-        responses={201: AccessSerializer, **_SCHEMA_ERRORS},
+        responses={201: AccessSerializer, **_API_ERRORS},
+        **mcp_openapi_fields('hosting_v1_access_request_create'),
+        **mcp_tool(operation_id='hosting_v1_access_request_create', read_only=False),
     )
     def post(self, request):
         try:
@@ -225,10 +291,12 @@ class PreviewPrepareView(APIView):
     throttle_classes = [HostingScopeThrottle]
 
     @extend_schema(
-        tags=['preview'],
-        summary='Prepare a preview deploy (new slug or redeploy to an owned slug)',
+        tags=['previews'],
+        operation_id='hosting_v1_preview_create',
         request=PreviewPrepareSerializer,
-        responses={201: PreviewPrepareResponseSerializer, **_SCHEMA_ERRORS},
+        responses={201: PreviewPrepareResponseSerializer, **_API_ERRORS},
+        **mcp_openapi_fields('hosting_v1_preview_create'),
+        **mcp_tool(operation_id='hosting_v1_preview_create', read_only=False),
     )
     def post(self, request):
         try:
@@ -269,15 +337,20 @@ class PreviewPrepareView(APIView):
 
 @extend_schema_view(
     get=extend_schema(
-        tags=['apps'],
-        summary='List hosted apps for your company',
-        responses={200: AppSerializer(many=True), **_SCHEMA_ERRORS},
+        tags=['sites'],
+        operation_id='hosting_v1_apps_list',
+        responses={200: AppSerializer(many=True), **_API_ERRORS},
+        **mcp_openapi_fields('hosting_v1_apps_list'),
+        **mcp_tool(operation_id='hosting_v1_apps_list', read_only=True),
     ),
     post=extend_schema(
-        tags=['apps'],
-        summary='Create a hosted app',
+        tags=['sites'],
+        operation_id='hosting_v1_apps_create',
         request=AppCreateSerializer,
-        responses={201: AppSerializer, **_SCHEMA_ERRORS},
+        responses={201: AppSerializer, **_API_ERRORS},
+        examples=[EXAMPLE_APP],
+        **mcp_openapi_fields('hosting_v1_apps_create'),
+        **mcp_tool(operation_id='hosting_v1_apps_create', read_only=False),
     ),
 )
 class AppListCreateView(APIView):
@@ -329,9 +402,12 @@ class AppDetailView(APIView):
         return []
 
     @extend_schema(
-        tags=['apps'],
-        summary='Get app by name or UUID',
-        responses={200: AppSerializer, **_SCHEMA_ERRORS},
+        tags=['sites'],
+        operation_id='hosting_v1_apps_retrieve',
+        parameters=[APP_REF_PATH],
+        responses={200: AppSerializer, **_API_ERRORS},
+        **mcp_openapi_fields('hosting_v1_apps_retrieve'),
+        **mcp_tool(operation_id='hosting_v1_apps_retrieve', read_only=True),
     )
     def get(self, request, app_ref):
         try:
@@ -342,9 +418,12 @@ class AppDetailView(APIView):
         return Response(serialize_app(app))
 
     @extend_schema(
-        tags=['apps'],
-        summary='Delete a hosted app and its deployments',
-        responses={204: None, **_SCHEMA_ERRORS},
+        tags=['sites'],
+        operation_id='hosting_v1_apps_destroy',
+        parameters=[APP_REF_PATH],
+        responses={204: None, **_API_ERRORS},
+        **mcp_openapi_fields('hosting_v1_apps_destroy'),
+        **mcp_tool(operation_id='hosting_v1_apps_destroy', read_only=False, destructive=True),
     )
     def delete(self, request, app_ref):
         try:
@@ -366,10 +445,13 @@ class AppRenewExpiryView(APIView):
     permission_classes = [IsAuthenticatedPrincipal]
 
     @extend_schema(
-        tags=['apps'],
-        summary='Reset preview site expiry (extends TTL by HOSTING_PREVIEW_TTL_DAYS)',
+        tags=['previews'],
+        operation_id='hosting_v1_apps_renew_expiry_create',
+        parameters=[APP_REF_PATH],
         request=None,
-        responses={200: AppSerializer, **_SCHEMA_ERRORS},
+        responses={200: AppSerializer, **_API_ERRORS},
+        **mcp_openapi_fields('hosting_v1_apps_renew_expiry_create'),
+        **mcp_tool(operation_id='hosting_v1_apps_renew_expiry_create', read_only=False),
     )
     def post(self, request, app_ref):
         try:
@@ -384,14 +466,20 @@ class AppRenewExpiryView(APIView):
 @extend_schema_view(
     get=extend_schema(
         tags=['deployments'],
-        summary='List deployments for an app',
-        responses={200: DeploymentSerializer(many=True), **_SCHEMA_ERRORS},
+        operation_id='hosting_v1_apps_deployments_list',
+        parameters=[APP_REF_PATH],
+        responses={200: DeploymentSerializer(many=True), **_API_ERRORS},
+        **mcp_openapi_fields('hosting_v1_apps_deployments_list'),
+        **mcp_tool(operation_id='hosting_v1_apps_deployments_list', read_only=True),
     ),
     post=extend_schema(
         tags=['deployments'],
-        summary='Create a draft deployment',
+        operation_id='hosting_v1_apps_deployments_create',
+        parameters=[APP_REF_PATH],
         request=DeploymentCreateSerializer,
-        responses={201: DeploymentSerializer, **_SCHEMA_ERRORS},
+        responses={201: DeploymentSerializer, **_API_ERRORS},
+        **mcp_openapi_fields('hosting_v1_apps_deployments_create'),
+        **mcp_tool(operation_id='hosting_v1_apps_deployments_create', read_only=False),
     ),
 )
 class DeploymentListCreateView(APIView):
@@ -440,9 +528,19 @@ class DeploymentUploadView(APIView):
 
     @extend_schema(
         tags=['deployments'],
-        summary='Upload deployment artifact (tar.gz)',
+        operation_id='hosting_v1_apps_deployments_upload_update',
+        summary='Upload deployment artifact',
+        description=admin_description(
+            lead=(
+                'Upload a `.tar.gz` static site archive for a draft deployment. '
+                'Send `Content-Type: application/gzip` with the raw body, or `multipart/form-data` with a `file` field.'
+            ),
+            side_effects='Stores artifact bytes and updates deployment metadata.',
+            notes='Not exposed as a Shellui MCP tool. Deploy tokens may upload for preview sites only.',
+        ),
+        parameters=[APP_REF_PATH, DEPLOYMENT_ID_PATH],
         request={'application/gzip': {'type': 'string', 'format': 'binary'}},
-        responses={200: DeploymentSerializer, **_SCHEMA_ERRORS},
+        responses={200: DeploymentSerializer, 413: ErrorSerializer, **_API_ERRORS},
     )
     def put(self, request, app_ref, deployment_id):
         try:
@@ -494,6 +592,89 @@ class DeploymentUploadView(APIView):
         return super().handle_exception(exc)
 
 
+class DeploymentArtifactUploadUrlView(APIView):
+    permission_classes = [IsAuthenticatedPrincipal]
+    deploy_token_methods = ('POST',)
+    rate_limit_scope = 'upload'
+    throttle_classes = [HostingScopeThrottle]
+    parser_classes = [EmptyBodyParser]
+
+    @extend_schema(
+        tags=['deployments'],
+        operation_id='hosting_v1_apps_deployments_artifact_upload_url_create',
+        parameters=[
+            APP_REF_PATH,
+            DEPLOYMENT_ID_PATH,
+            OpenApiParameter(
+                name='expires_in',
+                type=int,
+                location=OpenApiParameter.QUERY,
+                required=False,
+                description='Seconds until the upload URL expires (60 to server default).',
+            ),
+        ],
+        request=None,
+        responses={200: ArtifactUploadUrlResponseSerializer, **_API_ERRORS},
+        **mcp_openapi_fields('hosting_v1_apps_deployments_artifact_upload_url_create'),
+        **mcp_tool(
+            operation_id='hosting_v1_apps_deployments_artifact_upload_url_create',
+            read_only=False,
+        ),
+    )
+    def post(self, request, app_ref, deployment_id):
+        try:
+            app = _scoped_app(request, app_ref)
+            deployment = Deployment.objects.get(id=deployment_id, app=app)
+        except Deployment.DoesNotExist:
+            return _error_message('Deployment not found.', status_code=404, code='deployment_not_found')
+        except HostingError as exc:
+            return _error(exc)
+
+        data = request.data if isinstance(request.data, dict) else {}
+        default_expires = settings.HOSTING_ARTIFACT_UPLOAD_URL_EXPIRES
+        raw_expires = request.query_params.get('expires_in') or data.get('expires_in')
+        try:
+            expires_in = int(raw_expires) if raw_expires not in (None, '') else default_expires
+        except (TypeError, ValueError):
+            return _error_message('expires_in must be an integer.', code='invalid_expires_in')
+        expires_in = max(60, min(expires_in, default_expires))
+
+        try:
+            payload = build_artifact_upload_target(deployment, request=request, expires_in=expires_in)
+        except RuntimeError as exc:
+            logger.exception('artifact upload url failed')
+            return _error_message(str(exc), status_code=500, code='upload_url_failed')
+        return Response(payload)
+
+
+class DeploymentArtifactUploadCompleteView(APIView):
+    permission_classes = [IsAuthenticatedPrincipal]
+    deploy_token_methods = ('POST',)
+    rate_limit_scope = 'upload'
+    throttle_classes = [HostingScopeThrottle]
+    parser_classes = [EmptyBodyParser]
+
+    @extend_schema(
+        tags=['deployments'],
+        operation_id='hosting_v1_apps_deployments_artifact_upload_complete_create',
+        parameters=[APP_REF_PATH, DEPLOYMENT_ID_PATH],
+        request=None,
+        responses={200: DeploymentSerializer, **_API_ERRORS},
+        **mcp_openapi_fields('hosting_v1_apps_deployments_artifact_upload_complete_create'),
+        **mcp_tool(operation_id='hosting_v1_apps_deployments_artifact_upload_complete_create', read_only=False),
+    )
+    def post(self, request, app_ref, deployment_id):
+        try:
+            app = _scoped_app(request, app_ref)
+            deployment = Deployment.objects.get(id=deployment_id, app=app)
+            deployment = confirm_deployment_artifact_upload(deployment=deployment)
+        except Deployment.DoesNotExist:
+            return _error_message('Deployment not found.', status_code=404, code='deployment_not_found')
+        except HostingError as exc:
+            return _error(exc)
+        return Response(serialize_deployment(deployment))
+
+
 class DeploymentFinalizeView(APIView):
     permission_classes = [IsAuthenticatedPrincipal]
     deploy_token_methods = ('POST',)
@@ -502,9 +683,12 @@ class DeploymentFinalizeView(APIView):
 
     @extend_schema(
         tags=['deployments'],
-        summary='Finalize and activate a deployment',
+        operation_id='hosting_v1_apps_deployments_finalize_create',
+        parameters=[APP_REF_PATH, DEPLOYMENT_ID_PATH],
         request=None,
-        responses={200: DeploymentSerializer, **_SCHEMA_ERRORS},
+        responses={200: DeploymentSerializer, **_API_ERRORS},
+        **mcp_openapi_fields('hosting_v1_apps_deployments_finalize_create'),
+        **mcp_tool(operation_id='hosting_v1_apps_deployments_finalize_create', read_only=False, destructive=True),
     )
     def post(self, request, app_ref, deployment_id):
         try:
@@ -536,9 +720,12 @@ class DeploymentRollbackView(APIView):
 
     @extend_schema(
         tags=['deployments'],
-        summary='Rollback to a previous deployment',
+        operation_id='hosting_v1_apps_deployments_rollback_create',
+        parameters=[APP_REF_PATH, DEPLOYMENT_ID_PATH],
         request=None,
-        responses={200: DeploymentSerializer, **_SCHEMA_ERRORS},
+        responses={200: DeploymentSerializer, **_API_ERRORS},
+        **mcp_openapi_fields('hosting_v1_apps_deployments_rollback_create'),
+        **mcp_tool(operation_id='hosting_v1_apps_deployments_rollback_create', read_only=False, destructive=True),
     )
     def post(self, request, app_ref, deployment_id):
         try:
@@ -552,10 +739,359 @@ class DeploymentRollbackView(APIView):
         return Response(serialize_deployment(deployment))
 
 
+class AppCustomDomainListCreateView(APIView):
+    permission_classes = [IsAuthenticatedPrincipal]
+
+    @extend_schema(
+        tags=['operations'],
+        operation_id='hosting_v1_apps_domains_list',
+        parameters=[APP_REF_PATH],
+        responses={200: CustomDomainSerializer(many=True), **_API_ERRORS},
+        **mcp_openapi_fields('hosting_v1_apps_domains_list'),
+        **mcp_tool(operation_id='hosting_v1_apps_domains_list', read_only=True),
+    )
+    def get(self, request, app_ref):
+        app, err = _owner_app(request, app_ref)
+        if err:
+            return err
+        try:
+            payload = list_custom_domains(app=app)
+        except HostingError as exc:
+            return _error(exc)
+        return Response(payload)
+
+    @extend_schema(
+        tags=['operations'],
+        operation_id='hosting_v1_apps_domains_create',
+        parameters=[APP_REF_PATH],
+        request=CustomDomainCreateSerializer,
+        responses={201: CustomDomainSerializer, **_API_ERRORS},
+        **mcp_openapi_fields('hosting_v1_apps_domains_create'),
+        **mcp_tool(operation_id='hosting_v1_apps_domains_create', read_only=False, destructive=True),
+    )
+    def post(self, request, app_ref):
+        app, err = _owner_app(request, app_ref)
+        if err:
+            return err
+        data = request.data if isinstance(request.data, dict) else {}
+        try:
+            payload = add_custom_domain(
+                app=app,
+                hostname=str(data.get('hostname') or ''),
+                user_id=request.user.user_id,
+                actor_email=request.user.email,
+            )
+        except HostingError as exc:
+            return _error(exc)
+        return Response(payload, status=status.HTTP_201_CREATED)
+
+
+class AppCustomDomainDetailView(APIView):
+    permission_classes = [IsAuthenticatedPrincipal]
+
+    @extend_schema(
+        tags=['operations'],
+        operation_id='hosting_v1_apps_domains_retrieve',
+        parameters=[APP_REF_PATH, DOMAIN_ID_PATH],
+        responses={200: CustomDomainSerializer, **_API_ERRORS},
+        **mcp_openapi_fields('hosting_v1_apps_domains_retrieve'),
+        **mcp_tool(operation_id='hosting_v1_apps_domains_retrieve', read_only=True),
+    )
+    def get(self, request, app_ref, domain_id):
+        app, err = _owner_app(request, app_ref)
+        if err:
+            return err
+        try:
+            domain_uuid = uuid.UUID(str(domain_id))
+            payload = get_custom_domain(app=app, domain_id=domain_uuid)
+        except ValueError:
+            return _error_message('Invalid domain id.', status_code=400, code='invalid_domain_id')
+        except HostingError as exc:
+            return _error(exc)
+        return Response(payload)
+
+    @extend_schema(
+        tags=['operations'],
+        operation_id='hosting_v1_apps_domains_destroy',
+        parameters=[APP_REF_PATH, DOMAIN_ID_PATH],
+        responses={204: None, **_API_ERRORS},
+        **mcp_openapi_fields('hosting_v1_apps_domains_destroy'),
+        **mcp_tool(operation_id='hosting_v1_apps_domains_destroy', read_only=False, destructive=True),
+    )
+    def delete(self, request, app_ref, domain_id):
+        app, err = _owner_app(request, app_ref)
+        if err:
+            return err
+        try:
+            domain_uuid = uuid.UUID(str(domain_id))
+            remove_custom_domain(
+                app=app,
+                domain_id=domain_uuid,
+                user_id=request.user.user_id,
+                actor_email=request.user.email,
+            )
+        except ValueError:
+            return _error_message('Invalid domain id.', status_code=400, code='invalid_domain_id')
+        except HostingError as exc:
+            return _error(exc)
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class AppCustomDomainRefreshView(APIView):
+    permission_classes = [IsAuthenticatedPrincipal]
+
+    @extend_schema(
+        tags=['operations'],
+        operation_id='hosting_v1_apps_domains_refresh_create',
+        parameters=[APP_REF_PATH, DOMAIN_ID_PATH],
+        request=None,
+        responses={200: CustomDomainSerializer, **_API_ERRORS},
+        **mcp_openapi_fields('hosting_v1_apps_domains_refresh_create'),
+        **mcp_tool(operation_id='hosting_v1_apps_domains_refresh_create', read_only=False, destructive=True),
+    )
+    def post(self, request, app_ref, domain_id):
+        app, err = _owner_app(request, app_ref)
+        if err:
+            return err
+        try:
+            domain_uuid = uuid.UUID(str(domain_id))
+            payload = refresh_custom_domain(app=app, domain_id=domain_uuid)
+        except ValueError:
+            return _error_message('Invalid domain id.', status_code=400, code='invalid_domain_id')
+        except HostingError as exc:
+            return _error(exc)
+        return Response(payload)
+
+
+class AppEnvironmentListCreateView(APIView):
+    permission_classes = [IsAuthenticatedPrincipal]
+
+    @extend_schema(
+        tags=['operations'],
+        operation_id='hosting_v1_apps_environment_list',
+        parameters=[APP_REF_PATH],
+        responses={200: EnvVariableListSerializer(many=True), **_API_ERRORS},
+        **mcp_openapi_fields('hosting_v1_apps_environment_list'),
+        **mcp_tool(operation_id='hosting_v1_apps_environment_list', read_only=True, sensitive=True),
+    )
+    def get(self, request, app_ref):
+        app, err = _owner_app(request, app_ref)
+        if err:
+            return err
+        try:
+            payload = list_env_variables(app=app)
+        except HostingError as exc:
+            return _error(exc)
+        return Response(payload)
+
+    @extend_schema(
+        tags=['operations'],
+        operation_id='hosting_v1_apps_environment_create',
+        parameters=[APP_REF_PATH],
+        request=EnvVariableUpsertSerializer,
+        responses={200: EnvVariableListSerializer, **_API_ERRORS},
+        **mcp_openapi_fields('hosting_v1_apps_environment_create'),
+        **mcp_tool(operation_id='hosting_v1_apps_environment_create', read_only=False, destructive=True, sensitive=True),
+    )
+    def post(self, request, app_ref):
+        app, err = _owner_app(request, app_ref)
+        if err:
+            return err
+        data = request.data if isinstance(request.data, dict) else {}
+        try:
+            payload = set_env_variable(
+                app=app,
+                key=str(data.get('key') or ''),
+                value=str(data.get('value') if data.get('value') is not None else ''),
+                user_id=request.user.user_id,
+                actor_email=request.user.email,
+            )
+        except HostingError as exc:
+            return _error(exc)
+        return Response(payload, status=status.HTTP_200_OK)
+
+
+class AppEnvironmentKeyView(APIView):
+    permission_classes = [IsAuthenticatedPrincipal]
+
+    @extend_schema(
+        tags=['operations'],
+        operation_id='hosting_v1_apps_environment_retrieve',
+        parameters=[APP_REF_PATH, ENV_KEY_PATH],
+        responses={200: EnvVariableListSerializer, **_API_ERRORS},
+        **mcp_openapi_fields('hosting_v1_apps_environment_retrieve'),
+        **mcp_tool(operation_id='hosting_v1_apps_environment_retrieve', read_only=True, sensitive=True),
+    )
+    def get(self, request, app_ref, key):
+        app, err = _owner_app(request, app_ref)
+        if err:
+            return err
+        try:
+            payload = get_env_variable(app=app, key=str(key))
+        except HostingError as exc:
+            return _error(exc)
+        return Response(payload)
+
+    @extend_schema(
+        tags=['operations'],
+        operation_id='hosting_v1_apps_environment_update',
+        parameters=[APP_REF_PATH, ENV_KEY_PATH],
+        request=EnvVariableValueSerializer,
+        responses={200: EnvVariableListSerializer, **_API_ERRORS},
+        **mcp_openapi_fields('hosting_v1_apps_environment_update'),
+        **mcp_tool(operation_id='hosting_v1_apps_environment_update', read_only=False, destructive=True, sensitive=True),
+    )
+    def put(self, request, app_ref, key):
+        app, err = _owner_app(request, app_ref)
+        if err:
+            return err
+        data = request.data if isinstance(request.data, dict) else {}
+        try:
+            payload = set_env_variable(
+                app=app,
+                key=str(key),
+                value=str(data.get('value') if data.get('value') is not None else ''),
+                user_id=request.user.user_id,
+                actor_email=request.user.email,
+            )
+        except HostingError as exc:
+            return _error(exc)
+        return Response(payload)
+
+    @extend_schema(
+        tags=['operations'],
+        operation_id='hosting_v1_apps_environment_destroy',
+        parameters=[APP_REF_PATH, ENV_KEY_PATH],
+        responses={204: None, **_API_ERRORS},
+        **mcp_openapi_fields('hosting_v1_apps_environment_destroy'),
+        **mcp_tool(operation_id='hosting_v1_apps_environment_destroy', read_only=False, destructive=True, sensitive=True),
+    )
+    def delete(self, request, app_ref, key):
+        app, err = _owner_app(request, app_ref)
+        if err:
+            return err
+        try:
+            delete_env_variable(app=app, key=str(key), user_id=request.user.user_id, actor_email=request.user.email)
+        except HostingError as exc:
+            return _error(exc)
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class AppRuntimeLogsView(APIView):
+    permission_classes = [IsAuthenticatedPrincipal]
+
+    @extend_schema(
+        tags=['operations'],
+        operation_id='hosting_v1_apps_runtime_logs_list',
+        parameters=[
+            APP_REF_PATH,
+            OpenApiParameter(
+                name='limit',
+                type=int,
+                location=OpenApiParameter.QUERY,
+                required=False,
+                description='Max lines to return (capped by the server).',
+            ),
+        ],
+        responses={200: RuntimeLogResponseSerializer, **_API_ERRORS},
+        **mcp_openapi_fields('hosting_v1_apps_runtime_logs_list'),
+        **mcp_tool(operation_id='hosting_v1_apps_runtime_logs_list', read_only=True),
+    )
+    def get(self, request, app_ref):
+        app, err = _owner_app(request, app_ref)
+        if err:
+            return err
+        raw_limit = request.query_params.get('limit')
+        try:
+            limit = int(raw_limit) if raw_limit not in (None, '') else 100
+        except ValueError:
+            return _error_message('limit must be an integer.', code='invalid_limit')
+        try:
+            payload = list_app_runtime_logs(app=app, limit=limit)
+        except HostingError as exc:
+            return _error(exc)
+        return Response(payload)
+
+
+class AppRequestLogsView(APIView):
+    permission_classes = [IsAuthenticatedPrincipal]
+
+    @extend_schema(
+        tags=['operations'],
+        operation_id='hosting_v1_apps_request_logs_list',
+        parameters=[
+            APP_REF_PATH,
+            OpenApiParameter(
+                name='limit',
+                type=int,
+                location=OpenApiParameter.QUERY,
+                required=False,
+                description='Page size (default 50, capped by the server).',
+            ),
+            OpenApiParameter(
+                name='cursor',
+                type=str,
+                location=OpenApiParameter.QUERY,
+                required=False,
+                description='Opaque pagination cursor from a previous response (`next_cursor`).',
+            ),
+            OpenApiParameter(
+                name='status_min',
+                type=int,
+                location=OpenApiParameter.QUERY,
+                required=False,
+                description='Include responses with status_code greater than or equal to this value.',
+            ),
+            OpenApiParameter(
+                name='status_max',
+                type=int,
+                location=OpenApiParameter.QUERY,
+                required=False,
+                description='Include responses with status_code less than or equal to this value.',
+            ),
+        ],
+        responses={200: RequestLogListResponseSerializer, **_API_ERRORS},
+        **mcp_openapi_fields('hosting_v1_apps_request_logs_list'),
+        **mcp_tool(operation_id='hosting_v1_apps_request_logs_list', read_only=True),
+    )
+    def get(self, request, app_ref):
+        app, err = _owner_app(request, app_ref)
+        if err:
+            return err
+        raw_limit = request.query_params.get('limit')
+        raw_cursor = request.query_params.get('cursor')
+        raw_min = request.query_params.get('status_min')
+        raw_max = request.query_params.get('status_max')
+        try:
+            limit = int(raw_limit) if raw_limit not in (None, '') else 50
+        except ValueError:
+            return _error_message('limit must be an integer.', code='invalid_limit')
+        status_min = int(raw_min) if raw_min not in (None, '') else None
+        status_max = int(raw_max) if raw_max not in (None, '') else None
+        cursor = str(raw_cursor).strip() or None if raw_cursor is not None else None
+        try:
+            payload = list_app_request_logs(
+                app=app,
+                limit=limit,
+                cursor=cursor,
+                status_min=status_min,
+                status_max=status_max,
+            )
+        except HostingError as exc:
+            return _error(exc)
+        return Response(payload)
+
+
 class DeployTokenListCreateView(APIView):
     permission_classes = [IsAuthenticatedPrincipal, IsStaffOrCompanyOwner]
 
-    @extend_schema(tags=['deploy-tokens'], summary='List company deploy tokens', responses={200: OpenApiTypes.OBJECT, **_SCHEMA_ERRORS})
+    @extend_schema(
+        tags=['deploy-tokens'],
+        operation_id='hosting_v1_deploy_tokens_retrieve',
+        responses={200: DeployTokenSerializer(many=True), **_API_ERRORS},
+        **mcp_openapi_fields('hosting_v1_deploy_tokens_retrieve'),
+        **mcp_tool(operation_id='hosting_v1_deploy_tokens_retrieve', read_only=True, sensitive=True),
+    )
     def get(self, request):
         try:
             company_id = require_company_id(request.user)
@@ -565,11 +1101,26 @@ class DeployTokenListCreateView(APIView):
 
     @extend_schema(
         tags=['deploy-tokens'],
-        summary='Create a company deploy token for preview deploys (the token is returned once)',
+        operation_id='hosting_v1_deploy_tokens_create',
+        summary='Create a deploy token for preview CI',
+        description=admin_description(
+            lead=(
+                'Returns the plaintext token once in `token`. It is stored hashed and cannot be read again. '
+                'Optional body fields: `name`, `expires_in_days`.'
+            ),
+            side_effects='Inserts a deploy token row.',
+            notes='Not a Shellui MCP tool. Agent access tokens receive `403 forbidden`.',
+        ),
         request=OpenApiTypes.OBJECT,
-        responses={201: OpenApiTypes.OBJECT, **_SCHEMA_ERRORS},
+        responses={201: DeployTokenCreateResponseSerializer, **_API_ERRORS},
     )
     def post(self, request):
+        if getattr(request.user, 'agent_id', None):
+            return _error_message(
+                'Deploy tokens cannot be created with an agent access token. Use admin or a user session.',
+                status_code=403,
+                code='forbidden',
+            )
         data = request.data if isinstance(request.data, dict) else {}
         raw_days = data.get('expires_in_days')
         try:
@@ -593,7 +1144,15 @@ class DeployTokenListCreateView(APIView):
 class DeployTokenRevokeView(APIView):
     permission_classes = [IsAuthenticatedPrincipal, IsStaffOrCompanyOwner]
 
-    @extend_schema(tags=['deploy-tokens'], summary='Revoke a deploy token', request=None, responses={200: OpenApiTypes.OBJECT, **_SCHEMA_ERRORS})
+    @extend_schema(
+        tags=['deploy-tokens'],
+        operation_id='hosting_v1_deploy_tokens_revoke_create',
+        parameters=[TOKEN_ID_PATH],
+        request=None,
+        responses={200: DeployTokenSerializer, **_API_ERRORS},
+        **mcp_openapi_fields('hosting_v1_deploy_tokens_revoke_create'),
+        **mcp_tool(operation_id='hosting_v1_deploy_tokens_revoke_create', read_only=False, destructive=True),
+    )
     def post(self, request, token_id):
         try:
             token = DeployToken.objects.get(id=token_id, company_id=require_company_id(request.user))
@@ -607,7 +1166,13 @@ class DeployTokenRevokeView(APIView):
 class StatsView(APIView):
     permission_classes = [IsAuthenticatedPrincipal]
 
-    @extend_schema(tags=['stats'], responses={200: OpenApiTypes.OBJECT, **_SCHEMA_ERRORS})
+    @extend_schema(
+        tags=['stats'],
+        operation_id='hosting_v1_stats_retrieve',
+        responses={200: OpenApiTypes.OBJECT, **_API_ERRORS},
+        **mcp_openapi_fields('hosting_v1_stats_retrieve'),
+        **mcp_tool(operation_id='hosting_v1_stats_retrieve', read_only=True),
+    )
     def get(self, request):
         company_id = None
         if not getattr(request.user, 'is_staff', False):

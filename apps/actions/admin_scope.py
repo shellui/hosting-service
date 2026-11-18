@@ -20,7 +20,14 @@ def require_staff_or_company_owner(request) -> tuple[HostingPrincipal | None, in
     raw_token_company = getattr(user, 'company_id', None)
     token_company = int(raw_token_company) if raw_token_company is not None else None
     query_company = (request.GET.get('company_id') or '').strip()
-    if query_company:
+    if getattr(user, 'agent_id', None):
+        if token_company is None:
+            return None, None, Response(
+                {'error': 'Missing company_id in access token.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        company_id = token_company
+    elif query_company:
         try:
             company_id = int(query_company)
         except (TypeError, ValueError):

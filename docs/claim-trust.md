@@ -12,13 +12,13 @@ Send the token as `Authorization: Bearer your_access_token_here`.
 
 Tokens must include `exp`. The signature is checked as RS256 against a JSON Web Key Set (JWKS). The token `kid` header must name a key in that set. An unknown or missing `kid` is rejected, including when the set contains one key.
 
-Pin that document in production with `IDENTITY_JWKS_FILE` or `IDENTITY_JWKS`. Local development can fetch `IDENTITY_JWKS_URL`, which defaults to `{IDENTITY_SERVICE_URL}/.well-known/jwks.json`.
+In production, hosting-service fetches JWKS from `IDENTITY_JWKS_URL`, or from `{IDENTITY_SERVICE_URL}/.well-known/jwks.json` when that URL is not set. Pinning with `IDENTITY_JWKS_FILE` or `IDENTITY_JWKS` is optional and wins over a fetch when set.
 
 When `DEBUG=false`, the process refuses to start unless all of these are set:
 
 - `IDENTITY_ISSUER`: the JWT `iss` claim must match
 - `IDENTITY_AUDIENCE`: the JWT `aud` claim must match
-- A pinned JWKS document. A runtime fetch from `IDENTITY_JWKS_URL` is refused
+- At least one JWKS source: `IDENTITY_JWKS_FILE`, `IDENTITY_JWKS`, `IDENTITY_JWKS_URL`, or `IDENTITY_SERVICE_URL` (the service does not fall back to localhost in production)
 
 `JWT_HS256_FALLBACK_SECRET` verifies HS256 tokens from a local identity-service debug setup. Set it to that service's `SECRET_KEY`. hosting-service refuses to start with the secret set while `DEBUG=false`, unless `ALLOW_JWT_HS256_FALLBACK=true`.
 
@@ -37,7 +37,7 @@ These claims are taken from the verified payload. hosting-service does not ask i
 | `user_id` or `sub` | Numeric identity user id stored on apps, deployments, and the event log |
 | `email` | Actor email on events, when the token carries one |
 
-A forged payload cannot pass unless it is signed by a key in the pinned JWKS. Privileged routes rely on that signature check and on token expiry. hosting-service does not re-fetch the staff flag from identity-service before it acts.
+A forged payload cannot pass unless it is signed by a key in the configured JWKS. Privileged routes rely on that signature check and on token expiry. hosting-service does not re-fetch the staff flag from identity-service before it acts.
 
 ## Company scope
 

@@ -20,6 +20,8 @@
     <script type="module">
       import { init, shellui } from "{% static 'vendor/shellui-sdk/0.2.0/sdk.mjs' %}";
 
+      const SHELLUI_INIT_TIMEOUT_MS = 5000;
+
       const applyDocsColorMode = (appearance) => {
         const mode = appearance?.mode === "dark" ? "dark" : "light";
         document.documentElement.classList.toggle("dark-mode", mode === "dark");
@@ -33,12 +35,30 @@
         window.__applyShelluiAccessToken?.(token);
       };
 
-      await init();
-      applyDocsColorMode(shellui.initialSettings?.appearance ?? null);
-      window.__shelluiAccessToken = shellui.initialSettings?.accessToken ?? null;
-      window.__applyShelluiAccessToken?.(window.__shelluiAccessToken);
-      shellui.addMessageListener("SHELLUI_SETTINGS", handleSettingsMessage);
-      shellui.addMessageListener("SHELLUI_SETTINGS_UPDATED", handleSettingsMessage);
+      const attachShellui = async () => {
+        try {
+          await Promise.race([
+            init(),
+            new Promise((_, reject) => {
+              setTimeout(
+                () => reject(new Error("Shellui SDK init timed out")),
+                SHELLUI_INIT_TIMEOUT_MS,
+              );
+            }),
+          ]);
+          applyDocsColorMode(shellui.initialSettings?.appearance ?? null);
+          window.__shelluiAccessToken = shellui.initialSettings?.accessToken ?? null;
+          window.__applyShelluiAccessToken?.(window.__shelluiAccessToken);
+          shellui.addMessageListener("SHELLUI_SETTINGS", handleSettingsMessage);
+          shellui.addMessageListener("SHELLUI_SETTINGS_UPDATED", handleSettingsMessage);
+        } catch (error) {
+          console.warn(
+            "Shellui SDK init failed; Swagger UI uses the default appearance.",
+            error,
+          );
+        }
+      };
+      attachShellui();
     </script>
     <script src="{{ swagger_ui_bundle }}"></script>
     <script src="{{ swagger_ui_standalone }}"></script>

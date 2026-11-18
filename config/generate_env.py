@@ -26,7 +26,6 @@ def _values(host: str) -> dict[str, str]:
         'IDENTITY_SERVICE_URL': f'https://{ph}',
         'IDENTITY_ISSUER': f'https://{ph}',
         'IDENTITY_AUDIENCE': 'shellui',
-        'IDENTITY_JWKS': ph,
         'REDIS_URL': 'redis://redis:6379/0',
         'POSTGRES_DATABASE_URL': f'postgres://{ph}:{ph}@postgres:5432/hosting',
     }

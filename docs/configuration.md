@@ -6,6 +6,8 @@ description: Environment variables for hosting-service, grouped by topic, with t
 
 hosting-service reads configuration from environment variables. Copy [`.env.example`](../.env.example) to `.env` for local runs. Pass the same keys to Docker, Coolify, or your orchestrator in production.
 
+For the shared Shellui compose stack (`shellui/shellui/dev`), see [Local dev stack](local-dev-stack.md) for port **8003**, internal identity URLs, and the `HOSTING_*` keys in `dev/.env.local`.
+
 An empty boolean uses the default. `1`, `true`, `yes`, and `on` are true. Any other value, including `false`, is false. Byte sizes accept a bare integer or a `K`, `M`, `G`, or `T` suffix. Each suffix is a multiple of 1024, so `100M` is 104857600 bytes.
 
 ## Generate the env
@@ -28,7 +30,7 @@ The Docker image sets `DEBUG=false`. Startup fails until these are set:
 | --- | --- |
 | `IDENTITY_ISSUER` | JWT `iss` must match this value |
 | `IDENTITY_AUDIENCE` | JWT `aud` must match this value |
-| `IDENTITY_JWKS_FILE` or `IDENTITY_JWKS` | Pinned JSON Web Key Set (JWKS). A URL fetch is refused |
+| `IDENTITY_JWKS_FILE`, `IDENTITY_JWKS`, `IDENTITY_JWKS_URL`, or `IDENTITY_SERVICE_URL` | JWKS for JWT verification. Pin with `IDENTITY_JWKS_FILE` or `IDENTITY_JWKS`, or fetch from `IDENTITY_JWKS_URL` or `{IDENTITY_SERVICE_URL}/.well-known/jwks.json`. At least one must be set; the service does not fall back to localhost when `DEBUG=false` |
 | `HOSTING_APP_DOMAIN` | Apps domain, for example `shellui.app`, or `eu.shellui.app` for a region. Used in browse links, OAuth redirect sync, and `ALLOWED_HOSTS` |
 
 `HOSTING_DEBUG_OPEN=true` is also refused while `DEBUG=false`. `JWT_HS256_FALLBACK_SECRET` is refused unless you also set `ALLOW_JWT_HS256_FALLBACK=true`.
@@ -40,7 +42,7 @@ The Docker image sets `DEBUG=false`. Startup fails until these are set:
 | `DEBUG` | `false` | Local mode. The image sets `false`. Never enable it in production |
 | `LOG_LEVEL` | `INFO`, or `DEBUG` when `DEBUG=true` | Python log level |
 | `SETUP_TOKEN` | empty | One-time token for the web form that creates the first superuser when `DEBUG=false` |
-| `HOSTING_SERVICE_PORT` | `8002` | Host port published by Docker Compose. Gunicorn inside the image listens on 8000 |
+| `HOSTING_SERVICE_PORT` | `8003` | Host port published by Docker Compose. Gunicorn inside the image listens on 8000 |
 | `ALLOWED_HOSTS` | `localhost`, `127.0.0.1` | Comma-separated hostnames, no scheme |
 | `CSRF_TRUSTED_ORIGINS` | local dev origins and `https://admin.shellui.com` | Full origins for Django admin form posts |
 | `DJANGO_ADMIN_ENABLED` | `true` | `false` removes `/admin/` routes |
@@ -51,8 +53,8 @@ When `HOSTING_ALLOW_ANY_HOST` is on (the default while `DEBUG=true`), `ALLOWED_H
 
 | Variable | Default | Purpose |
 | --- | --- | --- |
-| `IDENTITY_SERVICE_URL` | empty | identity-service base URL. OAuth redirect sync uses this. If it is empty and JWKS is pinned (`IDENTITY_JWKS` or `IDENTITY_JWKS_FILE`), sync uses the origin of `IDENTITY_JWKS_URL` when that URL ends in `/.well-known/jwks.json`. `http://localhost:8000` and `http://127.0.0.1:8000` are ignored |
-| `IDENTITY_JWKS_URL` | `{IDENTITY_SERVICE_URL}/.well-known/jwks.json` | JWKS URL when no document is pinned. Local and dev only in production checks |
+| `IDENTITY_SERVICE_URL` | empty | identity-service base URL for server-to-server OAuth redirect sync. In the local dev stack, set this to `http://identity:8000` while `IDENTITY_ISSUER` stays `http://localhost:8001`. If it is empty and JWKS is pinned (`IDENTITY_JWKS` or `IDENTITY_JWKS_FILE`), sync uses the origin of `IDENTITY_JWKS_URL` when that URL ends in `/.well-known/jwks.json`. `http://localhost:8000` and `http://127.0.0.1:8000` are ignored |
+| `IDENTITY_JWKS_URL` | `{IDENTITY_SERVICE_URL}/.well-known/jwks.json` when `IDENTITY_SERVICE_URL` is set, else `http://localhost:8000/.well-known/jwks.json` in local dev | JWKS fetch URL when no document is pinned. Set explicitly (for example `http://identity:8000/.well-known/jwks.json`) when the issuer is public but JWKS must be fetched on the internal network |
 | `IDENTITY_JWKS_FILE` | empty | Path to a JWKS file. Relative paths are from the repository root |
 | `IDENTITY_JWKS` | empty | JWKS JSON in the environment, used when no file is set |
 | `IDENTITY_ISSUER` | empty | Expected `iss`. Required when `DEBUG=false` |
@@ -60,10 +62,14 @@ When `HOSTING_ALLOW_ANY_HOST` is on (the default while `DEBUG=true`), `ALLOWED_H
 | `JWKS_CACHE_TTL` | `900` | Seconds to cache a fetched JWKS document |
 | `JWKS_TIMEOUT` | `15` | Seconds for one JWKS HTTP call |
 | `JWKS_RETRIES` | `2` | Retries when fetching JWKS |
+| `HOSTING_SERVICE_ISSUER` | empty | Public origin of this service, the `iss` of its internal MCP assertions to Identity. Set the same `HOSTING_SERVICE_ISSUER` on Identity. Unset: MCP calls to Identity fail closed |
+| `HOSTING_SERVICE_SIGNING_KEY` | empty | RSA private key (PEM, 2048 bits or more) that signs internal MCP assertions (RS256). Public key served at `/.well-known/jwks.json`. Never log or commit it |
+| `HOSTING_SERVICE_SIGNING_KEY_FILE` | empty | Path to that PEM instead of the variable. Relative paths are from the repository root. Wins over `HOSTING_SERVICE_SIGNING_KEY` |
 | `JWT_ALGORITHMS` | `RS256` | Comma-separated algorithms accepted for RS256 verification |
 | `JWT_HS256_FALLBACK_SECRET` | empty | HS256 secret for local identity debug tokens. Set it to the identity `SECRET_KEY` |
 | `ALLOW_JWT_HS256_FALLBACK` | `false` | Allow the HS256 secret when `DEBUG=false` |
 | `IDENTITY_SYNC_TIMEOUT` | `10` | Seconds for the OAuth redirect sync call |
+| `IDENTITY_DELEGATED_AGENT_AUTHORITY_PATH` | `/api/v1/mcp/internal/mcp-agent-delegated-authority` | Identity internal route for the live delegated agent row check (POST JSON matches the token). Retire alternate spellings; canonical path is in [identity-service docs](https://github.com/shellui/identity-service/blob/d79d433278ac18695a6165448bf0b8cfe56c88a5/docs/mcp-and-agents.md) |
 
 See [JWT and claim trust](claim-trust.md).
 
@@ -76,6 +82,10 @@ See [JWT and claim trust](claim-trust.md).
 | `HOSTING_ALLOW_ANY_HOST` | same as `DEBUG` | Accept any `Host` header. Leave this off in production |
 | `HOSTING_PREVIEW_TTL_DAYS` | `7` | Days added to `expires_at` when a preview finalize succeeds |
 | `HOSTING_SERVE_CACHE_TTL_SECONDS` | `45` | In-process cache of slug-to-app lookups. `0` disables it. Cleared on finalize and rollback |
+| `HOSTING_REQUEST_LOG_ENABLED` | `true` | When true, records one anonymized row per HTTP response on app subdomains (method, path, status, optional request id) for operations APIs |
+| `HOSTING_REQUEST_LOG_MAX_PER_APP` | `5000` | Deletes oldest rows after this many per app |
+| `HOSTING_REQUEST_LOG_PAGE_MAX` | `200` | Maximum `limit` on `GET .../logs/requests` |
+| `HOSTING_RUNTIME_LOG_MAX_LINES` | `500` | Upper cap on the `limit` query for `GET .../logs/runtime` (response stays empty until a runtime exists) |
 | `HOSTING_DEBUG_OPEN` | `false` | Skip the company waitlist. Refused when `DEBUG=false`. [`.env.example`](../.env.example) sets `true` for local clones |
 
 The public URL is `{scheme}://{slug}.{HOSTING_APP_DOMAIN}/`. Serving itself uses the first hostname label, not only this domain. `HOSTING_APP_DOMAIN` and `www.{HOSTING_APP_DOMAIN}` show the landing page. See [Preview sites and public URLs](preview-and-serving.md).
@@ -91,6 +101,7 @@ Use a different registrable domain from identity-service and Django admin. `shel
 | `HOSTING_MAX_UPLOAD_BYTES` | `100M` | Maximum gzip archive size |
 | `HOSTING_MAX_EXTRACT_FILES` | `5000` | Maximum regular files extracted from one archive |
 | `HOSTING_MAX_EXTRACT_BYTES` | `500M` | Maximum total uncompressed size |
+| `HOSTING_ARTIFACT_UPLOAD_URL_EXPIRES` | `900` | Lifetime in seconds for MCP artifact upload URLs (presigned S3 or direct hosting PUT) |
 | `HOSTING_MAX_EXTRACT_FILE_BYTES` | same as the upload cap | Maximum size of one extracted file |
 | `DATA_UPLOAD_MAX_MEMORY_SIZE` | `12M` | Django in-memory limit for form and JSON bodies. Artifact uploads are streamed and only capped by `HOSTING_MAX_UPLOAD_BYTES` |
 
@@ -207,6 +218,16 @@ Set `EMAIL_SERVICE_API_KEY` to forward hosting events to email-service. An empty
 | `EVENT_LOG_RETENTION_DAYS` | `7` | Days to keep event-log rows and finished webhook and email deliveries |
 
 `manage.py purge_expired_data` deletes older rows. The container runs it every hour at minute 17. See [Event log](event-log.md) and [Scheduled jobs](maintenance-jobs.md).
+
+## Shellui MCP
+
+Optional tuning for `POST /mcp`. No variables are required for MCP to stay on. See [Shellui MCP](mcp.md).
+
+| Variable | Default | Purpose |
+| --- | --- | --- |
+| `MCP_RATE_LIMIT_AGENT` | `120` | MCP tool calls per minute per agent |
+| `HOSTING_MCP_RESOURCE` | empty | RFC 8707 resource identifier (`aud`). Defaults to `{request origin}/mcp` |
+| `HOSTING_PUBLIC_URL` | empty | Public HTTPS origin when the MCP resource URL cannot be inferred from the request |
 
 ## Apex landing
 

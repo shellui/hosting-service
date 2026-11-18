@@ -12,7 +12,9 @@ hosting-service stores Shellui app builds and serves each one on a public URL. Y
 
 hosting-service is the Shellui backend that hosts microfrontend apps. It accepts a gzip tar archive, extracts the files, and serves that build as a static site. The same process serves the API, Django admin, and OpenAPI on the apex host.
 
-It is a Django app, published as the `shellui/hosting-service` Docker image. It checks JSON Web Tokens (JWTs) issued by identity-service. It does not sign people in itself.
+It is a Django app, published as the `shellui/hosting-service` Docker image. It checks JSON Web Tokens (JWTs) issued by identity-service. It does not sign people in itself. Company-owner routes marked with OpenAPI `x-mcp` are available to [Shellui MCP](mcp.md) agents at `POST /mcp`.
+
+**Related handbooks (source):** [identity-service MCP and agents](https://github.com/shellui/identity-service/blob/d79d433278ac18695a6165448bf0b8cfe56c88a5/docs/mcp-and-agents.md) documents OAuth, internal assertions, live delegated authority, approvals, and revocation; [hosting MCP in this repo](mcp.md) covers `POST /mcp`, tools, and hosting-specific notes. The ai-service gateway records tool-call activity.
 
 ## Who it is for
 
@@ -65,7 +67,7 @@ The event log keeps those events, including the acting user, for `EVENT_LOG_RETE
 
 ## Configure and run
 
-Copy [`.env.example`](../.env.example) to `.env`, point `IDENTITY_SERVICE_URL` at identity-service, and run migrations. Docker Compose is the local path in [Run hosting-service](getting-started.md).
+Copy [`.env.example`](../.env.example) to `.env`, point `IDENTITY_SERVICE_URL` at identity-service, and run migrations. For the full Shellui stack, start from [Local dev stack](local-dev-stack.md). Docker Compose for this repo alone is in [Run hosting-service](getting-started.md).
 
 The container runs database migrations, then Gunicorn and a Celery worker with beat. `retry_webhooks` runs every minute. `purge_expired_data` runs every hour at minute 17. Redis is required when `DEBUG=false` (`REDIS_URL`). With `DEBUG=true` and no Redis, the web app still starts and the scheduler stays off. See [Scheduled jobs](maintenance-jobs.md).
 
@@ -77,7 +79,7 @@ Pick the row that matches what you are doing:
 | --- | --- |
 | Run it locally | [Run hosting-service](getting-started.md) |
 | Set environment variables | [Configuration](configuration.md) |
-| Follow an app from upload to active | [Apps and deployments](apps-and-deployments.md) |
+| Follow an app from upload to active | [Apps and deployments](apps-and-deployments.md) (includes [MCP agents: production deploy flow](apps-and-deployments.md#mcp-agents-production-deploy-flow)) |
 | Deploy from your machine or CI | [Deploy with the CLI](deploy-with-cli.md) |
 | See how public URLs are chosen | [Preview sites and public URLs](preview-and-serving.md) |
 | Approve a company | [Company access](company-access.md) |

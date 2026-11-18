@@ -42,7 +42,7 @@ Only an explicit truthy `HOSTING_DEBUG_OPEN` skips the company waitlist. `DEBUG=
 When `DEBUG=false`:
 
 - `IDENTITY_ISSUER` and `IDENTITY_AUDIENCE` are required, and `iss` / `aud` are checked
-- The JWKS document must be pinned with `IDENTITY_JWKS_FILE` or `IDENTITY_JWKS`. Fetching `IDENTITY_JWKS_URL` at runtime is for local development
+- JWKS must be configured: fetch from `IDENTITY_JWKS_URL` or `{IDENTITY_SERVICE_URL}/.well-known/jwks.json`, or pin with `IDENTITY_JWKS_FILE` or `IDENTITY_JWKS` (pinning wins when set). Startup fails when none of those sources are set
 
 Privileged claims are listed in [JWT and claim trust](claim-trust.md).
 

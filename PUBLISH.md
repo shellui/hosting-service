@@ -183,7 +183,7 @@ Full JWT deploy/CLI flows cannot be verified without identity-service tokens - t
 | Variable | Notes |
 |----------|--------|
 | `SECRET_KEY` | Django sessions/CSRF. Generate one; `manage.py check --deploy` errors (`authapi.E005`) when `DEBUG=false` and the key is empty, a known placeholder, or shorter than 50 characters |
-| `IDENTITY_JWKS` or `IDENTITY_JWKS_FILE` | **Pinned** JWKS in production (`IDENTITY_JWKS_URL` fetch is dev-only) |
+| `IDENTITY_JWKS_FILE`, `IDENTITY_JWKS`, `IDENTITY_JWKS_URL`, or `IDENTITY_SERVICE_URL` | JWKS for JWT verification in production (fetch from URL or `{IDENTITY_SERVICE_URL}/.well-known/jwks.json`; optional pin wins when set) |
 | `IDENTITY_ISSUER` / `IDENTITY_AUDIENCE` | Required when `DEBUG=false` |
 | `HOSTING_APP_DOMAIN` | e.g. `shellui.app` (required when `DEBUG=false`). Use a different registrable domain from identity and admin (`shellui.com`) |
 | `ALLOWED_HOSTS` | Comma-separated hostnames |

@@ -189,8 +189,12 @@ CSRF_TRUSTED_ORIGINS = _env_csv(
     (
         'http://localhost:8002',
         'http://127.0.0.1:8002',
+        'http://localhost:8003',
+        'http://127.0.0.1:8003',
         'http://localhost:4000',
         'http://127.0.0.1:4000',
+        'http://localhost:5173',
+        'http://127.0.0.1:5173',
         'http://localhost:5174',
         'http://127.0.0.1:5174',
         'https://admin.shellui.com',
@@ -251,7 +255,7 @@ EMAIL_SERVICE_API_KEY = os.getenv('EMAIL_SERVICE_API_KEY', '').strip()
 EMAIL_SERVICE_ALLOW_PRIVATE = _env_bool('EMAIL_SERVICE_ALLOW_PRIVATE', False)
 
 REST_FRAMEWORK = {
-    'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
+    'DEFAULT_SCHEMA_CLASS': 'apps.authapi.mcp_schema.McpAutoSchema',
     'DEFAULT_AUTHENTICATION_CLASSES': [
         'apps.hosting.deploy_tokens.DeployTokenAuthentication',
         'apps.authapi.authentication.IdentityJWKSAuthentication',
@@ -289,11 +293,26 @@ SPECTACULAR_SETTINGS = {
     'TAGS': [
         {'name': 'health', 'description': 'Service health checks.'},
         {'name': 'access', 'description': 'Company hosting access / waitlist.'},
-        {'name': 'apps', 'description': 'Hosted microfrontend apps.'},
+        {'name': 'sites', 'description': 'Hosted microfrontend apps (company sites).'},
         {'name': 'deployments', 'description': 'App deployment artifacts and lifecycle.'},
+        {'name': 'previews', 'description': 'Preview deploys (7-day TTL).'},
+        {'name': 'deploy-tokens', 'description': 'Company deploy tokens for CI preview deploys.'},
+        {'name': 'webhooks', 'description': 'Shellui Actions webhook rules and deliveries.'},
+        {'name': 'event-log', 'description': 'Company domain event log.'},
         {'name': 'stats', 'description': 'Hosting statistics.'},
-        {'name': 'platform-metrics', 'description': 'Prometheus metrics endpoints.'},
+        {'name': 'operations', 'description': 'Custom domains, environment variables, and operational logs.'},
+        {'name': 'platform-metrics', 'description': 'Prometheus metrics endpoints (staff).'},
+        {'name': 'mcp-tools', 'description': 'Operations exposed to Shellui MCP agents.'},
     ],
+    'PREPROCESSING_HOOKS': ['apps.authapi.spectacular_hooks.preprocessing_exclude_internal_endpoints'],
+    'POSTPROCESSING_HOOKS': [
+        'apps.authapi.spectacular_hooks.postprocess_mcp_tool_tags',
+        'apps.hosting.mcp_openapi_enums.postprocess_mcp_enums',
+    ],
+}
+
+MCP_RATE_LIMITS = {
+    'mcp_agent': {'limit': _env_int('MCP_RATE_LIMIT_AGENT', 120), 'window': 60},
 }
 
 MIDDLEWARE = [
@@ -308,6 +327,8 @@ MIDDLEWARE = [
     'apps.hosting.middleware.HostedAppNavigationPolicyMiddleware',
     # App subdomains → hosted site for all paths (before admin/API URLConf).
     'apps.hosting.middleware.HostedAppServeMiddleware',
+    # After the response is built on app hosts, record a bounded access log row.
+    'apps.hosting.middleware.HostedAppRequestLogMiddleware',
     'whitenoise.middleware.WhiteNoiseMiddleware',
     'corsheaders.middleware.CorsMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
@@ -504,6 +525,19 @@ def _resolve_identity_jwks_url() -> str:
     return 'http://localhost:8000/.well-known/jwks.json'
 
 
+def _identity_jwks_configured_in_env() -> bool:
+    """True when JWKS is pinned or a non-default fetch URL is configured."""
+    if os.getenv('IDENTITY_JWKS_FILE', '').strip():
+        return True
+    if os.getenv('IDENTITY_JWKS', '').strip():
+        return True
+    if os.getenv('IDENTITY_JWKS_URL', '').strip():
+        return True
+    if os.getenv('IDENTITY_SERVICE_URL', '').strip():
+        return True
+    return False
+
+
 IDENTITY_JWKS_DOCUMENT, IDENTITY_JWKS_SOURCE, IDENTITY_JWKS_FILE = _load_static_jwks()
 IDENTITY_SERVICE_URL = os.getenv('IDENTITY_SERVICE_URL', '').strip().rstrip('/') or None
 if IDENTITY_JWKS_DOCUMENT is not None:
@@ -516,8 +550,13 @@ else:
         )
 IDENTITY_ISSUER = os.getenv('IDENTITY_ISSUER', '').strip() or None
 IDENTITY_AUDIENCE = os.getenv('IDENTITY_AUDIENCE', '').strip() or None
+
 # Base URL for forwarding the caller's JWT to register/remove OAuth redirect origins.
 IDENTITY_SYNC_TIMEOUT = _env_float('IDENTITY_SYNC_TIMEOUT', 10)
+# Canonical Identity path for live delegated RegionalAgent row checks (Storage #59 contract).
+IDENTITY_DELEGATED_AGENT_AUTHORITY_PATH = os.getenv(
+    'IDENTITY_DELEGATED_AGENT_AUTHORITY_PATH', '/api/v1/mcp/internal/mcp-agent-delegated-authority'
+).strip()
 JWKS_CACHE_TTL = _env_int('JWKS_CACHE_TTL', 900)
 JWKS_TIMEOUT = _env_float('JWKS_TIMEOUT', 15)
 JWKS_RETRIES = _env_int('JWKS_RETRIES', 2)
@@ -541,6 +580,7 @@ JWT_ALGORITHMS = _env_csv('JWT_ALGORITHMS', ('RS256',))
 HOSTING_MAX_APPS_PER_COMPANY = _env_int('HOSTING_MAX_APPS_PER_COMPANY', 5)
 HOSTING_MAX_DEPLOYMENTS_PER_APP = _env_int('HOSTING_MAX_DEPLOYMENTS_PER_APP', 20)
 HOSTING_MAX_UPLOAD_BYTES = _env_bytes('HOSTING_MAX_UPLOAD_BYTES', 100 * 1024**2)
+HOSTING_ARTIFACT_UPLOAD_URL_EXPIRES = _env_int('HOSTING_ARTIFACT_UPLOAD_URL_EXPIRES', 900)
 HOSTING_MAX_EXTRACT_FILES = _env_int('HOSTING_MAX_EXTRACT_FILES', 5000)
 HOSTING_MAX_EXTRACT_BYTES = _env_bytes('HOSTING_MAX_EXTRACT_BYTES', 500 * 1024**2)
 HOSTING_MAX_EXTRACT_FILE_BYTES = _env_bytes(
@@ -552,6 +592,12 @@ HOSTING_PREVIEW_TTL_DAYS = _env_int('HOSTING_PREVIEW_TTL_DAYS', 7)
 # In-process cache for hosted-app slug → App lookups (no Redis). 0 disables.
 # Invalidated automatically on deploy finalize. Safe default for local + prod.
 HOSTING_SERVE_CACHE_TTL_SECONDS = _env_int('HOSTING_SERVE_CACHE_TTL_SECONDS', 45)
+
+# Bounded access logs for app subdomains (operations APIs).
+HOSTING_REQUEST_LOG_ENABLED = _env_bool('HOSTING_REQUEST_LOG_ENABLED', True)
+HOSTING_REQUEST_LOG_MAX_PER_APP = _env_int('HOSTING_REQUEST_LOG_MAX_PER_APP', 5000)
+HOSTING_REQUEST_LOG_PAGE_MAX = _env_int('HOSTING_REQUEST_LOG_PAGE_MAX', 200)
+HOSTING_RUNTIME_LOG_MAX_LINES = _env_int('HOSTING_RUNTIME_LOG_MAX_LINES', 500)
 
 # Optional 301 target for the apex landing page (`/`). Unset → render home.html.
 # Does not affect hosted-app subdomain serving (e.g. `{slug}.shellui.app`).
@@ -568,6 +614,8 @@ SHELLUI_GITHUB_URL = os.getenv('SHELLUI_GITHUB_URL', 'https://github.com/shellui
 SHELLUI_AI_URL = os.getenv('SHELLUI_AI_URL', 'https://shellui.ai').strip() or 'https://shellui.ai'
 # Region label on the apex landing, for example EU. Empty hides the region line.
 HOSTING_REGION = os.getenv('HOSTING_REGION', '').strip()
+HOSTING_PUBLIC_URL = os.getenv('HOSTING_PUBLIC_URL', '').strip().rstrip('/') or None
+HOSTING_MCP_RESOURCE = os.getenv('HOSTING_MCP_RESOURCE', '').strip().rstrip('/') or None
 
 # Public browsable app URLs ({slug}.{HOSTING_APP_DOMAIN} — domain is canonical for API links only)
 HOSTING_APP_DOMAIN = os.getenv('HOSTING_APP_DOMAIN', '').strip().lstrip('.')
@@ -786,10 +834,12 @@ if not DEBUG:
         _production_config_errors.append('IDENTITY_ISSUER is required when DEBUG=false.')
     if not IDENTITY_AUDIENCE:
         _production_config_errors.append('IDENTITY_AUDIENCE is required when DEBUG=false.')
-    if IDENTITY_JWKS_DOCUMENT is None:
+    if not _identity_jwks_configured_in_env():
         _production_config_errors.append(
-            'Pin JWKS in production with IDENTITY_JWKS_FILE or IDENTITY_JWKS '
-            '(runtime fetch from IDENTITY_JWKS_URL is for local/dev only).'
+            'Set IDENTITY_JWKS_FILE, IDENTITY_JWKS, IDENTITY_JWKS_URL, or IDENTITY_SERVICE_URL '
+            'when DEBUG=false. Pinned IDENTITY_JWKS_FILE or IDENTITY_JWKS is preferred; '
+            'otherwise JWKS is fetched from IDENTITY_JWKS_URL or '
+            '{IDENTITY_SERVICE_URL}/.well-known/jwks.json.'
         )
     if _production_config_errors:
         raise ImproperlyConfigured('\n'.join(_production_config_errors))
@@ -824,3 +874,14 @@ COMPANY_DELETION_BLOB_HOOK = 'apps.hosting.company_deletion.delete_company_artif
 
 # A failing log call must never print its arguments (headers, tokens) to stderr.
 logging.raiseExceptions = False
+
+# RS256 key this service signs internal MCP assertions to Identity with (config/service_signing.py).
+# Identity trusts it from HOSTING_SERVICE_ISSUER and reads the public key at /.well-known/jwks.json.
+from config.service_signing import read_signing_pem  # noqa: E402
+
+MCP_SIGNING_KEY_PEM = read_signing_pem(
+    value=os.getenv('HOSTING_SERVICE_SIGNING_KEY', ''),
+    file_path=os.getenv('HOSTING_SERVICE_SIGNING_KEY_FILE', '').strip(),
+    base_dir=BASE_DIR,
+)
+MCP_SIGNING_ISSUER = os.getenv('HOSTING_SERVICE_ISSUER', '').strip().rstrip('/')

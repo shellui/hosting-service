@@ -85,3 +85,21 @@ These catalog events fire from the lifecycle above. Payloads and webhook deliver
 | `hosting.deployment.failed` | Extract failed |
 
 Succeeded and failed events name the caller who finalized. Created events name the caller who created the row.
+
+## MCP agents: production deploy flow
+
+For JSON-RPC wiring, scopes, and approvals see [Shellui MCP](mcp.md). Below is the HTTP tool sequence. Names are the MCP `tools/list` names (`hosting_<verb>_<noun>`), not the OpenAPI `operationId`. Send **Bearer COMPANY_OWNER_AGENT_TOKEN** on `POST .../mcp` with `company_id` taken only from that token; never copy a tenant id from tool parameters.
+
+**Deployment row statuses** (database `deployments.status`) are exactly: `draft`, `uploading`, `active`, `superseded`, `failed`. Preview and production share this set; `expires_at` on the app governs preview lifetime ([Preview sites and public URLs](preview-and-serving.md)).
+
+**Artifact upload:** `hosting_create_apps_deployments_artifact_upload_url` returns `upload_url`, `method`, `headers`, `requires_bearer`, and `backend`. When `requires_bearer` is true, reuse the same agent token on the PUT. When `backend` is `s3`, the URL is presigned; do not log it. When `backend` is `direct`, PUT goes to hosting-service. Call `hosting_create_apps_deployments_artifact_upload_complete` after the object exists (required for S3; idempotent after a direct PUT that already registered size).
+
+Compact sequence (each line is one `tools/call` except the PUT):
+
+1. `hosting_create_apps` or `hosting_create_preview` to obtain APP_UUID (and often a draft deployment).
+2. `hosting_create_apps_deployments` on APP_UUID with body `app_version` and `shellui_version` to open a draft when needed; note DEPLOYMENT_UUID from the response.
+3. `hosting_create_apps_deployments_artifact_upload_url` on APP_UUID and DEPLOYMENT_UUID; then **PUT** the gzip tar to `upload_url` using returned `method` and `headers`.
+4. `hosting_create_apps_deployments_artifact_upload_complete` on APP_UUID and DEPLOYMENT_UUID.
+5. `hosting_create_apps_deployments_finalize` on APP_UUID and DEPLOYMENT_UUID to move status toward `active` when extraction succeeds.
+
+Event payloads, webhooks, and email forwarding use the same catalog as [Webhooks](actions.md) and [Email notifications](email.md); hosting does not send mail by itself when email-service is unset.

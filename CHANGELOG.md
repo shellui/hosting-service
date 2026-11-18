@@ -6,7 +6,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/)
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
 <!---
-## [Unreleased] - yyyy-mm-dd
+## [x.y.z] - yyyy-mm-dd
 
 ### ✨ Feature - for new features
 ### 🛠 Improvements - for general improvements
@@ -20,6 +20,76 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 See for sample https://raw.githubusercontent.com/favoloso/conventional-changelog-emoji/master/CHANGELOG.md
 -->
+
+## [0.11.0] - 2026-11-18
+
+### ✨ Feature
+
+- MCP endpoint for agents at `POST /mcp`, with OAuth metadata and OpenAPI descriptions.
+- Company-owner REST and MCP tools for custom domains, app environment variables, and bounded request logs.
+- Artifact upload URL tools for agent deployments.
+- Domain and environment-variable events for auditing.
+- Static hosting returns an explicit empty runtime log contract.
+
+### 🛠 Improvements
+
+- MCP tool names match the ai-service gateway (`hosting_<verb>_<noun>`). OpenAPI operation ids stay the same.
+- Custom domain responses keep `verified` and `serving` false until the platform confirms DNS. Environment variable values are never returned.
+- Each MCP tool has a pinned input schema.
+- `tools/list` publishes flat arguments, enums, and read or destructive hints.
+- `tools/list` keeps registry `_meta` for the ai-service gateway.
+- A direct `POST /mcp` returns this service's full catalog. The ai-service gateway defaults to a short discovery list.
+
+### 🚨 Changed
+
+- Production JWKS can be fetched from `IDENTITY_JWKS_URL` or `{IDENTITY_SERVICE_URL}/.well-known/jwks.json`. Pinned `IDENTITY_JWKS_FILE` or `IDENTITY_JWKS` still wins when set.
+- `POST /mcp` signs calls to identity-service with this service's RS256 key. Set `HOSTING_SERVICE_SIGNING_KEY` or `HOSTING_SERVICE_SIGNING_KEY_FILE`, and set `HOSTING_SERVICE_ISSUER` to this service's public origin. Without that key, MCP refuses every agent.
+- Destructive MCP tools need an Identity approval before they run, including when `mcp_access` is `full`. That covers deletes, deployment finalize and rollback, custom domain changes, environment variable writes, deploy-token revoke, Shellui Actions secret rotation, sample webhook sends, and requeued deliveries. Creating or updating a Shellui Actions rule stays non-destructive.
+- Dependabot version updates now open against `develop`.
+
+### 🐛 Bug Fixes
+
+- `tools/call` sends JSON bodies as `application/json`, so write tools no longer fail with an unsupported media type.
+- A consumed destructive approval now runs the write.
+- Rate limits key agents by `agent_id`, so agents no longer share one bucket.
+- Approval consume succeeds only when identity-service returns `consumed: true`.
+- When identity-service approval state cannot be read, hosting does not invent a pending approval or create a duplicate.
+- Direct artifact upload URLs stay visible to safe-read agents. Presigned S3 URLs stay masked.
+- MCP revocation lists are verified with the pinned JWKS or `IDENTITY_JWKS_URL`.
+- Tool results encode datetime values, and list responses stay JSON arrays.
+- Approval create sends an empty JSON body. Arguments stay in the signed assertion.
+- ReDoc and Swagger UI render without waiting on the Shellui SDK.
+- `POST /mcp` caches the OpenAPI schema under a lock, so concurrent calls no longer return HTTP 500.
+
+### 🔒 Security
+
+- Delegated agent authority is checked with identity-service before a tool runs. Failed or incomplete authority is denied. An identity-service outage on that check returns unavailable, not a silent allow.
+- After a trusted revocation poll, only a single matching agent row can deny that token. Mismatch, absence, or duplicate rows fail closed.
+- Hosting logs for failed identity-service calls omit raw upstream response text.
+- Hosting no longer overrides service JWT signing to HS256.
+- `POST /mcp` refuses staff principals. Agents cannot create deploy tokens or read plaintext token values.
+
+### 🗑 Removed
+
+- Hosting no longer posts tool-call logs to identity-service. The ai-service gateway records each `tools/call`. Token checks, revocation, and approvals stay.
+
+### 📚 Documentation
+
+- New handbook pages cover Shellui MCP and the local dev stack. Configuration docs cover production JWKS fetch.
+- The publish workflow updates the Docker Hub overview from `docker/README.md`.
+
+### 🏗 Chore
+
+- Use `shellui-django[mcp]==0.5.1` instead of a vendored copy. The public key is at `/.well-known/jwks.json`.
+- The Dockerfile `dev` target installs dependencies for the Shellui dev stack. Compose publishes this service on port 8003.
+- The docs build fetches identity, storage, and email docs so links outside hosting still resolve.
+
+### ⬆️ Upgrade notes
+
+- Apply migrations through `0008_custom_domains_env_request_logs`.
+- To serve `POST /mcp`, set `HOSTING_SERVICE_SIGNING_KEY` or `HOSTING_SERVICE_SIGNING_KEY_FILE`, and set `HOSTING_SERVICE_ISSUER` to this service's public origin. Set the same issuer on identity-service.
+- `IDENTITY_JWKS` is optional in production when `IDENTITY_JWKS_URL` or `IDENTITY_SERVICE_URL` is set. A pin still wins when it is set.
+- The Docker Hub overview step needs repository secrets `DOCKERHUB_DESCRIPTION_USERNAME` and `DOCKERHUB_DESCRIPTION_TOKEN`. Use a Docker Hub access token with Read, Write, and Delete, from a user with Admin on `shellui/hosting-service`. Image publish still uses `DOCKERHUB_USERNAME` and `DOCKERHUB_TOKEN`. The overview step is skipped when the description secrets are unset.
 
 ## [0.10.1] - 2026-11-01
 

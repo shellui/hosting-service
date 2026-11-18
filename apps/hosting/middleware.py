@@ -2,7 +2,13 @@
 
 from __future__ import annotations
 
+import logging
+
+from django.conf import settings
+
 from .hosts import slug_from_host
+
+logger = logging.getLogger(__name__)
 
 
 def apply_hosted_navigation_policy(response):
@@ -67,6 +73,38 @@ class HostedAppNavigationPolicyMiddleware:
         response = self.get_response(request)
         if slug_from_host(request.get_host()):
             apply_hosted_navigation_policy(response)
+        return response
+
+
+class HostedAppRequestLogMiddleware:
+    """Record one anonymized HTTP row per app-host request (bounded per app)."""
+
+    def __init__(self, get_response):
+        self.get_response = get_response
+
+    def __call__(self, request):
+        response = self.get_response(request)
+        if not getattr(settings, 'HOSTING_REQUEST_LOG_ENABLED', True):
+            return response
+        try:
+            slug = slug_from_host(request.get_host())
+            if not slug:
+                return response
+            from .models import App
+            from .operational import record_hosted_request
+
+            app = App.objects.filter(slug=slug).only('id', 'slug').first()
+            if app is None:
+                return response
+            record_hosted_request(
+                app=app,
+                method=request.method,
+                path=request.get_full_path(),
+                status_code=getattr(response, 'status_code', 500) or 500,
+                request_id=getattr(request, 'request_id', '') or '',
+            )
+        except Exception:
+            logger.exception('hosted request log failed')
         return response
 
 

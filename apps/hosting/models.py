@@ -127,3 +127,78 @@ class DeployToken(models.Model):
 
     def __str__(self) -> str:
         return f'{self.name} ({self.prefix}...)'
+
+
+class CustomDomainStatus(models.TextChoices):
+    """Local registration state. Serving still uses slug-based DNS until edge integration exists."""
+
+    PENDING_DNS = 'pending_dns', 'Pending DNS'
+    AWAITING_PLATFORM = 'awaiting_platform', 'Awaiting platform'
+    ACTIVE = 'active', 'Active'
+
+
+class AppCustomDomain(models.Model):
+    """Custom hostname a company wants to point at a hosted app. Verification is DNS-based metadata only."""
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    app = models.ForeignKey(App, on_delete=models.CASCADE, related_name='custom_domains')
+    hostname = models.CharField(max_length=253, db_index=True)
+    status = models.CharField(
+        max_length=32,
+        choices=CustomDomainStatus.choices,
+        default=CustomDomainStatus.PENDING_DNS,
+        db_index=True,
+    )
+    created_at = models.DateTimeField(default=timezone.now)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=['app', 'hostname'], name='hosting_app_custom_domain_app_host_uniq'),
+            models.UniqueConstraint(fields=['hostname'], name='hosting_custom_domain_hostname_global_uniq'),
+        ]
+        indexes = [
+            models.Index(fields=['app', 'status']),
+        ]
+        ordering = ['hostname']
+
+    def __str__(self) -> str:
+        return f'{self.hostname} ({self.status})'
+
+
+class AppEnvironmentVariable(models.Model):
+    """Key/value for build-time metadata and future runtime injection (values encrypted at rest)."""
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    app = models.ForeignKey(App, on_delete=models.CASCADE, related_name='environment_variables')
+    key = models.CharField(max_length=128, db_index=True)
+    value_ciphertext = models.TextField()
+    created_at = models.DateTimeField(default=timezone.now)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=['app', 'key'], name='hosting_app_env_key_uniq'),
+        ]
+        ordering = ['key']
+
+    def __str__(self) -> str:
+        return self.key
+
+
+class HostedAppRequestLog(models.Model):
+    """Bounded HTTP access log lines recorded on the app hostname only."""
+
+    id = models.BigAutoField(primary_key=True)
+    app = models.ForeignKey(App, on_delete=models.CASCADE, related_name='request_logs')
+    created_at = models.DateTimeField(default=timezone.now, db_index=True)
+    method = models.CharField(max_length=16)
+    path = models.CharField(max_length=2048)
+    status_code = models.PositiveSmallIntegerField()
+    request_id = models.CharField(max_length=128, blank=True, default='')
+
+    class Meta:
+        indexes = [
+            models.Index(fields=['app', '-created_at']),
+        ]
+        ordering = ['-created_at', '-id']

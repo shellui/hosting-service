@@ -3,11 +3,16 @@
 from __future__ import annotations
 
 import tempfile
-from typing import BinaryIO
+from datetime import datetime, timedelta, timezone
+from typing import Any, BinaryIO
 
 from django.conf import settings
 from django.core.files.base import ContentFile, File
 from django.core.files.storage import default_storage
+from django.http import HttpRequest
+from django.urls import reverse
+
+ARTIFACT_CONTENT_TYPE = 'application/gzip'
 
 
 def is_s3_backend() -> bool:
@@ -114,6 +119,70 @@ def save_artifact(key: str, fileobj: BinaryIO, *, max_bytes: int) -> int:
             default_storage.delete(key)
         default_storage.save(key, File(tmp))
     return size
+
+
+def _s3_object_key(storage_key: str) -> str:
+    from storages.utils import clean_name
+
+    storage = default_storage
+    return storage._normalize_name(clean_name(storage_key))
+
+
+def presigned_artifact_put_url(storage_key: str, *, content_type: str, expires_in: int) -> str:
+    """Return a time-limited PUT URL for ``storage_key`` when using the S3 backend."""
+    if not is_s3_backend():
+        raise RuntimeError('presigned_artifact_put_url requires HOSTING_BACKEND=s3')
+    storage = default_storage
+    name = _s3_object_key(storage_key)
+    return storage.connection.meta.client.generate_presigned_url(
+        'put_object',
+        Params={
+            'Bucket': storage.bucket.name,
+            'Key': name,
+            'ContentType': content_type,
+        },
+        ExpiresIn=expires_in,
+        HttpMethod='PUT',
+    )
+
+
+def build_artifact_upload_target(
+    deployment,
+    *,
+    request: HttpRequest,
+    expires_in: int,
+) -> dict[str, Any]:
+    """Describe how an agent uploads bytes without sending them through MCP JSON."""
+    key = artifact_key(deployment)
+    expires_at = datetime.now(timezone.utc) + timedelta(seconds=expires_in)
+    app_ref = deployment.app.slug or str(deployment.app_id)
+    upload_path = reverse(
+        'hosting-deployment-upload',
+        kwargs={'app_ref': app_ref, 'deployment_id': deployment.id},
+    )
+    if is_s3_backend():
+        upload_url = presigned_artifact_put_url(
+            key,
+            content_type=ARTIFACT_CONTENT_TYPE,
+            expires_in=expires_in,
+        )
+        return {
+            'upload_url': upload_url,
+            'method': 'PUT',
+            'headers': {'Content-Type': ARTIFACT_CONTENT_TYPE},
+            'requires_bearer': False,
+            'expires_at': expires_at.isoformat().replace('+00:00', 'Z'),
+            'backend': 's3',
+        }
+    upload_url = request.build_absolute_uri(upload_path)
+    return {
+        'upload_url': upload_url,
+        'method': 'PUT',
+        'headers': {'Content-Type': ARTIFACT_CONTENT_TYPE},
+        'requires_bearer': True,
+        'expires_at': expires_at.isoformat().replace('+00:00', 'Z'),
+        'backend': 'direct',
+    }
 
 
 def delete_artifact_prefix(prefix: str) -> None:

@@ -26,6 +26,7 @@ const sidebars = {
     doc('index', 'Overview'),
     category('Get started', [
       doc('getting-started', 'Run hosting-service'),
+      doc('local-dev-stack', 'Local dev stack'),
       doc('configuration', 'Configuration'),
     ]),
     category('Core concepts', [
@@ -51,6 +52,7 @@ const sidebars = {
     ]),
     category('API', [
       doc('api', 'API reference'),
+      doc('mcp', 'Shellui MCP'),
     ]),
   ],
 };

@@ -129,13 +129,14 @@ jobs:
         uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
         with:
           version: '0.12.1'
+          python-version: '3.14'
           enable-cache: true
           cache-dependency-glob: 'uv.lock'
 
       - name: Dependency vulnerabilities (pip-audit)
         run: |
           uv export --frozen --no-dev --no-emit-project --no-hashes -o /tmp/requirements.txt
-          uvx pip-audit -r /tmp/requirements.txt
+          uvx --python 3.14 pip-audit -r /tmp/requirements.txt
 
       - name: Repo hygiene
         run: |
@@ -227,13 +228,15 @@ jobs:
         working-directory: shellui
         run: pnpm install --frozen-lockfile
 
-      # Builds docs.shellui.com with only the hosting docs, read from this checkout.
+      # This checkout supplies the hosting docs. Identity, storage, and email
+      # are fetched from GitHub so links on the main docs still resolve.
       # onBrokenLinks is 'throw', so a broken link or an invalid page fails the job.
-      - name: Build docs (hosting only)
+      - name: Build docs
         working-directory: shellui
         env:
-          DOCS_SOURCE: local
-          DOCS_SERVICES: hosting
+          DOCS_SOURCE: auto
+          HOSTING_DOCS_SOURCE: local
+          DOCS_SERVICES: identity,storage,hosting,email
           DOCS_SERVICES_DIR: ${{ github.workspace }}
         run: pnpm docs:build
 
@@ -247,11 +250,21 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Build image
+      - name: Build production image
         uses: docker/build-push-action@v6
         with:
           context: .
           push: false
           tags: shellui/hosting-service:ci
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Build dev image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          target: dev
+          push: false
+          tags: shellui/hosting-service:dev-ci
           cache-from: type=gha
           cache-to: type=gha,mode=max
