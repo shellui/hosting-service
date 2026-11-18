@@ -188,7 +188,13 @@ class McpToolContractTests(TestCase):
         response = self._rpc('tools/list')
         self.assertEqual(response.status_code, 200, response.content)
         listed = response.json()['result']['tools']
-        self.assertEqual(listed, pinned['tools'])
+        public_tools = []
+        for tool in listed:
+            meta = tool.get('_meta')
+            self.assertIsInstance(meta, dict, tool.get('name'))
+            self.assertTrue(str(meta.get('operationId') or '').strip(), tool.get('name'))
+            public_tools.append({key: value for key, value in tool.items() if not str(key).startswith('_')})
+        self.assertEqual(public_tools, pinned['tools'])
         self.assertEqual([tool['name'] for tool in listed], sorted(tool['name'] for tool in listed))
         self.assertEqual({tool['name'] for tool in listed}, set(MCP_GATEWAY_TOOL_NAMES.values()))
         live = build_mcp_tool_contract()

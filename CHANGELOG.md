@@ -23,52 +23,59 @@ See for sample https://raw.githubusercontent.com/favoloso/conventional-changelog
 
 ## [Unreleased]
 
-### 🗑 Removed
-
-- Hosting no longer POSTs MCP tool-call logs to Identity `/api/v1/mcp/internal/mcp-call-logs`. The ai-service gateway records each `tools/call`. Token verification, revocation polling, and approvals stay. `shellui-django` stays 0.5.1.
-
-### 🐛 Bug Fixes
-
-- MCP `tools/call` JSON bodies were posted as `application/octet-stream`, so write tools that read a request body returned unsupported media type. Bodies are now `application/json`. List responses stay JSON arrays, matching the OpenAPI schema. Datetime values from the proxied handler are encoded in the tool result. Direct artifact upload URLs stay visible to safe-read agents; presigned S3 URLs stay masked. A consumed destructive approval now runs the write (the write gate leaves `allowed` false for those tools, and that flag was applied again after the grant). Hosting rate limits key agents by `agent_id` (every agent principal uses `user_id` 0, so they previously shared one bucket).
-- MCP approval consume: treat success only when Identity returns JSON `{"consumed": true}` on 2xx, not when the status code alone is success.
-- MCP approval forward errors and Identity OAuth redirect deletes: log structured detail without raw upstream response text in hosting logs.
-- MCP agent JWTs: reject malformed delegation hints and invalid `grant_version` at authentication (`mcp_authority_*` error keys). `mcp_authority` = `global_delegated` with `global_company_id` fails with `mcp_authority_global_delegated_on_direct_resource`. Regional exchanged agents (`mcp_authority` = `delegated`) must carry `global_company_id`, `global_agent_id`, `grant_version`, and `company_binding_version` on the same downstream MCP `aud`; missing `global_agent_id` fails with `mcp_authority_global_agent_id_invalid`; other global UUID hints without that profile still fail with `mcp_authority_delegated_on_direct_resource`.
-- MCP delegated live authority: call Identity `POST /api/v1/mcp/internal/mcp-agent-delegated-authority` with assertion `aud` = `shellui-mcp-agent-delegated-authority`, `scope` = `mcp.agent.delegated.authority.read`, `target` = Identity issuer; accept **200** only when the body matches Identity's fixed 15-key shape (see identity-service PR #135) and `authorized` is true with `active` true and `revoked` and `paused` false, with matching regional and global ids and binding triple as native ints, `allow_destructive` false, `access_mode` / `read_level` matching JWT `mcp_access` / `mcp_read`, OAuth `scope` service ids covered by `services_allowed`, and `mcp_destructive` false on delegated JWTs; treat **403** / **404** / **400** as deny (not 503); 503 on `POST /mcp` only when the check is unavailable (assertion build failure, network, Identity **5xx**). Default `IDENTITY_DELEGATED_AGENT_AUTHORITY_PATH` matches the canonical route; retire `mcp-delegated-agent-authority`.
-- MCP revocation: after a trusted poll, deny only when there is exactly one unambiguous `agents` row for the revoked id that matches the active token (`company_id`, optional strict non-negative `grant_version` and `company_binding_version`, canonical `global_company_id` when the token carries delegated proof). Mismatch, absence, or multiple rows fail closed; a listed id with no matching row still denies.
-- Identity approval **create** posts an empty JSON body (`arguments` live only in the signed assertion hash). Handbook: [Apps and deployments](docs/apps-and-deployments.md#mcp-agents-production-deploy-flow) adds the MCP deploy tool sequence.
-- MCP approvals: when Identity state lookup is unavailable under the JSON-RPC tools protocol, hosting does not synthesize `pending` or create a duplicate approval in the same request.
-
-### 🚨 Changed
-
-- MCP `tools/list` names are the ai-service gateway names (`hosting_<verb>_<noun>`, for example `hosting_list_apps`). OpenAPI `operationId` values are unchanged. `x-mcp.tool_name` is the service-local verb and noun. shellui-django 0.5.1 still derives a slug from `operationId`; hosting applies the gateway name on `tools/list` and `tools/call`.
-- Depend on `shellui-django[mcp]==0.5.0` from PyPI.
+## [0.11.0] - 2026-11-18
 
 ### ✨ Feature
 
-- Company-owner REST and Shellui MCP tools for custom domains (honest `verified` and `serving` flags), app environment variables (values never returned, `x-mcp-secret` on writes), bounded request logs for app subdomains, and an explicit empty runtime log contract for static hosting.
-- Domain events `hosting.custom_domain.*` and `hosting.environment_variable.*` for auditing.
+- MCP endpoint for agents at `POST /mcp`, with OAuth metadata and OpenAPI descriptions.
+- Company-owner REST and MCP tools for custom domains, app environment variables, and bounded request logs.
+- Artifact upload URL tools for agent deployments.
+- Domain and environment-variable events for auditing.
+- Static hosting returns an explicit empty runtime log contract.
 
-## [0.11.0] - 2026-11-01
+### 🛠 Improvements
 
-### ✨ Feature
-
-- Bump `shellui-django[mcp]` to 0.4.0 and sign internal MCP assertions to Identity with this service's own RS256 key (`HOSTING_SERVICE_SIGNING_KEY`, `HOSTING_SERVICE_ISSUER`), public key at `/.well-known/jwks.json`.
-- Dockerfile **`dev`** target for the Shellui local dev stack (bind-mounted source, `/opt/venv` deps, `runserver` on port 8000).
-- [Local dev stack](docs/local-dev-stack.md) documents env vars for `shellui/shellui` compose (public issuer, internal JWKS and identity API URLs).
-- MCP endpoint for agents (`POST /mcp`, OAuth protected-resource metadata, shared `shellui_mcp/`).
-- OpenAPI descriptions for agent-friendly MCP and admin API docs.
+- MCP tool names match the ai-service gateway (`hosting_<verb>_<noun>`). OpenAPI operation ids stay the same.
+- Custom domain tools report honest `verified` and `serving` flags. Environment variable values are never returned.
+- Each MCP tool has a pinned input schema.
+- `tools/list` publishes flat arguments, enums, and read or destructive hints.
+- `tools/list` keeps registry `_meta` for the ai-service gateway.
+- A direct `POST /mcp` returns this service's full catalog. The ai-service gateway defaults to a short discovery list.
 
 ### 🚨 Changed
 
 - Production JWKS: allow fetch from `IDENTITY_JWKS_URL` or `{IDENTITY_SERVICE_URL}/.well-known/jwks.json`; pinned `IDENTITY_JWKS_FILE` / `IDENTITY_JWKS` still win when set.
-
-### 🏗 Chore
-
-- Use the shared shellui-django package for MCP instead of a vendored copy.
+- Sample Shellui Actions webhooks and requeued deliveries are destructive and need approval. Rule create and update stay non-destructive.
 
 ### 🐛 Bug Fixes
 
-- MCP revocation lists are verified with the pinned JWKS or `IDENTITY_JWKS_URL` instead of keys fetched from the public issuer URL.
+- `tools/call` sends JSON bodies as `application/json`, so write tools no longer fail with an unsupported media type.
+- A consumed destructive approval now runs the write.
+- Rate limits key agents by `agent_id`, so agents no longer share one bucket.
+- Approval consume succeeds only when identity returns `consumed: true`.
+- When identity approval state cannot be read, hosting does not invent a pending approval or create a duplicate.
+- Direct artifact upload URLs stay visible to safe-read agents. Presigned S3 URLs stay masked.
+- MCP revocation lists are verified with the pinned JWKS or `IDENTITY_JWKS_URL`.
+- Tool results encode datetime values, and list responses stay JSON arrays.
+- Approval create sends an empty JSON body. Arguments stay in the signed assertion.
+- ReDoc and Swagger UI render without waiting on the Shellui SDK.
+- `POST /mcp` caches the OpenAPI schema under a lock, so concurrent calls no longer return HTTP 500.
+
+### 🔒 Security
+
+- Delegated agent authority is checked with identity before a tool runs. Failed or incomplete authority is denied. Identity outages on that check return unavailable, not a silent allow.
+- After a trusted revocation poll, only a single matching agent row can deny that token. Mismatch, absence, or duplicate rows fail closed.
+- Hosting logs for failed identity calls omit raw upstream response text.
+- Hosting no longer overrides service JWT signing to HS256.
+
+### 🗑 Removed
+
+- Hosting no longer posts tool-call logs to identity. The ai-service gateway records each `tools/call`. Token checks, revocation, and approvals stay.
+
+### 🏗 Chore
+
+- Use `shellui-django[mcp]==0.5.1` instead of a vendored copy, and sign internal MCP assertions with this service's RS256 key. The public key is at `/.well-known/jwks.json`.
+- Docker dev target and local dev-stack docs.
 
 ## [0.10.1] - 2026-11-01
 
