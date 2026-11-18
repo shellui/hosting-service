@@ -45,6 +45,7 @@ See for sample https://raw.githubusercontent.com/favoloso/conventional-changelog
 - Production JWKS can be fetched from `IDENTITY_JWKS_URL` or `{IDENTITY_SERVICE_URL}/.well-known/jwks.json`. Pinned `IDENTITY_JWKS_FILE` or `IDENTITY_JWKS` still wins when set.
 - `POST /mcp` signs calls to identity-service with this service's RS256 key. Set `HOSTING_SERVICE_SIGNING_KEY` or `HOSTING_SERVICE_SIGNING_KEY_FILE`, and set `HOSTING_SERVICE_ISSUER` to this service's public origin. Without that key, MCP refuses every agent.
 - Destructive MCP tools need an Identity approval before they run, including when `mcp_access` is `full`. That covers deletes, deployment finalize and rollback, custom domain changes, environment variable writes, deploy-token revoke, Shellui Actions secret rotation, sample webhook sends, and requeued deliveries. Creating or updating a Shellui Actions rule stays non-destructive.
+- Dependabot version updates now open against `develop`.
 
 ### 🐛 Bug Fixes
 
