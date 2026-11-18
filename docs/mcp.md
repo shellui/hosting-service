@@ -1,11 +1,9 @@
 ---
 title: Shellui MCP
-description: MCP is in Beta. Company-owner hosting APIs exposed to Shellui MCP agents through OpenAPI markers and the hosting /mcp endpoint.
+description: Company-owner hosting APIs exposed to Shellui MCP agents through OpenAPI markers and the hosting /mcp endpoint.
 ---
 
 # Shellui MCP
-
-MCP is in Beta. Tool names and behavior may still change.
 
 Shellui MCP connects AI agents to company-owner hosting APIs. Identity-service issues OAuth agent tokens; hosting-service exposes `POST /mcp` and publishes OpenAPI `x-mcp` markers so only opted-in routes become tools.
 
