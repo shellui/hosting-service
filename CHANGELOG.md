@@ -27,6 +27,10 @@ See for sample https://raw.githubusercontent.com/favoloso/conventional-changelog
 
 - The publish workflow updates the Docker Hub overview from `docker/README.md`.
 
+### 🏗 Chore
+
+- Docs build fetches identity, storage, and email docs so links outside hosting still resolve.
+
 ## [0.11.0] - 2026-11-18
 
 ### ✨ Feature
