@@ -21,6 +21,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 See for sample https://raw.githubusercontent.com/favoloso/conventional-changelog-emoji/master/CHANGELOG.md
 -->
 
+## [Unreleased]
+
+### 🔒 Security
+
+- Agent access tokens authenticate `POST /mcp` and the direct artifact upload Shellui MCP returns for a filesystem backend. Other REST routes refuse them. The principal uses `owner_user_id` when the token has one, and is never a company owner or staff. A missing `mcp_access` claim is read-only. A bearer token with `token_type` `refresh` is refused.
+- Archive extraction reads tar members as a stream. `HOSTING_MAX_EXTRACT_MEMBERS` (default 10000) caps archive members, and the byte caps are applied before each member body is read.
+- Hosted responses send `Content-Security-Policy: frame-ancestors 'none'` and `X-Frame-Options: DENY` unless `HOSTING_FRAME_ANCESTORS` lists sources. `manage.py check` fails (`hosting.E001`) when `HOSTING_APP_DOMAIN` shares a cookie parent with a host in `HOSTING_COOKIE_PARENT_HOSTS`. `check --deploy` fails (`hosting.E002`) when that list is empty and `DEBUG=false`.
+
+### 🚨 Changed
+
+- Hosted apps are not frameable until `HOSTING_FRAME_ANCESTORS` names the origins that may embed them. The default is `'none'`.
+- Production must set `HOSTING_COOKIE_PARENT_HOSTS` to the identity and admin hostnames.
+
 ## [0.12.3] - 2026-11-25
 
 ### 🛠 Improvements

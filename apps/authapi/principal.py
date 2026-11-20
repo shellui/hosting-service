@@ -52,6 +52,37 @@ class HostingPrincipal:
         return self.email or self.username or str(self.user_id)
 
 
+def _agent_owner_user_id(claims: dict[str, Any]) -> int:
+    """Regional user id of the member who approved the agent.
+
+    Identity puts that id in ``owner_user_id``. The claim is omitted when the
+    agent has no user. It is not a company-owner flag.
+    """
+    raw = claims.get("owner_user_id")
+    if raw in (None, ""):
+        return 0
+    if isinstance(raw, bool):
+        raise ValueError("Agent JWT owner_user_id must be a non-negative integer.")
+    if isinstance(raw, int):
+        if raw < 0:
+            raise ValueError("Agent JWT owner_user_id must be a non-negative integer.")
+        return raw
+    if isinstance(raw, str) and raw.isdigit():
+        return int(raw)
+    raise ValueError("Agent JWT owner_user_id must be a non-negative integer.")
+
+
+def _agent_claims(claims: dict[str, Any]) -> dict[str, Any]:
+    """Copy claims and treat a missing ``mcp_access`` as read-only."""
+    stored = dict(claims)
+    raw_access = stored.get("mcp_access")
+    if raw_access in (None, ""):
+        stored["mcp_access"] = "read_only"
+    else:
+        stored["mcp_access"] = str(raw_access).strip().lower()
+    return stored
+
+
 def principal_from_claims(claims: dict[str, Any]) -> HostingPrincipal:
     sub = str(claims.get("sub") or "")
     if sub.startswith("agent:"):
@@ -93,12 +124,15 @@ def principal_from_claims(claims: dict[str, Any]) -> HostingPrincipal:
             parse_personal_grant_version(claims)
         except ValueError as exc:
             raise ValueError("mcp_authority_grant_version_invalid") from exc
+        # The member id is owner_user_id. Agent tokens are never staff and
+        # never company owners, including when user_metadata says otherwise.
         return HostingPrincipal(
-            user_id=0,
+            user_id=_agent_owner_user_id(claims),
             company_id=company_id,
-            is_company_owner=True,
+            is_staff=False,
+            is_company_owner=False,
             agent_id=agent_id,
-            claims=claims,
+            claims=_agent_claims(claims),
         )
 
     user_metadata = claims.get("user_metadata") or {}

@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import logging
 import tarfile
-from io import BytesIO
 
 from django.conf import settings
 from django.core.files.base import ContentFile
@@ -26,13 +25,20 @@ def _safe_member_name(name: str) -> str | None:
     return normalize_relative_path(name or '')
 
 
-def _extract_limits() -> tuple[int, int, int]:
+def _extract_limits() -> tuple[int, int, int, int]:
     max_files = int(getattr(settings, 'HOSTING_MAX_EXTRACT_FILES', 5000))
+    max_members = int(getattr(settings, 'HOSTING_MAX_EXTRACT_MEMBERS', 10000))
     max_total_bytes = int(getattr(settings, 'HOSTING_MAX_EXTRACT_BYTES', 500 * 1024**2))
     max_file_bytes = int(
         getattr(settings, 'HOSTING_MAX_EXTRACT_FILE_BYTES', settings.HOSTING_MAX_UPLOAD_BYTES)
     )
-    return max_files, max_total_bytes, max_file_bytes
+    return max_files, max_members, max_total_bytes, max_file_bytes
+
+
+def _discard_member(extracted) -> None:
+    """Read and drop a member body so a streaming tar stays aligned."""
+    while extracted.read(_READ_CHUNK_SIZE):
+        pass
 
 
 def _read_member_limited(extracted, *, max_file_bytes: int) -> bytes:
@@ -56,25 +62,41 @@ def _extract_tar_members(
     *,
     prefix: str,
     max_files: int,
+    max_members: int,
     max_total_bytes: int,
     max_file_bytes: int,
 ) -> int:
+    """Stream members. Caps are applied as each header is read, before its body."""
     count = 0
+    member_count = 0
     total_bytes = 0
 
-    for member in tar.getmembers():
+    for member in tar:
+        member_count += 1
+        if member_count > max_members:
+            raise ExtractError(f'Archive member count exceeds maximum ({max_members}).')
+
         if not member.isfile():
             continue
+
         rel = _safe_member_name(member.name)
         if not rel:
+            extracted = tar.extractfile(member)
+            if extracted is not None:
+                _discard_member(extracted)
             continue
 
         if count >= max_files:
             raise ExtractError(f'Extracted file count exceeds maximum ({max_files}).')
 
-        if member.size > max_file_bytes:
+        size = int(getattr(member, 'size', 0) or 0)
+        if size < 0 or size > max_file_bytes:
             raise ExtractError(
                 f'Extracted file exceeds maximum size ({max_file_bytes} bytes).'
+            )
+        if total_bytes + size > max_total_bytes:
+            raise ExtractError(
+                f'Total extracted size exceeds maximum ({max_total_bytes} bytes).'
             )
 
         extracted = tar.extractfile(member)
@@ -109,33 +131,38 @@ def extract_deployment_artifact(deployment) -> int:
 
     delete_extracted_prefix(deployment.storage_prefix)
     prefix = extracted_prefix(deployment)
-    max_files, max_total_bytes, max_file_bytes = _extract_limits()
+    max_files, max_members, max_total_bytes, max_file_bytes = _extract_limits()
 
     with default_storage.open(key, 'rb') as stored:
-        data = stored.read()
-
-    if not data:
-        return 0
-
-    try:
-        tar = tarfile.open(fileobj=BytesIO(data), mode='r:*')
-    except tarfile.TarError as exc:
-        logger.warning(
-            'Deployment %s artifact is not a valid tar archive: %s',
-            deployment.id,
-            exc,
-        )
-        return 0
-
-    try:
-        with tar:
-            return _extract_tar_members(
-                tar,
-                prefix=prefix,
-                max_files=max_files,
-                max_total_bytes=max_total_bytes,
-                max_file_bytes=max_file_bytes,
+        try:
+            # r|* reads one header at a time and does not buffer the archive.
+            tar = tarfile.open(fileobj=stored, mode='r|*')
+        except tarfile.TarError as exc:
+            logger.warning(
+                'Deployment %s artifact is not a valid tar archive: %s',
+                deployment.id,
+                exc,
             )
-    except ExtractError:
-        delete_extracted_prefix(deployment.storage_prefix)
-        raise
+            return 0
+
+        try:
+            with tar:
+                return _extract_tar_members(
+                    tar,
+                    prefix=prefix,
+                    max_files=max_files,
+                    max_members=max_members,
+                    max_total_bytes=max_total_bytes,
+                    max_file_bytes=max_file_bytes,
+                )
+        except ExtractError:
+            delete_extracted_prefix(deployment.storage_prefix)
+            raise
+        except tarfile.TarError as exc:
+            delete_extracted_prefix(deployment.storage_prefix)
+            logger.warning(
+                'Deployment %s artifact stopped during extract: %s',
+                deployment.id,
+                exc,
+            )
+            return 0
