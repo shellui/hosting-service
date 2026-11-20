@@ -200,7 +200,8 @@ def _file_response(relative_path: str, handle) -> FileResponse:
     content_type, _ = mimetypes.guess_type(relative_path)
     response = FileResponse(handle, content_type=content_type or 'application/octet-stream')
     response['Cache-Control'] = _cache_control_for(relative_path)
-    # Shellui Settings (and other shells) embed hosted apps in iframes.
+    # Do not let Django force SAMEORIGIN. HostedAppCookieScopeMiddleware sets
+    # frame-ancestors from HOSTING_FRAME_ANCESTORS on the way out.
     response.xframe_options_exempt = True
     response.headers.pop('X-Frame-Options', None)
     return response
@@ -222,6 +223,7 @@ def site_unavailable_response(request, *, reason: str = 'not_found'):
         status=404,
     )
     response['Cache-Control'] = 'no-cache'
+    # Same framing path as a published file: the hosted middleware sets the policy.
     response.xframe_options_exempt = True
     response.headers.pop('X-Frame-Options', None)
     return response

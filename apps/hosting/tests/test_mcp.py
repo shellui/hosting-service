@@ -177,9 +177,7 @@ class McpEndpointTests(TestCase):
             content_type='application/json',
             HTTP_AUTHORIZATION=f'Bearer {token}',
         )
-        self.assertEqual(response.status_code, 403)
-        body = response.json()
-        self.assertEqual(body.get('error') or body.get('detail'), 'forbidden')
+        self.assertEqual(response.status_code, 401)
 
     @patch('apps.authapi.authentication.get_jwks_client')
     @override_settings(IDENTITY_SERVICE_URL='http://identity.test')

@@ -10,8 +10,9 @@ def require_staff_or_company_owner(request) -> tuple[HostingPrincipal | None, in
     """
     Resolve company scope for Shellui Actions admin APIs.
 
-    Staff may pass any ``company_id`` as a query parameter. Everyone else is scoped to the JWT
-    ``company_id``; passing the same value is accepted, a different one is forbidden.
+    Staff may pass any ``company_id`` as a query parameter. Company owners are scoped to the
+    JWT ``company_id``; passing the same value is accepted, a different one is forbidden.
+    Agents are not company owners. They stay on the token company.
     """
     user = request.user
     if not user or not getattr(user, 'is_authenticated', False):
@@ -21,12 +22,26 @@ def require_staff_or_company_owner(request) -> tuple[HostingPrincipal | None, in
     token_company = int(raw_token_company) if raw_token_company is not None else None
     query_company = (request.GET.get('company_id') or '').strip()
     if getattr(user, 'agent_id', None):
+        # Agents stay on the token company. They are not staff and not owners.
         if token_company is None:
             return None, None, Response(
                 {'error': 'Missing company_id in access token.'},
                 status=status.HTTP_400_BAD_REQUEST,
             )
-        company_id = token_company
+        if query_company:
+            try:
+                requested = int(query_company)
+            except (TypeError, ValueError):
+                return None, None, Response(
+                    {'error': 'Invalid company_id parameter.'},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            if requested != token_company:
+                return None, None, Response(
+                    {'error': 'Requested company_id does not match token company_id.'},
+                    status=status.HTTP_403_FORBIDDEN,
+                )
+        return user, token_company, None
     elif query_company:
         try:
             company_id = int(query_company)

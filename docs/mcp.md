@@ -82,7 +82,7 @@ A successful consume step is not inferred from HTTP status alone. Identity must 
 
 ## Deploy a site end to end
 
-Use a company-owner agent token with the `hosting` scope and write access (`mcp_access` `full` or approved `ask` writes). Each step is an MCP `tools/call` except the byte upload, which uses HTTPS PUT outside JSON-RPC.
+Use an agent access token with the `hosting` scope and write access (`mcp_access` `full` or approved `ask` writes). The token is not a company-owner credential. Each step is an MCP `tools/call` except the byte upload, which uses HTTPS PUT outside JSON-RPC. That PUT is the only other route that accepts the agent bearer. Other REST routes refuse it. A missing `mcp_access` claim is read-only.
 
 1. **Register or pick a site** - `hosting_create_apps` or `hosting_create_preview` (preview) or `hosting_list_apps` / `hosting_get_apps`.
 2. **Open a draft deployment** - `hosting_create_apps_deployments` with `app_version` and `shellui_version`.

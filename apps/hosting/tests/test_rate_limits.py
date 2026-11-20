@@ -112,31 +112,38 @@ class HostingRateLimitTests(TestCase):
         self.assertEqual(response.status_code, 429)
 
     @override_settings(HOSTING_RATE_LIMITS={'deploy': {'limit': 1, 'window': 60}})
-    def test_agents_do_not_share_deploy_bucket(self):
-        """Agent principals use user_id 0. Each agent must have its own throttle bucket."""
+    def test_agent_bearer_is_refused_on_rest_and_throttle_keys_stay_separate(self):
+        """REST refuses an agent bearer. Throttle keys still separate by agent id."""
+        import jwt
+        from rest_framework.request import Request
+        from rest_framework.test import APIRequestFactory
+
+        from apps.authapi.principal import principal_from_claims
         from apps.hosting.tests.test_mcp import _agent_token
+        from config.throttling import HostingScopeThrottle
 
         cache.clear()
         token_a = _agent_token(company_id=10, mcp_access='full')
         token_b = _agent_token(company_id=10, mcp_access='full')
-        first = self.client.post(
+        denied = self.client.post(
             '/hosting/v1/apps',
             {'name': 'rate-a', 'display_name': 'A'},
             format='json',
             HTTP_AUTHORIZATION=f'Bearer {token_a}',
         )
-        self.assertEqual(first.status_code, 201, first.content)
-        second = self.client.post(
-            '/hosting/v1/apps',
-            {'name': 'rate-b', 'display_name': 'B'},
-            format='json',
-            HTTP_AUTHORIZATION=f'Bearer {token_b}',
-        )
-        self.assertEqual(second.status_code, 201, second.content)
-        third = self.client.post(
-            '/hosting/v1/apps',
-            {'name': 'rate-c', 'display_name': 'C'},
-            format='json',
-            HTTP_AUTHORIZATION=f'Bearer {token_a}',
-        )
-        self.assertEqual(third.status_code, 429)
+        self.assertEqual(denied.status_code, 401, denied.content)
+
+        class _View:
+            rate_limit_scope = 'deploy'
+
+        def _key(token: str) -> str:
+            claims = jwt.decode(token, options={'verify_signature': False}, algorithms=['HS256'])
+            request = Request(APIRequestFactory().post('/hosting/v1/apps'))
+            request.user = principal_from_claims(claims)
+            return HostingScopeThrottle().get_cache_key(request, _View())
+
+        key_a = _key(token_a)
+        key_b = _key(token_b)
+        self.assertNotEqual(key_a, key_b)
+        self.assertIn('agent_', key_a)
+        self.assertIn('agent_', key_b)
