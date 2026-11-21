@@ -2,6 +2,7 @@
 
 import io
 import tarfile
+from unittest.mock import patch
 
 from django.core.files.storage import default_storage
 from django.test import TestCase, override_settings
@@ -114,6 +115,41 @@ class ExtractLimitTests(TestCase):
         self.assertEqual(count, 1)
         self.assertTrue(default_storage.exists(extracted_file_key(deployment, 'safe.txt')))
         self.assertFalse(default_storage.exists(extracted_file_key(deployment, '../escape.txt')))
+
+    @override_settings(HOSTING_MAX_EXTRACT_MEMBERS=3)
+    def test_rejects_member_count_before_a_later_file(self):
+        buf = io.BytesIO()
+        with tarfile.open(fileobj=buf, mode='w:gz') as tar:
+            for i in range(3):
+                info = tarfile.TarInfo(name=f'dir{i}')
+                info.type = tarfile.DIRTYPE
+                tar.addfile(info)
+            payload = b'secret'
+            info = tarfile.TarInfo(name='secret.txt')
+            info.size = len(payload)
+            tar.addfile(info, io.BytesIO(payload))
+        deployment = self._deploy_tarball(buf.getvalue())
+        with self.assertRaises(ExtractError):
+            extract_deployment_artifact(deployment)
+        self.assertFalse(default_storage.exists(extracted_file_key(deployment, 'secret.txt')))
+
+    @override_settings(HOSTING_MAX_EXTRACT_BYTES=50, HOSTING_MAX_EXTRACT_FILE_BYTES=50)
+    def test_does_not_read_a_member_past_the_byte_budget(self):
+        calls: list[str] = []
+        real = tarfile.TarFile.extractfile
+
+        def spy(tar, member, *args, **kwargs):
+            calls.append(getattr(member, 'name', ''))
+            return real(tar, member, *args, **kwargs)
+
+        tarball = _make_tarball({'a.txt': b'a' * 40, 'b.txt': b'b' * 40})
+        deployment = self._deploy_tarball(tarball)
+        with patch('tarfile.TarFile.extractfile', spy):
+            with self.assertRaises(ExtractError):
+                extract_deployment_artifact(deployment)
+        self.assertEqual(calls, ['a.txt'])
+        self.assertFalse(default_storage.exists(extracted_file_key(deployment, 'a.txt')))
+        self.assertFalse(default_storage.exists(extracted_file_key(deployment, 'b.txt')))
 
     def test_finalize_surfaces_extract_error(self):
         tarball = _make_tarball({'big.bin': b'x' * 51})

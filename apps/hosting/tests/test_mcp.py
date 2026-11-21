@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import time
 import uuid
 from unittest.mock import patch
 
@@ -12,7 +13,13 @@ from django.urls import reverse
 
 from shellui_django.mcp.internal import InternalAssertionError
 
-from apps.hosting.tests.signing_helpers import MCP_SIGNING_TEST_SETTINGS
+from apps.hosting.tests.signing_helpers import (
+    MCP_IDENTITY_ISSUER,
+    MCP_IDENTITY_KID,
+    MCP_IDENTITY_TEST_SETTINGS,
+    MCP_SIGNING_TEST_SETTINGS,
+    mcp_identity_private_key,
+)
 from apps.hosting.mcp_revocation import _agents_cache_key, _cache_key, _unavailable_key
 
 
@@ -40,8 +47,11 @@ def _agent_token(
     global_agent_id: str | None = None,
     grant_version: int | None = 0,
     company_binding_version: int | None = None,
+    mcp_gateway_delegated: dict | bool | None = None,
+    algorithm: str = 'RS256',
 ) -> str:
     agent_id = agent_id or str(uuid.uuid4())
+    now = int(time.time())
     claims: dict = {
         'sub': f'agent:{agent_id}',
         'agent_id': agent_id,
@@ -51,7 +61,10 @@ def _agent_token(
         'mcp_read': mcp_read,
         'mcp_destructive': mcp_destructive,
         'aud': aud,
-        'exp': 2**31 - 1,
+        'iss': MCP_IDENTITY_ISSUER,
+        'iat': now,
+        'exp': now + 3600,
+        'jti': uuid.uuid4().hex,
     }
     if mcp_authority is not None:
         claims['mcp_authority'] = mcp_authority
@@ -63,16 +76,25 @@ def _agent_token(
         claims['grant_version'] = grant_version
     if company_binding_version is not None:
         claims['company_binding_version'] = company_binding_version
-    return jwt.encode(claims, secret, algorithm='HS256')
+    if mcp_gateway_delegated is not None:
+        claims['mcp_gateway_delegated'] = mcp_gateway_delegated
+    if algorithm == 'HS256':
+        return jwt.encode(claims, secret, algorithm='HS256')
+    return jwt.encode(
+        claims,
+        mcp_identity_private_key(),
+        algorithm='RS256',
+        headers={'kid': MCP_IDENTITY_KID},
+    )
 
 
 @override_settings(
     **MCP_SIGNING_TEST_SETTINGS,
+    **MCP_IDENTITY_TEST_SETTINGS,
     DEBUG=True,
     JWT_HS256_FALLBACK_SECRET='test-secret',
     ALLOW_JWT_HS256_FALLBACK=True,
     IDENTITY_AUDIENCE='',
-    IDENTITY_ISSUER='',
     IDENTITY_JWKS_URL='http://jwks.test/.well-known/jwks.json',
     HOSTING_MCP_RESOURCE='http://127.0.0.1/mcp',
 )
@@ -177,9 +199,7 @@ class McpEndpointTests(TestCase):
             content_type='application/json',
             HTTP_AUTHORIZATION=f'Bearer {token}',
         )
-        self.assertEqual(response.status_code, 403)
-        body = response.json()
-        self.assertEqual(body.get('error') or body.get('detail'), 'forbidden')
+        self.assertEqual(response.status_code, 401)
 
     @patch('apps.authapi.authentication.get_jwks_client')
     @override_settings(IDENTITY_SERVICE_URL='http://identity.test')
@@ -477,3 +497,103 @@ class McpEndpointTests(TestCase):
             for row in rows:
                 self.assertNotIn('token', row)
         self.assertNotIn(hash_token('shellui_dt_never'), text)
+
+    @patch('apps.authapi.authentication.get_jwks_client')
+    def test_boolean_gateway_delegated_does_not_skip_approval(self, mock_jwks):
+        mock_jwks.return_value.get_signing_key.return_value = None
+        token = _agent_token(mcp_access='ask', mcp_gateway_delegated=True)
+        with (
+            patch('apps.hosting.mcp_identity.lookup_approval_state', return_value=None),
+            patch('apps.hosting.mcp_views.create_approval_request', return_value={'id': 'abc'}),
+        ):
+            response = self._rpc(
+                'tools/call',
+                {
+                    'name': 'hosting_create_preview',
+                    'arguments': {
+                        'path': '/hosting/v1/preview',
+                        'method': 'POST',
+                        'body': {'app_version': '1.0.0', 'shellui_version': '0.2.0'},
+                    },
+                },
+                token=token,
+            )
+        meta = response.json()['result'].get('meta') or {}
+        self.assertEqual(meta.get('status'), 'pending')
+
+    @patch('apps.authapi.authentication.get_jwks_client')
+    def test_gateway_delegated_object_skips_approval_for_named_tool(self, mock_jwks):
+        mock_jwks.return_value.get_signing_key.return_value = None
+        from apps.hosting.models import AccessStatus, CompanyHostingAccess
+
+        CompanyHostingAccess.objects.create(company_id=42, status=AccessStatus.APPROVED)
+        token = _agent_token(
+            mcp_access='ask',
+            mcp_gateway_delegated={'action': 'hosting_create_preview', 'exp': int(time.time()) + 600},
+        )
+        with patch('apps.hosting.mcp_views.create_approval_request', return_value={'id': 'abc'}) as mock_create:
+            response = self._rpc(
+                'tools/call',
+                {
+                    'name': 'hosting_create_preview',
+                    'arguments': {
+                        'path': '/hosting/v1/preview',
+                        'method': 'POST',
+                        'body': {
+                            'display_name': 'Delegated',
+                            'app_version': '1.0.0',
+                            'shellui_version': '0.5.0',
+                        },
+                    },
+                },
+                token=token,
+            )
+        mock_create.assert_not_called()
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()['result']
+        self.assertFalse(payload.get('isError'), payload)
+
+    def test_missing_revocation_hook_is_forbidden(self):
+        from django.test import RequestFactory
+
+        from apps.hosting.mcp_server import HostingMcpServer
+
+        server = HostingMcpServer(
+            schema_provider=lambda: {'paths': {}},
+            urlconf='config.urls',
+            service_name='hosting',
+            identity_revocation_check=None,
+        )
+        request = RequestFactory().post(
+            '/mcp',
+            data=json.dumps({'jsonrpc': '2.0', 'id': 1, 'method': 'initialize', 'params': {}}),
+            content_type='application/json',
+            HTTP_AUTHORIZATION=f'Bearer {_agent_token()}',
+        )
+        response = server.handle(request)
+        self.assertEqual(response.status_code, 403)
+        self.assertEqual(json.loads(response.content)['error'], 'revocation_unavailable')
+
+    def test_raising_revocation_hook_is_forbidden(self):
+        from django.test import RequestFactory
+
+        from apps.hosting.mcp_server import HostingMcpServer
+
+        def _boom(_agent_id, _company_id):
+            raise RuntimeError('revocation down')
+
+        server = HostingMcpServer(
+            schema_provider=lambda: {'paths': {}},
+            urlconf='config.urls',
+            service_name='hosting',
+            identity_revocation_check=_boom,
+        )
+        request = RequestFactory().post(
+            '/mcp',
+            data=json.dumps({'jsonrpc': '2.0', 'id': 1, 'method': 'initialize', 'params': {}}),
+            content_type='application/json',
+            HTTP_AUTHORIZATION=f'Bearer {_agent_token()}',
+        )
+        response = server.handle(request)
+        self.assertEqual(response.status_code, 403)
+        self.assertEqual(json.loads(response.content)['error'], 'revocation_unavailable')

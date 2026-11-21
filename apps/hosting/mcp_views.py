@@ -8,15 +8,12 @@ from django.conf import settings
 from django.http import HttpRequest, JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from drf_spectacular.generators import SchemaGenerator
-from rest_framework.request import Request
-from apps.authapi.authentication import IdentityJWKSAuthentication
-from apps.hosting.mcp_context import reset_mcp_agent_claims, set_mcp_agent_claims
 from apps.hosting.mcp_identity import (
     approval_state,
     consume_approval,
     create_approval_request,
 )
-from apps.hosting.mcp_resource import audience_matches, hosting_mcp_resource_url
+from apps.hosting.mcp_resource import hosting_mcp_resource_url
 from apps.hosting.mcp_revocation import agent_revocation_denied
 from apps.hosting.mcp_server import HostingMcpServer
 
@@ -53,47 +50,10 @@ def _get_server() -> HostingMcpServer:
     return _server
 
 
-def _staff_refused_for_mcp(principal, claims: dict) -> bool:
-    if getattr(principal, 'is_staff', False):
-        return True
-    user_metadata = claims.get('user_metadata') or {}
-    if isinstance(user_metadata, dict) and user_metadata.get('is_staff'):
-        return True
-    if claims.get('is_staff'):
-        return True
-    return False
-
-
-def _agent_claims(request: HttpRequest) -> dict | None:
-    auth = IdentityJWKSAuthentication()
-    drf_request = Request(request)
-    try:
-        result = auth.authenticate(drf_request)
-    except Exception:
-        return None
-    if not result:
-        return None
-    principal, _raw = result
-    claims = dict(getattr(principal, 'claims', {}) or {})
-    if not claims.get('agent_id'):
-        return None
-    if _staff_refused_for_mcp(principal, claims):
-        return None
-    if not audience_matches(claims, request):
-        return None
-    request.user = principal
-    request.auth = claims
-    return claims
-
-
 @csrf_exempt
 def mcp_endpoint(request: HttpRequest):
-    claims = _agent_claims(request)
-    token = set_mcp_agent_claims(claims)
-    try:
-        return _get_server().handle(request, agent_claims=claims)
-    finally:
-        reset_mcp_agent_claims(token)
+    """POST /mcp. The server verifies the bearer token. Caller claims are not trusted."""
+    return _get_server().handle(request)
 
 
 def oauth_protected_resource_metadata(request: HttpRequest):

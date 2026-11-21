@@ -44,7 +44,7 @@ Cache headers:
 | Content-hashed file, such as `main-D9ih21to.js` | `public, max-age=31536000, immutable` |
 | Other static files | `public, max-age=86400` |
 
-Responses omit `X-Frame-Options`, so a Shellui shell can embed the site in an iframe. The response includes `Cross-Origin-Opener-Policy: unsafe-none` unless that header is already set. Firefox can then open the site from a link on another origin. The service does not set `Cross-Origin-Embedder-Policy` or `Cross-Origin-Resource-Policy`.
+Responses send `Content-Security-Policy: frame-ancestors 'none'` and `X-Frame-Options: DENY` unless `HOSTING_FRAME_ANCESTORS` lists origins that may embed the site. Set that list to the Shellui shell origins, for example `https://shellui.com`, when a shell should show the site in an iframe. The response includes `Cross-Origin-Opener-Policy: unsafe-none` unless that header is already set. Firefox can then open the site from a link on another origin. The service does not set `Cross-Origin-Embedder-Policy` or `Cross-Origin-Resource-Policy`.
 
 The response does not set a cookie with a Domain attribute. If a hosted file or later middleware adds one, the service removes that cookie before the response leaves. A host-only cookie is limited to the app hostname.
 

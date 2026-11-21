@@ -1,6 +1,6 @@
 """Agent-facing MCP tool catalog.
 
-``shellui-django`` 0.5.1 builds tool inputs as ``path``, ``method``, ``path_params``,
+``shellui-django`` 0.6.0 builds tool inputs as ``path``, ``method``, ``path_params``,
 ``query``, and ``body``. Agents were filling those transport fields and guessing
 closed sets that the nested schema never listed. This module publishes the
 catalog ``POST /mcp`` ``tools/list`` returns: flat arguments, enums, and

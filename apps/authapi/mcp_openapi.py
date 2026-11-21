@@ -86,7 +86,7 @@ MCP_EXPLICIT_REGISTRY: dict[str, dict[str, Any]] = {}
 # Public ``tools/list`` name for each OpenAPI ``operationId``.
 # These are the names the ai-service gateway publishes (``hosting_<verb>_<noun>``).
 # ``x-mcp.tool_name`` is the service-local verb_noun. The gateway prefixes ``hosting_``.
-# shellui-django 0.5.1 names tools from ``operationId`` only, so ``HostingMcpServer`` applies this map.
+# shellui-django 0.6.0 names tools from ``operationId`` only, so ``HostingMcpServer`` applies this map.
 MCP_GATEWAY_TOOL_NAMES: dict[str, str] = {
     'api_v1_actions_deliveries_list': 'hosting_list_action_deliveries',
     'api_v1_actions_deliveries_requeue': 'hosting_requeue_action_deliveries',
