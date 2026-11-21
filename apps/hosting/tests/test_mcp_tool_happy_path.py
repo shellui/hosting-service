@@ -40,7 +40,11 @@ from apps.hosting.models import (
     DeploymentStatus,
     HostedAppRequestLog,
 )
-from apps.hosting.tests.signing_helpers import MCP_SIGNING_TEST_SETTINGS
+from apps.hosting.tests.signing_helpers import (
+    MCP_IDENTITY_TEST_SETTINGS,
+    MCP_SIGNING_TEST_SETTINGS,
+    mcp_identity_signing_jwk,
+)
 from apps.hosting.tests.test_mcp import _agent_token, _clear_revocation_cache
 
 
@@ -82,7 +86,7 @@ def _granted_approval():
     JWT_HS256_FALLBACK_SECRET='test-secret',
     ALLOW_JWT_HS256_FALLBACK=True,
     IDENTITY_AUDIENCE='',
-    IDENTITY_ISSUER='',
+    **MCP_IDENTITY_TEST_SETTINGS,
     IDENTITY_JWKS_URL='http://jwks.test/.well-known/jwks.json',
     HOSTING_MCP_RESOURCE='http://127.0.0.1/mcp',
     HOSTING_BACKEND='filesystem',
@@ -116,7 +120,7 @@ class McpToolHappyPathTests(TestCase):
         self._delegated_live.start()
         self._jwks = patch('apps.authapi.authentication.get_jwks_client')
         jwks = self._jwks.start()
-        jwks.return_value.get_signing_key.return_value = None
+        jwks.return_value.get_signing_key.return_value = mcp_identity_signing_jwk()
         from apps.hosting import mcp_views
 
         mcp_views._server = None

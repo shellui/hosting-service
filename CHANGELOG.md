@@ -33,6 +33,7 @@ See for sample https://raw.githubusercontent.com/favoloso/conventional-changelog
 
 - Hosted apps are not frameable until `HOSTING_FRAME_ANCESTORS` names the origins that may embed them. The default is `'none'`.
 - Production must set `HOSTING_COOKIE_PARENT_HOSTS` to the identity and admin hostnames.
+- `shellui-django[mcp]` is 0.6.0. `POST /mcp` verifies the bearer with `IDENTITY_ISSUER`, the MCP resource audience, and the pinned JWKS or `IDENTITY_JWKS_URL` (`https` unless `DEBUG=true`; redirects are not followed). `mcp_gateway_delegated` must be an object `{"action": "<tool name>", "exp": <unix seconds>}`. A boolean does not skip approval.
 
 ## [0.11.0] - 2026-11-18
 

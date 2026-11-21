@@ -13,7 +13,7 @@ from django.utils import timezone
 
 from apps.hosting.deploy_tokens import create_deploy_token
 from apps.hosting.models import AccessStatus, App, CompanyHostingAccess, Deployment
-from apps.hosting.tests.signing_helpers import MCP_SIGNING_TEST_SETTINGS
+from apps.hosting.tests.signing_helpers import MCP_IDENTITY_TEST_SETTINGS, MCP_SIGNING_TEST_SETTINGS
 from apps.hosting.tests.test_mcp import _agent_token
 
 
@@ -30,7 +30,7 @@ def _approve(company_id: int) -> None:
     JWT_HS256_FALLBACK_SECRET='test-secret',
     ALLOW_JWT_HS256_FALLBACK=True,
     IDENTITY_AUDIENCE='',
-    IDENTITY_ISSUER='',
+    **MCP_IDENTITY_TEST_SETTINGS,
     IDENTITY_JWKS_URL='http://jwks.test/.well-known/jwks.json',
     HOSTING_MCP_RESOURCE='http://127.0.0.1/mcp',
 )

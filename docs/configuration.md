@@ -227,7 +227,7 @@ Set `EMAIL_SERVICE_API_KEY` to forward hosting events to email-service. An empty
 
 ## Shellui MCP
 
-Optional tuning for `POST /mcp`. No variables are required for MCP to stay on. See [Shellui MCP](mcp.md).
+Optional tuning for `POST /mcp`. The endpoint verifies the bearer with `IDENTITY_ISSUER`, the MCP resource audience, and the pinned JWKS or `IDENTITY_JWKS_URL`. A JWKS URL must be `https` unless `DEBUG=true`, and redirects are not followed. See [Shellui MCP](mcp.md).
 
 | Variable | Default | Purpose |
 | --- | --- | --- |

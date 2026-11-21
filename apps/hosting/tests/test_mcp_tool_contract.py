@@ -24,7 +24,7 @@ from apps.authapi.mcp_openapi import MCP_EXPLICIT_REGISTRY, MCP_GATEWAY_TOOL_NAM
 from apps.hosting.mcp_catalog import HIDDEN_MCP_ARGUMENT_NAMES, TRANSPORT_ARGUMENT_NAMES, published_mcp_tools
 from apps.hosting.mcp_openapi_enums import DELIVERY_STATUS_VALUES
 from apps.hosting.openapi_mcp_registry import MCP_SPECS
-from apps.hosting.tests.signing_helpers import MCP_SIGNING_TEST_SETTINGS
+from apps.hosting.tests.signing_helpers import MCP_IDENTITY_TEST_SETTINGS, MCP_SIGNING_TEST_SETTINGS
 from apps.hosting.tests.test_mcp import _agent_token, _clear_revocation_cache
 
 CONTRACT_PATH = Path(__file__).resolve().parent / 'fixtures' / 'mcp_tools_contract.json'
@@ -141,7 +141,7 @@ def build_mcp_tool_contract() -> dict:
     JWT_HS256_FALLBACK_SECRET='test-secret',
     ALLOW_JWT_HS256_FALLBACK=True,
     IDENTITY_AUDIENCE='',
-    IDENTITY_ISSUER='',
+    **MCP_IDENTITY_TEST_SETTINGS,
     IDENTITY_JWKS_URL='http://jwks.test/.well-known/jwks.json',
     HOSTING_MCP_RESOURCE='http://127.0.0.1/mcp',
     HOSTING_BACKEND='filesystem',

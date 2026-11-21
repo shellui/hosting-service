@@ -43,7 +43,7 @@ In `dev/.env.local`, variables that could clash across services are prefixed wit
 | `IDENTITY_ISSUER` | `http://localhost:8001` | Public issuer URL (JWT `iss`). Must match tokens from identity-service |
 | `IDENTITY_AUDIENCE` | Same as identity-service `JWT_AUDIENCE` | JWT `aud` |
 | `IDENTITY_SERVICE_URL` | `http://identity:8000` | Server-to-server calls (OAuth redirect sync). Internal DNS, not `localhost` |
-| `IDENTITY_JWKS_URL` | `http://identity:8000/.well-known/jwks.json` | JWKS fetch from inside the compose network |
+| `IDENTITY_JWKS_URL` | `http://identity:8000/.well-known/jwks.json` | JWKS fetch from inside the compose network. `http` is accepted while `DEBUG=true`. Redirects are not followed |
 
 Keep **issuer and browser URLs** on `http://localhost:<host port>`. Use **`http://<service>:8000`** for JWKS, identity API calls, and other container-to-container traffic.
 

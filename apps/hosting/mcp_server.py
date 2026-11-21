@@ -6,21 +6,24 @@ import hashlib
 import json
 from typing import Any
 
+from django.conf import settings
 from django.core.serializers.json import DjangoJSONEncoder
 from django.http import HttpRequest, JsonResponse
 from django.urls import Resolver404, resolve
+from rest_framework.test import force_authenticate
 from shellui_django.mcp.masking import redact_mapping
 from shellui_django.mcp.openapi_mcp import marker_tree_for_operation_response
-from shellui_django.mcp.rate_limit import check_agent_rate_limit
 from shellui_django.mcp.routing import McpToolArgumentError, materialize_openapi_path, validate_mcp_tool_arguments
-from shellui_django.mcp.server import McpServer
-from shellui_django.mcp.write_gate import decide_write, is_destructive_operation
+from shellui_django.mcp.server import McpServer, _delegated_approval_covers
+from shellui_django.mcp.write_gate import WriteGateDecision, decide_write, is_destructive_operation
 
+from apps.authapi.principal import principal_from_claims
 from apps.hosting.mcp_catalog import normalize_mcp_arguments, published_mcp_tools
+from apps.hosting.mcp_context import reset_mcp_agent_claims, set_mcp_agent_claims
+from apps.hosting.mcp_resource import hosting_mcp_resource_url
 from apps.authapi.mcp_authority import (
     is_exchange_delegated_regional_agent,
     mcp_personal_agent_rejected,
-    strict_non_negative_int_optional,
 )
 from apps.hosting.mcp_identity import APPROVAL_LOOKUP_UNAVAILABLE
 from apps.hosting.mcp_live_authority import (
@@ -103,35 +106,65 @@ def _public_tool_payload(
     return redacted
 
 
-class HostingMcpServer(McpServer):
-    """Tool dispatch with tenant-safe arguments."""
+def _staff_refused(claims: dict[str, Any]) -> bool:
+    user_metadata = claims.get('user_metadata') or {}
+    if isinstance(user_metadata, dict) and user_metadata.get('is_staff'):
+        return True
+    return bool(claims.get('is_staff'))
 
-    def handle(self, request: HttpRequest, *, agent_claims: dict[str, Any] | None) -> JsonResponse:
+
+class HostingMcpServer(McpServer):
+    """Tool dispatch with tenant-safe arguments.
+
+    ``handle`` verifies the bearer token. A caller-supplied ``agent_claims``
+    value is ignored.
+    """
+
+    def _load_identity_verification(self, request: HttpRequest) -> None:
+        """Point verification at the current issuer, audience, and JWKS."""
+        self.identity_issuer = (getattr(settings, 'IDENTITY_ISSUER', None) or '').strip()
+        self.mcp_audience = hosting_mcp_resource_url(request)
+        document = getattr(settings, 'IDENTITY_JWKS_DOCUMENT', None)
+        if document:
+            self.identity_jwks = document
+            self.identity_jwks_url = None
+        else:
+            self.identity_jwks = None
+            self.identity_jwks_url = getattr(settings, 'IDENTITY_JWKS_URL', None)
+
+    def handle(self, request: HttpRequest, *, agent_claims: dict[str, Any] | None = None) -> JsonResponse:
+        del agent_claims
         if request.method != 'POST':
             return JsonResponse({'error': 'method_not_allowed'}, status=405)
-        if agent_claims is None:
+        self._load_identity_verification(request)
+        verified = self._claims_from_bearer(request)
+        if not isinstance(verified, dict):
             return JsonResponse({'error': 'unauthorized'}, status=401)
-        agent_id = str(agent_claims.get('agent_id') or '')
-        if not agent_id:
+        try:
+            principal_from_claims(verified)
+        except ValueError:
             return JsonResponse({'error': 'unauthorized'}, status=401)
-        if check_agent_rate_limit(agent_id):
-            return JsonResponse({'error': 'rate_limited'}, status=429)
-        if mcp_personal_agent_rejected(agent_claims):
+        if _staff_refused(verified) or mcp_personal_agent_rejected(verified):
             return JsonResponse({'error': 'forbidden'}, status=403)
-        auth_reason, authority_ok = delegated_live_authority_state(agent_claims)
+        auth_reason, authority_ok = delegated_live_authority_state(verified)
         if not authority_ok:
             if auth_reason in (DELEGATED_AUTH_REASON_UNAVAILABLE, DELEGATED_AUTH_REASON_MISCONFIGURED):
                 return JsonResponse({'error': 'service_unavailable'}, status=503)
             return JsonResponse({'error': 'forbidden'}, status=403)
-        company_id = agent_claims.get('company_id')
+        context = set_mcp_agent_claims(verified)
         try:
-            company_id_int = strict_non_negative_int_optional(company_id, field='company_id')
-        except ValueError:
-            company_id_int = None
-        if self.identity_revocation_check and self.identity_revocation_check(agent_id, company_id_int):
-            return JsonResponse({'error': 'agent_revoked'}, status=403)
-        if not self._service_allowed(agent_claims, self.service_name):
-            return JsonResponse({'error': 'forbidden'}, status=403)
+            prepared = self._prepare(request)
+        finally:
+            reset_mcp_agent_claims(context)
+        if isinstance(prepared, JsonResponse):
+            return prepared
+        context = set_mcp_agent_claims(prepared)
+        try:
+            return self._dispatch(request, prepared)
+        finally:
+            reset_mcp_agent_claims(context)
+
+    def _dispatch(self, request: HttpRequest, agent_claims: dict[str, Any]) -> JsonResponse:
         try:
             payload = json.loads(request.body.decode('utf-8') or '{}')
         except json.JSONDecodeError:
@@ -195,6 +228,10 @@ class HostingMcpServer(McpServer):
             allow_destructive_without_asking=bool(agent_claims.get('mcp_destructive')),
             tool_read_only=tool_read_only,
         )
+        # A boolean ``mcp_gateway_delegated`` does not skip approval. Only an
+        # object naming this tool with a future ``exp`` does.
+        if decision.needs_approval and _delegated_approval_covers(agent_claims, tool_name):
+            decision = WriteGateDecision(allowed=True)
         if decision.needs_approval:
             if is_exchange_delegated_regional_agent(agent_claims):
                 return JsonResponse(
@@ -295,7 +332,10 @@ class HostingMcpServer(McpServer):
             request.META.get('HTTP_AUTHORIZATION', ''),
         )
         drf_request = self._factory.generic(method, resolved_path, **inner_kwargs)
-        self._attach_request_principal(drf_request, request, agent_claims)
+        try:
+            self._attach_request_principal(drf_request, agent_claims)
+        except ValueError:
+            return JsonResponse(self._error(req_id, -32603, 'Unauthorized'))
         try:
             match = resolve(resolved_path, urlconf=self.urlconf)
         except Resolver404:
@@ -322,3 +362,9 @@ class HostingMcpServer(McpServer):
                 },
             )
         )
+
+    def _attach_request_principal(self, target_request, agent_claims: dict[str, Any]) -> None:
+        """Inner ``request.user`` is the verified agent principal. ``request.auth`` is the claims."""
+        user = principal_from_claims(agent_claims)
+        force_authenticate(target_request, user=user, token=agent_claims)
+        target_request.auth = agent_claims

@@ -12,7 +12,11 @@ from django.test import Client, TestCase, override_settings
 from django.urls import reverse
 
 from apps.hosting.models import AccessStatus, App, CompanyHostingAccess, Deployment, DeploymentStatus
-from apps.hosting.tests.signing_helpers import MCP_SIGNING_TEST_SETTINGS
+from apps.hosting.tests.signing_helpers import (
+    MCP_IDENTITY_TEST_SETTINGS,
+    MCP_SIGNING_TEST_SETTINGS,
+    mcp_identity_signing_jwk,
+)
 from apps.hosting.tests.test_mcp import _agent_token, _clear_revocation_cache
 
 
@@ -32,7 +36,7 @@ def _site_tarball() -> bytes:
     JWT_HS256_FALLBACK_SECRET='test-secret',
     ALLOW_JWT_HS256_FALLBACK=True,
     IDENTITY_AUDIENCE='',
-    IDENTITY_ISSUER='',
+    **MCP_IDENTITY_TEST_SETTINGS,
     IDENTITY_JWKS_URL='http://jwks.test/.well-known/jwks.json',
     HOSTING_MCP_RESOURCE='http://127.0.0.1/mcp',
     HOSTING_BACKEND='filesystem',
@@ -92,7 +96,7 @@ class McpArtifactUploadFlowTests(TestCase):
 
     @patch('apps.authapi.authentication.get_jwks_client')
     def test_agent_deploys_via_upload_url_and_finalize(self, mock_jwks):
-        mock_jwks.return_value.get_signing_key.return_value = None
+        mock_jwks.return_value.get_signing_key.return_value = mcp_identity_signing_jwk()
         app = App.objects.create(
             name='mcp-site',
             slug='mcpsite01',

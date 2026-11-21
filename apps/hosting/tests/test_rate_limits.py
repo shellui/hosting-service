@@ -137,7 +137,7 @@ class HostingRateLimitTests(TestCase):
             rate_limit_scope = 'deploy'
 
         def _key(token: str) -> str:
-            claims = jwt.decode(token, options={'verify_signature': False}, algorithms=['HS256'])
+            claims = jwt.decode(token, options={'verify_signature': False}, algorithms=['RS256', 'HS256'])
             request = Request(APIRequestFactory().post('/hosting/v1/apps'))
             request.user = principal_from_claims(claims)
             return HostingScopeThrottle().get_cache_key(request, _View())
