@@ -207,21 +207,21 @@ Company owners see `trigger` on their own attempts. They do not see `scheduled_j
 
 A failed run is stored with `status=failed`, logged at ERROR with a sanitized message, reported to Sentry when `SENTRY_DSN` is set (tags `scheduled_job`, `scheduled_job_trigger`, `scheduled_job_run_id`), and the management command exits with status 1. If Redis is down when a Celery run tries to take its lock, the run is recorded as `failed` with `error_key=redis_error`.
 
-### Prometheus
+### OpenTelemetry
 
-`GET /hosting/v1/metrics/all` includes the scheduled job metrics. It needs Django staff or a personal access token with `access_global_metrics`. `GET /hosting/v1/metrics` is one company and never includes these series, or another company's series. Values come from the database, so they match whichever Gunicorn worker answers.
+Scheduled-job series are collected from the database, so the Gunicorn process and the Celery worker report the same numbers. There is no scrape URL. Counters below are observable counters. The rest are observable gauges. `company_id` is not an attribute on these series.
 
-| Metric | Type | Labels | Meaning |
+| Instrument | Type | Attributes | Meaning |
 | --- | --- | --- | --- |
-| `shellui_hosting_scheduled_job_runs_total` | counter | `job`, `status` | Finished runs: `succeeded`, `failed`, `skipped_locked` |
-| `shellui_hosting_scheduled_job_items_total` | counter | `job`, `kind` | Items processed. `kind` is a `counts` name |
-| `shellui_hosting_scheduled_job_last_success_timestamp_seconds` | gauge | `job` | Unix time of the last successful run (0 before the first one) |
-| `shellui_hosting_scheduled_job_last_run_timestamp_seconds` | gauge | `job` | Unix time the last run started |
-| `shellui_hosting_scheduled_job_last_run_duration_seconds` | gauge | `job` | Duration of the last finished run |
-| `shellui_hosting_scheduled_job_overdue` | gauge | `job` | 1 when overdue |
-| `shellui_hosting_scheduler_enabled` | gauge | none | 1 when `SCHEDULER_ENABLED` is true |
-| `shellui_hosting_scheduler_redis_up` | gauge | none | 1 when the broker answers `PING`. Absent when no broker is configured |
-| `shellui_hosting_scheduler_beat_last_seen_timestamp_seconds` | gauge | none | Unix time beat last published a job. Absent before the first one |
+| `shellui.hosting.scheduled.job.runs` | counter | `job`, `status` | Finished runs: `succeeded`, `failed`, `skipped_locked` |
+| `shellui.hosting.scheduled.job.items` | counter | `job`, `kind` | Items processed. `kind` is a `counts` name |
+| `shellui.hosting.scheduled.job.last.success.timestamp.seconds` | gauge | `job` | Unix time of the last successful run (0 before the first one) |
+| `shellui.hosting.scheduled.job.last.run.timestamp.seconds` | gauge | `job` | Unix time the last run started |
+| `shellui.hosting.scheduled.job.last.run.duration.seconds` | gauge | `job` | Duration of the last finished run. Absent until a run finishes |
+| `shellui.hosting.scheduled.job.overdue` | gauge | `job` | 1 when overdue |
+| `shellui.hosting.scheduler.enabled` | gauge | none | 1 when `SCHEDULER_ENABLED` is true |
+| `shellui.hosting.scheduler.redis.up` | gauge | none | 1 when the broker answers `PING`. Absent when no broker is configured |
+| `shellui.hosting.scheduler.beat.last.seen.timestamp.seconds` | gauge | none | Unix time beat last published a job. Absent before the first one |
 
 ## Related
 

@@ -301,7 +301,6 @@ SPECTACULAR_SETTINGS = {
         {'name': 'event-log', 'description': 'Company domain event log.'},
         {'name': 'stats', 'description': 'Hosting statistics.'},
         {'name': 'operations', 'description': 'Custom domains, environment variables, and operational logs.'},
-        {'name': 'platform-metrics', 'description': 'Prometheus metrics endpoints (staff).'},
         {'name': 'mcp-tools', 'description': 'Operations exposed to Shellui MCP agents.'},
     ],
     'PREPROCESSING_HOOKS': ['apps.authapi.spectacular_hooks.preprocessing_exclude_internal_endpoints'],
@@ -322,6 +321,8 @@ MIDDLEWARE = [
     'config.health.LivenessMiddleware',
     # Next, so a hosted app cannot emit a Domain cookie after inner middleware.
     'apps.hosting.middleware.HostedAppCookieScopeMiddleware',
+    # Inside the server span once OpenTelemetry inserts its middleware in front.
+    'config.telemetry.ShelluiSpanMiddleware',
     'django.middleware.security.SecurityMiddleware',
     # Inside SecurityMiddleware so hosted-app COOP is set before its setdefault.
     'apps.hosting.middleware.HostedAppNavigationPolicyMiddleware',
@@ -773,7 +774,11 @@ LOGGING = {
     },
     'formatters': {
         'console': {
-            'format': '{asctime} {levelname} [{name}] [req={request_id}] {message}',
+            '()': 'shellui_django.telemetry.TraceContextFormatter',
+            'format': (
+                '{asctime} {levelname} [{name}] [req={request_id}] '
+                'trace_id={trace_id} span_id={span_id} {message}'
+            ),
             'style': '{',
             'datefmt': '%Y-%m-%d %H:%M:%S',
         },

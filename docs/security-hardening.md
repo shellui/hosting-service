@@ -100,6 +100,8 @@ Gunicorn writes an access line with the method and the path. The line omits the 
 
 When `SENTRY_DSN` is set, events omit stack locals, request bodies, and cookies. Authorization, Cookie, and Referer headers are removed. Query strings are removed from the request URL before the event is sent.
 
+OpenTelemetry spans follow the same limit. SQL text keeps placeholders, not bound values. Authorization, cookies, and query parameters whose names look like secrets are removed before export. Span attributes carry company, user, agent, and deploy-token ids, not emails.
+
 ## Email-service URLs
 
 `EMAIL_SERVICE_URL` is checked the same way as a Shellui Actions webhook URL. A private, loopback, or link-local address is refused unless `EMAIL_SERVICE_ALLOW_PRIVATE=true`. The POST does not follow redirects. The service key is not written to the outbox or to logs.

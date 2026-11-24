@@ -9,6 +9,7 @@ from typing import Any
 from django.core.serializers.json import DjangoJSONEncoder
 from django.http import HttpRequest, JsonResponse
 from django.urls import Resolver404, resolve
+from rest_framework.test import force_authenticate
 from shellui_django.mcp.masking import redact_mapping
 from shellui_django.mcp.openapi_mcp import marker_tree_for_operation_response
 from shellui_django.mcp.rate_limit import check_agent_rate_limit
@@ -105,6 +106,22 @@ def _public_tool_payload(
 
 class HostingMcpServer(McpServer):
     """Tool dispatch with tenant-safe arguments."""
+
+    @staticmethod
+    def _attach_request_principal(target_request, source_request, agent_claims: dict[str, Any]) -> None:
+        """Copy the outer HostingPrincipal onto the inner view request.
+
+        shellui-django 0.7.0 authenticates that request as a token user.
+        Hosting views read company id and user id from the principal on the MCP request.
+        """
+        user = getattr(source_request, 'user', None)
+        auth = getattr(source_request, 'auth', None)
+        if auth is None and agent_claims:
+            auth = agent_claims
+        if user is not None or auth is not None:
+            force_authenticate(target_request, user=user, token=auth)
+        if auth is not None:
+            target_request.auth = auth
 
     def handle(self, request: HttpRequest, *, agent_claims: dict[str, Any] | None) -> JsonResponse:
         if request.method != 'POST':

@@ -179,7 +179,7 @@ The image entrypoint runs migrations, `check --deploy`, then Gunicorn and the sc
 
 ## Scheduled jobs
 
-The same container runs `retry_webhooks` every minute and `purge_expired_data` every hour at minute 17. Full behavior, the staff API, and the Prometheus series are in [Scheduled jobs](maintenance-jobs.md).
+The same container runs `retry_webhooks` every minute and `purge_expired_data` every hour at minute 17. Full behavior, the staff API, and the OpenTelemetry series are in [Scheduled jobs](maintenance-jobs.md).
 
 | Variable | Default | Purpose |
 | --- | --- | --- |
@@ -242,6 +242,41 @@ Optional tuning for `POST /mcp`. No variables are required for MCP to stay on. S
 | `HOSTING_REGION` | empty | Region label on the landing page, for example `EU`. Empty hides the region line |
 
 Leave `ROOT_REDIRECT_URL` empty when this process should show the hosting landing page. The landing page and `llms.txt` build their hosted URLs from `HOSTING_APP_DOMAIN` and `HOSTING_APP_SCHEME`, so each region shows its own domain. `GET /llms.txt` on the apex returns a short text description of the site.
+
+## OpenTelemetry
+
+Traces, metrics, and the `trace_id` / `span_id` log fields stay off until you set an endpoint. Gunicorn, the Celery worker (beat runs in that process), and `manage.py` commands each set this up. Do not wrap the process with `opentelemetry-instrument`.
+
+The default `service.name` is `hosting-service`. `service.version` is the package version. Outbound `requests` calls send a W3C `traceparent` header, and Celery tasks stay on the same trace.
+
+| Variable | Default | Purpose |
+| --- | --- | --- |
+| `OTEL_EXPORTER_OTLP_ENDPOINT` | empty | Turns export on. Empty leaves telemetry off |
+| `OTEL_EXPORTER_OTLP_HEADERS` | empty | Exporter headers, including collector auth. URL-encode values |
+| `OTEL_SERVICE_NAME` | `hosting-service` | Overrides `service.name` |
+| `OTEL_RESOURCE_ATTRIBUTES` | empty | Overrides resource keys that are present. Example: `deployment.environment=production,cloud.region=eu` |
+
+`OTEL_EXPORTER_OTLP_PROTOCOL` stays `http/protobuf` (the default). `OTEL_SDK_DISABLED=true` leaves telemetry off even when an endpoint is set.
+
+`SENTRY_ENVIRONMENT` is copied to `deployment.environment` when that key is missing from `OTEL_RESOURCE_ATTRIBUTES`. `HOSTING_REGION` is copied to `cloud.region` on the same rule. A single-token region is also `shellui.region` on the span.
+
+Logs keep `[req=…]` from `X-Request-ID` and add `trace_id` and `span_id` (`0` when export is off). Spans may include `shellui.company_id`, `shellui.user_id`, `shellui.agent_id`, and `shellui.deploy_token_id`. Emails, tokens, and other free text are dropped.
+
+These gauges use a `company_id` attribute:
+
+- `shellui.hosting.apps`
+- `shellui.hosting.apps.expired`
+- `shellui.hosting.deployments`
+- `shellui.hosting.active.deployments`
+- `shellui.hosting.artifact.bytes`
+- `shellui.hosting.deployments.24h`
+- `shellui.hosting.deployments.7d`
+- `shellui.hosting.deployments.30d`
+- `shellui.hosting.access.pending`
+- `shellui.hosting.access.approved`
+- `shellui.hosting.access.denied`
+
+Scheduled-job instruments are in [Scheduled jobs](maintenance-jobs.md#opentelemetry). `GET /hosting/v1/stats` is still the JSON summary.
 
 ## Error reporting
 

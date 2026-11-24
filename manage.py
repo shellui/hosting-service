@@ -12,6 +12,11 @@ def main():
 
         sys.exit(generate_env(sys.argv[2:]))
     os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'config.settings')
+    # One-shot commands (retry_webhooks, purge_expired_data) and any long-running
+    # command share this path, so outbound requests still send traceparent.
+    from config.telemetry import setup_service_telemetry
+
+    setup_service_telemetry()
     try:
         from django.core.management import execute_from_command_line
     except ImportError as exc:

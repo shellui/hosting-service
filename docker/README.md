@@ -100,6 +100,17 @@ The publish workflow builds `linux/amd64` and `linux/arm64`, then tags `shellui/
 
 On a GitHub prerelease, `latest` stays on the previous stable image.
 
+## OpenTelemetry
+
+Telemetry stays off until `OTEL_EXPORTER_OTLP_ENDPOINT` is set. Pass these when you export to a collector. The protocol is HTTP protobuf. Do not start the container under `opentelemetry-instrument`.
+
+| Variable | Purpose |
+| --- | --- |
+| `OTEL_EXPORTER_OTLP_ENDPOINT` | Collector base URL. Empty keeps telemetry off |
+| `OTEL_EXPORTER_OTLP_HEADERS` | Exporter headers, including collector auth |
+| `OTEL_SERVICE_NAME` | Overrides the default `hosting-service` |
+| `OTEL_RESOURCE_ATTRIBUTES` | Resource tags, for example `deployment.environment=production,cloud.region=eu` |
+
 ## Health check
 
 The image health check calls `GET /health/live` on `http://127.0.0.1:8000`. HTTP 200 means the web process is up. Postgres and Redis are outside this probe.

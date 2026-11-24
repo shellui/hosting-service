@@ -86,6 +86,4 @@ urlpatterns = [
         name='hosting-deploy-token-revoke',
     ),
     path('stats', views.StatsView.as_view(), name='hosting-stats'),
-    path('metrics', views.HostingMetricsView.as_view(), name='hosting-metrics'),
-    path('metrics/all', views.HostingGlobalMetricsView.as_view(), name='hosting-metrics-all'),
 ]
