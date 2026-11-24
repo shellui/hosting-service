@@ -11,7 +11,7 @@ Company AI clients usually connect through the ai-service gateway (`/c/<company_
 
 ## How tools are chosen
 
-An HTTP operation becomes an MCP tool only when its OpenAPI entry includes an explicit `mcp_tool(...)` decoration (surfaced as `x-mcp` in the schema). Internal routes, scheduled jobs, staff-only access approval, metrics, and the raw binary `PUT .../upload` route are excluded. Agents upload artifacts with JSON MCP tools that mint a PUT URL, then send bytes directly over HTTPS.
+An HTTP operation becomes an MCP tool only when its OpenAPI entry includes an explicit `mcp_tool(...)` decoration (surfaced as `x-mcp` in the schema). Internal routes, scheduled jobs, staff-only access approval, and the raw binary `PUT .../upload` route are excluded. Agents upload artifacts with JSON MCP tools that mint a PUT URL, then send bytes directly over HTTPS.
 
 Operations carry:
 

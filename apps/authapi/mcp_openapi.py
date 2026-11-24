@@ -14,8 +14,6 @@ MCP_FORBIDDEN_OPERATION_IDS: frozenset[str] = frozenset(
         'hosting_v1_health_retrieve',
         'hosting_v1_access_retrieve',
         'hosting_v1_access_create',
-        'hosting_v1_metrics_retrieve',
-        'hosting_v1_metrics_all_retrieve',
         'hosting_v1_apps_deployments_upload_update',
         'api_v1_internal_company_deletions_create',
         'api_v1_scheduled_jobs_list',

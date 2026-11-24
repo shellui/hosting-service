@@ -43,7 +43,7 @@ For production, `python manage.py generate_env --host hosting.example.com` print
 | `IDENTITY_ISSUER`, `IDENTITY_AUDIENCE` | Must match identity `JWT_ISSUER` and `JWT_AUDIENCE` |
 | `REDIS_URL` | Required when `DEBUG=false`. Rate limits and scheduled jobs |
 
-Every setting is in [Configuration](docs/configuration.md).
+Every setting is in [Configuration](docs/configuration.md). OpenTelemetry export stays off until `OTEL_EXPORTER_OTLP_ENDPOINT` is set.
 
 ## Documentation
 

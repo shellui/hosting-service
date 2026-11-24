@@ -35,7 +35,6 @@ Paths below are relative to the apex host, for example `http://localhost:8002`. 
 | Finalize and rollback | `POST /hosting/v1/apps/{app_ref}/deployments/{id}/finalize`, same path with `/rollback` |
 | Deploy tokens | `GET` and `POST /hosting/v1/deploy-tokens`, `POST /hosting/v1/deploy-tokens/{id}/revoke` |
 | Stats | `GET /hosting/v1/stats` |
-| Metrics | `GET /hosting/v1/metrics`, `GET /hosting/v1/metrics/all` |
 | Shellui Actions | `/api/v1/actions/events`, `/rules`, `/deliveries` |
 | Scheduled jobs | `GET /api/v1/scheduled-jobs` (staff) |
 | Event log | `GET /api/v1/actions/event-log` |
@@ -51,13 +50,11 @@ Company members with `company_id` in the token can list and deploy their company
 | Route | Who |
 | --- | --- |
 | `GET /hosting/v1/stats` | The caller's company. Staff may omit the company and receive every company |
-| `GET /hosting/v1/metrics` | Staff or a company owner. Company id comes from the token. A `company_id` query parameter is 400. Scheduled-job series are not included |
-| `GET /hosting/v1/metrics/all` | Staff, or a personal access token with the `pat_agm` claim. Includes `shellui_hosting_scheduled_job_*` and `shellui_hosting_scheduler_*` |
 | `/api/v1/scheduled-jobs` | Django staff. Company owners receive 403 |
 | `/api/v1/actions/*` | Staff, or a company owner scoped to the token `company_id` |
 | `/hosting/v1/deploy-tokens*` | Staff or a company owner, for tokens of the JWT `company_id` |
 | Deploy token (`shellui_dt_...`) | Only `POST /hosting/v1/preview`, `PUT .../upload` and `POST .../finalize` on preview sites of its company. Everything else is 403 |
 
-Metrics responses are Prometheus text, not JSON. The gauge names start with `shellui_hosting_`.
+`GET /hosting/v1/stats` is JSON. Traces and metrics go to your OpenTelemetry collector, not to an HTTP route on this service. See [Configuration](configuration.md#opentelemetry).
 
-Error JSON uses `statusCode`, `error`, and `message`. Hosting responses include `X-Request-ID`.
+Error JSON uses `statusCode`, `error`, and `message`. Hosting responses include `X-Request-ID`. When export is on, log lines also include `trace_id` and `span_id`.

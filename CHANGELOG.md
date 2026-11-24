@@ -21,6 +21,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 See for sample https://raw.githubusercontent.com/favoloso/conventional-changelog-emoji/master/CHANGELOG.md
 -->
 
+## [Unreleased]
+
+### ✨ Feature
+
+- OpenTelemetry traces, metrics, and log correlation. Export stays off until `OTEL_EXPORTER_OTLP_ENDPOINT` is set. `service.name` defaults to `hosting-service`, and `service.version` is the package version.
+- Gunicorn, the Celery worker and embedded beat, and `manage.py` commands set up telemetry. Outbound `requests` calls send W3C `traceparent`. Celery tasks stay on the same trace.
+- Log lines keep `X-Request-ID` and add `trace_id` and `span_id`.
+- Hosting and scheduled-job Prometheus series are now OpenTelemetry instruments with the same meaning. Hosting gauges still use a `company_id` attribute. Names are in [Configuration](docs/configuration.md#opentelemetry) and [Scheduled jobs](docs/maintenance-jobs.md#opentelemetry).
+
+### 🗑 Removed
+
+- **Breaking:** `GET /hosting/v1/metrics` and `GET /hosting/v1/metrics/all` are removed. Read the same numbers from the OpenTelemetry collector. `GET /hosting/v1/stats` is unchanged.
+- hosting-service no longer reads the `pat_agm` claim. Tokens that still carry it work for every other check. That claim was never stored, so this release has no migration.
+
+### 📚 Documentation
+
+- Configuration, the API reference, scheduled jobs, and the Docker image docs describe the `OTEL_*` variables and the removed routes.
+
 ## [0.11.0] - 2026-11-18
 
 ### ✨ Feature

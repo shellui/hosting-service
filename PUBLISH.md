@@ -211,6 +211,10 @@ Create the first Django superuser with `python manage.py createsuperuser` inside
 | `CELERY_BROKER_URL` | Optional. Defaults to `REDIS_URL`. Does not replace `REDIS_URL` |
 | `HOSTING_RATE_LIMIT_*` | Tune deploy/upload/delete rate limits - see `docs/security-hardening.md` |
 | `SENTRY_DSN` / `SENTRY_ENVIRONMENT` | Error reporting |
+| `OTEL_EXPORTER_OTLP_ENDPOINT` | OpenTelemetry collector. Empty leaves traces and metrics off |
+| `OTEL_EXPORTER_OTLP_HEADERS` | Collector auth headers. URL-encode values |
+| `OTEL_SERVICE_NAME` | Overrides the default `hosting-service` |
+| `OTEL_RESOURCE_ATTRIBUTES` | Example: `deployment.environment=production,cloud.region=eu` |
 | `AWS_*` | django-storages when `HOSTING_BACKEND=s3` |
 
 Do not list every preview slug in CORS env - OAuth redirect sync on identity handles login bounce origins.
