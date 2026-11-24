@@ -6,13 +6,19 @@ self-hosted install needs no external scheduler. Redis (``REDIS_URL``) is the br
 See docs/maintenance-jobs.md.
 
 This module only depends on Django settings named ``CELERY_*`` and
-``SCHEDULER_LOCK_PREFIX``, so it can be copied as-is to the other Shellui services.
+``SCHEDULER_LOCK_PREFIX``. The telemetry signal below is the hosting-service hook.
 """
 
 import os
 
 from celery import Celery
-from celery.signals import before_task_publish, setup_logging
+from celery.signals import (
+    beat_init,
+    before_task_publish,
+    setup_logging,
+    worker_init,
+    worker_process_init,
+)
 
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'config.settings')
 
@@ -39,6 +45,18 @@ def _scheduled_task_names() -> set[str]:
     from django.conf import settings
 
     return {entry['task'] for entry in getattr(settings, 'CELERY_BEAT_SCHEDULE', {}).values()}
+
+
+def _setup_celery_telemetry(**kwargs):
+    """Set up telemetry in the worker, a prefork child, and embedded beat."""
+    from config.telemetry import setup_service_telemetry
+
+    setup_service_telemetry()
+
+
+worker_init.connect(_setup_celery_telemetry)
+worker_process_init.connect(_setup_celery_telemetry)
+beat_init.connect(_setup_celery_telemetry)
 
 
 @before_task_publish.connect

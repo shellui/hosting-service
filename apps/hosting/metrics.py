@@ -1,24 +1,90 @@
-"""Prometheus-style metrics for hosting-service.
+"""OpenTelemetry gauges for hosted apps, deployments, and access.
 
-Exposition is JWT-protected (see HostingMetricsView / HostingGlobalMetricsView).
-Company-scoped `/metrics` uses a fresh registry so other tenants never appear
-in the text dump.
+The SDK reads the database when it collects, which is what a Prometheus scrape
+used to do. ``company_id`` is the only attribute. Registration happens from
+``config.telemetry`` after setup, so importing this module does not start the SDK.
 """
 
 from __future__ import annotations
 
+import time
 from datetime import timedelta
 
-from django.db.models import Count, Sum
-from django.utils import timezone
-from prometheus_client import CONTENT_TYPE_LATEST, CollectorRegistry, Gauge, generate_latest
+# One collect asks every gauge. Share one database read across those callbacks.
+_CACHE_SECONDS = 1.0
+_cached_at = 0.0
+_cached: dict[int, dict[str, int]] | None = None
 
-from .models import AccessStatus, App, CompanyHostingAccess, Deployment, DeploymentStatus
+# Prometheus name, snapshot key, unit, description.
+GAUGES: tuple[tuple[str, str, str, str], ...] = (
+    ('shellui_hosting_apps_total', 'apps_total', '1', 'Hosted apps for a company.'),
+    (
+        'shellui_hosting_apps_expired',
+        'apps_expired',
+        '1',
+        'Hosted apps past their expires_at for a company.',
+    ),
+    ('shellui_hosting_deployments_total', 'deployments_total', '1', 'Deployments for a company.'),
+    (
+        'shellui_hosting_active_deployments',
+        'active_deployments',
+        '1',
+        'Active deployments for a company.',
+    ),
+    (
+        'shellui_hosting_artifact_bytes',
+        'artifact_bytes',
+        'By',
+        'Total uploaded artifact bytes for a company.',
+    ),
+    (
+        'shellui_hosting_deployments_24h',
+        'deployments_24h',
+        '1',
+        'Deployments created in the last 24 hours.',
+    ),
+    (
+        'shellui_hosting_deployments_7d',
+        'deployments_7d',
+        '1',
+        'Deployments created in the last 7 days.',
+    ),
+    (
+        'shellui_hosting_deployments_30d',
+        'deployments_30d',
+        '1',
+        'Deployments created in the last 30 days.',
+    ),
+    (
+        'shellui_hosting_access_pending',
+        'access_pending',
+        '1',
+        'Pending hosting access requests for a company.',
+    ),
+    (
+        'shellui_hosting_access_approved',
+        'access_approved',
+        '1',
+        'Approved hosting access rows for a company.',
+    ),
+    (
+        'shellui_hosting_access_denied',
+        'access_denied',
+        '1',
+        'Denied hosting access rows for a company.',
+    ),
+)
 
-_LABELS = ('company_id',)
+
+def clear_snapshot_cache() -> None:
+    global _cached_at, _cached
+    _cached_at = 0.0
+    _cached = None
 
 
 def _company_ids() -> list[int]:
+    from .models import App, CompanyHostingAccess, Deployment
+
     ids: set[int] = set()
     ids.update(App.objects.values_list('company_id', flat=True))
     ids.update(CompanyHostingAccess.objects.values_list('company_id', flat=True))
@@ -27,6 +93,11 @@ def _company_ids() -> list[int]:
 
 
 def _snapshot(company_id: int) -> dict[str, int]:
+    from django.db.models import Count, Sum
+    from django.utils import timezone
+
+    from .models import AccessStatus, App, CompanyHostingAccess, Deployment, DeploymentStatus
+
     apps = App.objects.filter(company_id=company_id)
     deployments = Deployment.objects.filter(app__company_id=company_id)
     access = CompanyHostingAccess.objects.filter(company_id=company_id)
@@ -36,8 +107,7 @@ def _snapshot(company_id: int) -> dict[str, int]:
     month_ago = now - timedelta(days=30)
 
     deployment_counts = {
-        row['status']: row['count']
-        for row in deployments.values('status').annotate(count=Count('id'))
+        row['status']: row['count'] for row in deployments.values('status').annotate(count=Count('id'))
     }
     total_artifact_bytes = deployments.aggregate(total=Sum('artifact_size'))['total'] or 0
 
@@ -56,101 +126,32 @@ def _snapshot(company_id: int) -> dict[str, int]:
     }
 
 
-def _bind_gauges(registry: CollectorRegistry) -> dict[str, Gauge]:
-    return {
-        'apps_total': Gauge(
-            'shellui_hosting_apps_total',
-            'Hosted apps for a company.',
-            _LABELS,
-            registry=registry,
-        ),
-        'apps_expired': Gauge(
-            'shellui_hosting_apps_expired',
-            'Hosted apps past their expires_at for a company.',
-            _LABELS,
-            registry=registry,
-        ),
-        'deployments_total': Gauge(
-            'shellui_hosting_deployments_total',
-            'Deployments for a company.',
-            _LABELS,
-            registry=registry,
-        ),
-        'active_deployments': Gauge(
-            'shellui_hosting_active_deployments',
-            'Active deployments for a company.',
-            _LABELS,
-            registry=registry,
-        ),
-        'artifact_bytes': Gauge(
-            'shellui_hosting_artifact_bytes',
-            'Total uploaded artifact bytes for a company.',
-            _LABELS,
-            registry=registry,
-        ),
-        'deployments_24h': Gauge(
-            'shellui_hosting_deployments_24h',
-            'Deployments created in the last 24 hours.',
-            _LABELS,
-            registry=registry,
-        ),
-        'deployments_7d': Gauge(
-            'shellui_hosting_deployments_7d',
-            'Deployments created in the last 7 days.',
-            _LABELS,
-            registry=registry,
-        ),
-        'deployments_30d': Gauge(
-            'shellui_hosting_deployments_30d',
-            'Deployments created in the last 30 days.',
-            _LABELS,
-            registry=registry,
-        ),
-        'access_pending': Gauge(
-            'shellui_hosting_access_pending',
-            'Pending hosting access requests for a company.',
-            _LABELS,
-            registry=registry,
-        ),
-        'access_approved': Gauge(
-            'shellui_hosting_access_approved',
-            'Approved hosting access rows for a company.',
-            _LABELS,
-            registry=registry,
-        ),
-        'access_denied': Gauge(
-            'shellui_hosting_access_denied',
-            'Denied hosting access rows for a company.',
-            _LABELS,
-            registry=registry,
-        ),
-    }
+def _snapshots() -> dict[int, dict[str, int]]:
+    global _cached_at, _cached
+    now = time.monotonic()
+    if _cached is not None and now - _cached_at < _CACHE_SECONDS:
+        return _cached
+    data = {company_id: _snapshot(company_id) for company_id in _company_ids()}
+    _cached = data
+    _cached_at = now
+    return data
 
 
-def _set_company(gauges: dict[str, Gauge], company_id: int) -> None:
-    cid = str(company_id)
-    snap = _snapshot(company_id)
-    for name, gauge in gauges.items():
-        gauge.labels(company_id=cid).set(snap[name])
+def register_hosting_metrics(meter) -> None:
+    from opentelemetry.metrics import Observation
+    from shellui_django.telemetry import canonical_metric_name
 
+    def _callback(key: str):
+        def callback(_options):
+            for company_id, snap in _snapshots().items():
+                yield Observation(snap[key], {'company_id': str(company_id)})
 
-def metrics_http_body(company_id: int | None = None) -> bytes:
-    """Serialize Prometheus text. When ``company_id`` is set, only that tenant is included.
+        return callback
 
-    Scheduled-job series are staff-only and appended on the global scrape
-    (``company_id is None``, ``GET /hosting/v1/metrics/all``). A company scrape
-    uses a fresh registry and never includes them, or any other company.
-    """
-    registry = CollectorRegistry()
-    gauges = _bind_gauges(registry)
-    if company_id is None:
-        for cid in _company_ids():
-            _set_company(gauges, cid)
-        from apps.actions.scheduled_job_metrics import scheduled_jobs_metrics_body
-
-        return generate_latest(registry) + scheduled_jobs_metrics_body()
-    _set_company(gauges, company_id)
-    return generate_latest(registry)
-
-
-METRICS_CONTENT_TYPE = CONTENT_TYPE_LATEST
+    for prom_name, key, unit, description in GAUGES:
+        meter.create_observable_gauge(
+            canonical_metric_name(prom_name),
+            callbacks=[_callback(key)],
+            unit=unit,
+            description=description,
+        )

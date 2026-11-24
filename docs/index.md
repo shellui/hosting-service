@@ -71,6 +71,8 @@ Copy [`.env.example`](../.env.example) to `.env`, point `IDENTITY_SERVICE_URL` a
 
 The container runs database migrations, then Gunicorn and a Celery worker with beat. `retry_webhooks` runs every minute. `purge_expired_data` runs every hour at minute 17. Redis is required when `DEBUG=false` (`REDIS_URL`). With `DEBUG=true` and no Redis, the web app still starts and the scheduler stays off. See [Scheduled jobs](maintenance-jobs.md).
 
+OpenTelemetry export stays off until `OTEL_EXPORTER_OTLP_ENDPOINT` is set. The variables are in [Configuration](configuration.md#opentelemetry).
+
 ## Where to go next
 
 Pick the row that matches what you are doing:

@@ -30,10 +30,9 @@ These claims are taken from the verified payload. hosting-service does not ask i
 
 | Claim | Used for |
 | --- | --- |
-| `user_metadata.is_staff` | Staff operations: global metrics, access updates for any company, stats with no company filter |
-| `user_metadata.is_company_owner` | Company metrics, and read access to the waitlist for that company |
-| `pat_agm` | Global Prometheus metrics for a personal access token (PAT) issued by staff |
-| `company_id` | Which company's apps, deployments, and metrics this caller may touch |
+| `user_metadata.is_staff` | Staff operations: access updates for any company, stats with no company filter |
+| `user_metadata.is_company_owner` | Read access to the waitlist for that company |
+| `company_id` | Which company's apps and deployments this caller may touch |
 | `user_id` or `sub` | Numeric identity user id stored on apps, deployments, and the event log |
 | `email` | Actor email on events, when the token carries one |
 
@@ -43,7 +42,7 @@ A forged payload cannot pass unless it is signed by a key in the configured JWKS
 
 App and deployment routes compare `company_id` on the token with `App.company_id`. You only see your company's rows.
 
-Staff tokens can update hosting access for a `company_id` in the request body, and can read `GET /hosting/v1/stats` with no company filter. Metrics routes reject a `company_id` query parameter. `GET /hosting/v1/metrics` uses the company on the token and requires staff or a company owner. `GET /hosting/v1/metrics/all` requires staff or `pat_agm`.
+Staff tokens can update hosting access for a `company_id` in the request body, and can read `GET /hosting/v1/stats` with no company filter. hosting-service ignores a `pat_agm` claim. It does not store that claim.
 
 Shellui Actions routes under `/api/v1/actions/` let staff pass any `company_id` query parameter. Company owners may omit it or pass their own. Another company returns 403.
 
