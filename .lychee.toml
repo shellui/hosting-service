@@ -12,12 +12,12 @@ cache_exclude_status = "500.."
 
 max_concurrency = 8
 timeout = 20
-# Retry transient failures (5xx, 408, 429, timeouts) with exponential backoff:
-# waits 3s, 6s, 12s, 24s, 48s. Other 4xx such as 404 are not retried and still fail.
+# lychee 0.24.2 retries 429 only. It does not retry 502, 503, or 504.
+# GitHub returns those during short outages, so they are accepted here.
+# A 404 or any other 4xx still fails the job.
 max_retries = 5
 retry_wait_time = 3
-# Remotes sometimes rate-limit CI; treat as soft-ok when still reachable.
-accept = ["200", "204", "206", "429"]
+accept = ["200", "204", "206", "429", "502", "503", "504"]
 
 #############################  Excludes  ###########################
 
