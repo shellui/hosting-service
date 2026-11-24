@@ -121,6 +121,13 @@ class TelemetryTests(TestCase):
         )
         return span_exporter, metric_reader
 
+    def test_celery_worker_does_not_register_gauges(self):
+        with patch('sys.argv', ['/app/.venv/bin/celery', '-A', 'config', 'worker']), patch(
+            'config.telemetry.register_metrics'
+        ) as register:
+            self._enable()
+        register.assert_not_called()
+
     def test_metrics_routes_are_gone(self):
         for path in ('/hosting/v1/metrics', '/hosting/v1/metrics/all'):
             self.assertEqual(self.client.get(path).status_code, 404)

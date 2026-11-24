@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import logging
 import os
+import sys
 import tomllib
 from pathlib import Path
 
@@ -75,10 +76,18 @@ def setup_service_telemetry(*, span_exporter=None, metric_reader=None) -> bool:
     )
     if not enabled:
         return False
+    if _in_celery_worker():
+        return True
     _ensure_apps_ready()
     if register_metrics() and span_exporter is None and metric_reader is None:
         logger.info('OpenTelemetry export is on for %s', SERVICE_NAME)
     return True
+
+
+def _in_celery_worker() -> bool:
+    # The Celery thread pool shares one Django DB connection across threads, so the
+    # metric reader thread must not query there. Gunicorn publishes the gauges.
+    return bool(sys.argv) and os.path.basename(sys.argv[0]) == 'celery'
 
 
 def _ensure_apps_ready() -> None:
