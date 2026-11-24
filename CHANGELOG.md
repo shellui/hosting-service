@@ -21,6 +21,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 See for sample https://raw.githubusercontent.com/favoloso/conventional-changelog-emoji/master/CHANGELOG.md
 -->
 
+## [0.12.1] - 2026-11-24
+
+### 🐛 Bug Fixes
+
+- The Celery worker no longer registers the hosting and scheduled-job gauges. Its thread pool shares one database connection, so the metric reader thread failed with `another command is already in progress`. Gunicorn still publishes the gauges.
+
 ## [0.12.0] - 2026-11-24
 
 ### ✨ Feature
