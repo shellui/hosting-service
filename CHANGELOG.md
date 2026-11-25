@@ -21,6 +21,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 See for sample https://raw.githubusercontent.com/favoloso/conventional-changelog-emoji/master/CHANGELOG.md
 -->
 
+## [0.12.3] - 2026-11-25
+
+### 🛠 Improvements
+
+- Hosted-app unavailable and expired pages use the same Shellui header, card, and dark-mode layout as Identity. Favicons and CSS are inlined so app subdomains no longer request platform `/static/` paths.
+
 ## [0.12.2] - 2026-11-25
 
 ### 🐛 Bug Fixes
