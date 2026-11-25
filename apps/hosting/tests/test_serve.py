@@ -159,6 +159,14 @@ class ServeIntegrationTests(TestCase):
         self.assertTemplateUsed(response, 'hosting/site_unavailable.html')
         self.assertTemplateNotUsed(response, 'errors/error.html')
 
+    def test_site_unavailable_page_has_no_static_urls(self):
+        response = self.client.get('/', HTTP_HOST='missing.shellui.test')
+        body = self._body(response)
+        self.assertNotIn(b'/static/', body)
+        self.assertNotIn('—'.encode(), body)
+        self.assertIn(b'logo-shellui-mark', body)
+        self.assertIn(b'Shellui Hosting', body)
+
     def test_platform_host_unknown_path_gets_shellui_404(self):
         response = self.client.get('/no-such-page', HTTP_HOST='localhost')
         self.assertEqual(response.status_code, 404)
