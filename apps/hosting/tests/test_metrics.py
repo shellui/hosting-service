@@ -238,3 +238,31 @@ class TelemetryTests(TestCase):
         runs = _points(data, canonical_metric_name('shellui_hosting_scheduled_job_runs_total'))
         self.assertTrue(any(point.attributes['job'] == 'retry_webhooks' for point in runs))
         self.assertTrue(_points(data, canonical_metric_name('shellui_hosting_scheduled_job_overdue')))
+
+
+    def test_stats_endpoint_includes_dashboard_window_fields(self):
+        from datetime import timedelta
+
+        _seed_company(company_id=10, name='alpha', artifact_size=50)
+        App.objects.create(
+            name='expired-app',
+            slug='expired-app-slug',
+            company_id=10,
+            display_name='Expired',
+            created_by_id=1,
+            expires_at=timezone.now() - timedelta(days=1),
+        )
+        _seed_company(company_id=11, name='beta', artifact_size=200)
+
+        res = self.client.get('/hosting/v1/stats', HTTP_AUTHORIZATION=f'Bearer {_make_token(company_id=10)}')
+        self.assertEqual(res.status_code, 200)
+        body = res.json()
+        self.assertEqual(body['company_id'], 10)
+        self.assertEqual(body['apps'], 2)
+        self.assertEqual(body['apps_expired'], 1)
+        self.assertEqual(body['deployments'], 1)
+        self.assertEqual(body['active_deployments'], 1)
+        self.assertEqual(body['deployments_24h'], 1)
+        self.assertEqual(body['deployments_7d'], 1)
+        self.assertEqual(body['deployments_30d'], 1)
+        self.assertEqual(body['artifact_bytes'], 50)
