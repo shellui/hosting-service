@@ -21,6 +21,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 See for sample https://raw.githubusercontent.com/favoloso/conventional-changelog-emoji/master/CHANGELOG.md
 -->
 
+## [0.12.2] - 2026-11-25
+
+### 🐛 Bug Fixes
+
+- Include `apps_expired`, `deployments_24h`, `deployments_7d`, and `deployments_30d` in `GET /hosting/v1/stats` so the Shellui admin dashboard card reads JSON statistics without the removed `/hosting/v1/metrics` route.
+
 ## [0.12.1] - 2026-11-24
 
 ### 🐛 Bug Fixes
