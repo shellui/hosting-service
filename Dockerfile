@@ -11,7 +11,7 @@ COPY templates ./templates
 RUN npm run build:css
 
 # Local dev stack (shellui/shellui dev/docker-compose.yml): deps only; bind-mount source at /app.
-FROM python:3.15-slim AS dev
+FROM python:3.14-slim AS dev
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
@@ -49,7 +49,7 @@ EXPOSE 8000
 ENTRYPOINT ["/app/tools/docker-entrypoint.sh"]
 CMD ["dev"]
 
-FROM python:3.15-slim
+FROM python:3.14-slim
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
