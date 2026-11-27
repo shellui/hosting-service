@@ -31,11 +31,21 @@ See for sample https://raw.githubusercontent.com/favoloso/conventional-changelog
 - A truncated or corrupt archive, a missing tar end marker, a repeated path, a file and a folder with the same name (`a` and `a/b`), an archive with no servable file, and any storage error during extraction all raise an extract error. The partial files are removed and the deployment is marked failed, not left in `uploading`. The response is a 4xx, not a 500.
 - `HOSTING_FRAME_ANCESTORS` is validated source by source and fails the startup check (`hosting.E003`) when it is not strict. Allowed: `'self'`, `'none'` on its own, and exact `https` origins. Refused: `*`, bare schemes, wildcard hosts such as `https://*.shellui.app`, commas, `http` origins, paths, and `'none'` mixed with other sources. Per-deployment frame settings come in a later change.
 - `manage.py check` fails (`hosting.E001`) when `HOSTING_APP_DOMAIN` shares a cookie parent with a host in `HOSTING_COOKIE_PARENT_HOSTS`, `IDENTITY_SERVICE_URL`, `IDENTITY_ISSUER` or `CSRF_TRUSTED_ORIGINS`. `check --deploy` fails (`hosting.E002`) when none of those names a host and `DEBUG=false`.
+- Django 6.1.3 includes the Django security releases of October and November 2026, among them a fix for memory use when parsing large multipart uploads.
 
 ### 🚨 Changed
 
 - `HOSTING_FRAME_ANCESTORS` is unset by default, and unset sends no `frame-ancestors` header, as before. When set, hosted responses send exactly that policy (`'none'` also sends `X-Frame-Options: DENY`) and a hosted response cannot replace it.
 - An archive that is not gzip, or that has no servable file, is now refused.
+- `shellui-django` 0.8.0 with Django 6.1.3, Django REST framework 3.18.3 and drf-spectacular 0.30.0. The shellui-django pins are exact, so these move together.
+- gunicorn 27.0.1. A request whose `Transfer-Encoding` does not end with `chunked` (for example `identity` alone) now gets HTTP 400. No gunicorn setting changed.
+
+### 🏗 Chore
+
+- Node.js 26, the current LTS, for the image build stage and CI.
+- GitHub Actions: actions/checkout v7, actions/setup-node v7, astral-sh/setup-uv v10.4.0, docker/build-push-action v7, docker/login-action v4, docker/metadata-action v6, docker/setup-buildx-action v4, docker/setup-qemu-action v4, peter-evans/dockerhub-description v5.0.0.
+- Python dependencies: python-dotenv 1.2.4, psycopg 3.3.9, sentry-sdk 2.77.0, cryptography 50.0.2, requests 2.34.2, redis 8.2.0, celery 5.7.0.
+- npm dependencies: @tailwindcss/cli 4.3.5, tailwindcss 4.3.5.
 
 ## [0.12.3] - 2026-11-25
 
