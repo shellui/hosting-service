@@ -38,6 +38,19 @@ These claims are taken from the verified payload. hosting-service does not ask i
 
 A forged payload cannot pass unless it is signed by a key in the configured JWKS. Privileged routes rely on that signature check and on token expiry. hosting-service does not re-fetch the staff flag from identity-service before it acts.
 
+## Agent access tokens
+
+Identity agent access tokens use `sub` `agent:{id}` and are accepted on `POST /mcp`. The filesystem artifact upload PUT that Shellui MCP returns also accepts that bearer, and it runs the same audience, rate limit, live authority and revocation checks as `POST /mcp`. Other REST routes refuse it.
+
+| Claim | Used for |
+| --- | --- |
+| `owner_user_id` | Regional user id of the member who approved the agent. Omitted when there is no user. This is not a company-owner flag |
+| `mcp_access` | `read_only`, `ask`, or `full`. Missing means read-only |
+| `company_id` | Company scope. The agent cannot switch company |
+| `token_type` | `access` is accepted. `refresh` is refused as a bearer |
+
+The principal is never staff and never a company owner, including when `user_metadata` says otherwise.
+
 ## Company scope
 
 App and deployment routes compare `company_id` on the token with `App.company_id`. You only see your company's rows.

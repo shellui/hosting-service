@@ -123,11 +123,13 @@ class HostingMcpServer(McpServer):
         if auth is not None:
             target_request.auth = auth
 
-    def handle(self, request: HttpRequest, *, agent_claims: dict[str, Any] | None) -> JsonResponse:
-        if request.method != 'POST':
-            return JsonResponse({'error': 'method_not_allowed'}, status=405)
-        if agent_claims is None:
-            return JsonResponse({'error': 'unauthorized'}, status=401)
+    def agent_gate(self, agent_claims: dict[str, Any]) -> JsonResponse | None:
+        """Checks every agent call passes before it acts: rate limit, authority, revocation, service.
+
+        ``POST /mcp`` and the direct artifact upload both call this, so a revoked or
+        unauthorised agent cannot reach hosting through either one. Returns the denial
+        response, or None when the call may go on.
+        """
         agent_id = str(agent_claims.get('agent_id') or '')
         if not agent_id:
             return JsonResponse({'error': 'unauthorized'}, status=401)
@@ -149,6 +151,16 @@ class HostingMcpServer(McpServer):
             return JsonResponse({'error': 'agent_revoked'}, status=403)
         if not self._service_allowed(agent_claims, self.service_name):
             return JsonResponse({'error': 'forbidden'}, status=403)
+        return None
+
+    def handle(self, request: HttpRequest, *, agent_claims: dict[str, Any] | None) -> JsonResponse:
+        if request.method != 'POST':
+            return JsonResponse({'error': 'method_not_allowed'}, status=405)
+        if agent_claims is None:
+            return JsonResponse({'error': 'unauthorized'}, status=401)
+        denial = self.agent_gate(agent_claims)
+        if denial is not None:
+            return denial
         try:
             payload = json.loads(request.body.decode('utf-8') or '{}')
         except json.JSONDecodeError:

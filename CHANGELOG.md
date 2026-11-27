@@ -21,6 +21,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 See for sample https://raw.githubusercontent.com/favoloso/conventional-changelog-emoji/master/CHANGELOG.md
 -->
 
+## [Unreleased]
+
+### 🔒 Security
+
+- Agent access tokens authenticate `POST /mcp` and the direct artifact upload Shellui MCP returns for a filesystem backend. Other REST routes refuse them. The principal uses `owner_user_id` when the token has one, and is never a company owner or staff. A missing `mcp_access` claim is read-only. A bearer token with `token_type` `refresh` is refused.
+- The direct artifact upload runs the same checks as `POST /mcp` for an agent: audience, rate limit, delegated live authority, revocation (fail closed when Identity cannot be reached) and service scope. A revoked agent can no longer upload.
+- Archive extraction reads the artifact as a gzip stream only (no bz2, xz or zstd) through a reader that stops at a hard limit on decompressed bytes, and opens the tar in stream mode. Every member counts toward the member and byte caps, extracted or skipped. PAX and GNU long-name headers are capped at 64 KiB each, with a total budget. Sparse members are refused. `HOSTING_MAX_EXTRACT_MEMBERS` (default 10000) caps members.
+- A truncated or corrupt archive, a missing tar end marker, a repeated path, a file and a folder with the same name (`a` and `a/b`), an archive with no servable file, and any storage error during extraction all raise an extract error. The partial files are removed and the deployment is marked failed, not left in `uploading`. The response is a 4xx, not a 500.
+- `HOSTING_FRAME_ANCESTORS` is validated source by source and fails the startup check (`hosting.E003`) when it is not strict. Allowed: `'self'`, `'none'` on its own, and exact `https` origins. Refused: `*`, bare schemes, wildcard hosts such as `https://*.shellui.app`, commas, `http` origins, paths, and `'none'` mixed with other sources. Per-deployment frame settings come in a later change.
+- `manage.py check` fails (`hosting.E001`) when `HOSTING_APP_DOMAIN` shares a cookie parent with a host in `HOSTING_COOKIE_PARENT_HOSTS`, `IDENTITY_SERVICE_URL`, `IDENTITY_ISSUER` or `CSRF_TRUSTED_ORIGINS`. `check --deploy` fails (`hosting.E002`) when none of those names a host and `DEBUG=false`.
+
+### 🚨 Changed
+
+- `HOSTING_FRAME_ANCESTORS` is unset by default, and unset sends no `frame-ancestors` header, as before. When set, hosted responses send exactly that policy (`'none'` also sends `X-Frame-Options: DENY`) and a hosted response cannot replace it.
+- An archive that is not gzip, or that has no servable file, is now refused.
+
 ## [0.12.3] - 2026-11-25
 
 ### 🛠 Improvements

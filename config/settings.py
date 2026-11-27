@@ -583,6 +583,7 @@ HOSTING_MAX_DEPLOYMENTS_PER_APP = _env_int('HOSTING_MAX_DEPLOYMENTS_PER_APP', 20
 HOSTING_MAX_UPLOAD_BYTES = _env_bytes('HOSTING_MAX_UPLOAD_BYTES', 100 * 1024**2)
 HOSTING_ARTIFACT_UPLOAD_URL_EXPIRES = _env_int('HOSTING_ARTIFACT_UPLOAD_URL_EXPIRES', 900)
 HOSTING_MAX_EXTRACT_FILES = _env_int('HOSTING_MAX_EXTRACT_FILES', 5000)
+HOSTING_MAX_EXTRACT_MEMBERS = _env_int('HOSTING_MAX_EXTRACT_MEMBERS', 10000)
 HOSTING_MAX_EXTRACT_BYTES = _env_bytes('HOSTING_MAX_EXTRACT_BYTES', 500 * 1024**2)
 HOSTING_MAX_EXTRACT_FILE_BYTES = _env_bytes(
     'HOSTING_MAX_EXTRACT_FILE_BYTES',
@@ -620,6 +621,11 @@ HOSTING_MCP_RESOURCE = os.getenv('HOSTING_MCP_RESOURCE', '').strip().rstrip('/')
 
 # Public browsable app URLs ({slug}.{HOSTING_APP_DOMAIN} — domain is canonical for API links only)
 HOSTING_APP_DOMAIN = os.getenv('HOSTING_APP_DOMAIN', '').strip().lstrip('.')
+# Identity and admin hosts. Startup fails when one shares a cookie parent with HOSTING_APP_DOMAIN.
+HOSTING_COOKIE_PARENT_HOSTS = _env_csv('HOSTING_COOKIE_PARENT_HOSTS', [])
+# CSP frame-ancestors source list for hosted apps. Unset sends no frame-ancestors header.
+# When set it is validated strictly at startup (hosting.E003): 'self', 'none' alone, or exact https origins.
+HOSTING_FRAME_ANCESTORS = os.getenv('HOSTING_FRAME_ANCESTORS', '').strip()
 if not HOSTING_APP_DOMAIN:
     if DEBUG:
         HOSTING_APP_DOMAIN = 'shellui.local'

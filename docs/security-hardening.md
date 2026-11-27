@@ -58,7 +58,13 @@ Override any of these in the environment. See [`.env.example`](../.env.example).
 
 When a cookie is marked Secure, its name uses the `__Host-` prefix: `__Host-sessionid` and `__Host-csrftoken`. Browsers reject a `__Host-` cookie that sets a Domain attribute, so a sibling site cannot plant those names. On plain HTTP the names stay `sessionid` and `csrftoken`, because the prefix requires Secure. `CSRF_COOKIE_HTTPONLY` is on in every mode. The service does not set a cookie Domain.
 
-Hosted app responses drop any `Set-Cookie` header that includes a Domain attribute. A host-only cookie stays on that app hostname. Put `HOSTING_APP_DOMAIN` on a different registrable domain from identity-service and Django admin. Serve apps on `shellui.app` and keep identity and admin on `shellui.com`. On startup, `manage.py check` warns (`hosting.W001`) when `HOSTING_APP_DOMAIN` shares a parent domain with a configured service URL.
+Hosted app responses drop any `Set-Cookie` header that includes a Domain attribute. A host-only cookie stays on that app hostname. Put `HOSTING_APP_DOMAIN` on a different registrable domain from identity-service and Django admin. Serve apps on `shellui.app` and keep identity and admin on `shellui.com`.
+
+Set `HOSTING_COOKIE_PARENT_HOSTS` to the identity and admin hostnames (comma-separated). `manage.py check` fails (`hosting.E001`) when `HOSTING_APP_DOMAIN` shares a cookie parent with one of them, or with the host of `IDENTITY_SERVICE_URL`, `IDENTITY_ISSUER` or `CSRF_TRUSTED_ORIGINS`. `check --deploy` fails (`hosting.E002`) when none of those names a host and `DEBUG=false`.
+
+When `HOSTING_FRAME_ANCESTORS` is set, hosted responses send exactly that `frame-ancestors` policy, and a hosted response cannot replace it. The value is validated strictly: `'self'`, `'none'` alone, or exact `https` origins. `*`, bare schemes and wildcard hosts are refused at startup (`hosting.E003`). Unset sends no `frame-ancestors` header.
+
+Deployment archives are untrusted. Extraction reads gzip only, through a reader with a hard cap on decompressed bytes, in tar stream mode. Every member counts toward the caps, including skipped ones, long-name headers have a size cap, and links and sparse members are never extracted. A truncated or corrupt archive, a repeated path, a file and folder with the same name, or an archive with no servable file marks the deployment failed and returns a 4xx.
 
 ## Postgres SSL
 

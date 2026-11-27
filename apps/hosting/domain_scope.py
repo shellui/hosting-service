@@ -1,4 +1,4 @@
-"""Compare hosted-app and platform service registrable domains.
+"""Compare hosted-app and identity or admin cookie parents.
 
 A cookie with ``Domain=example.com`` is sent to every host under that name.
 Hosted apps and identity or admin must not share that parent. The comparison
@@ -12,21 +12,9 @@ from urllib.parse import urlsplit
 
 from django.conf import settings
 
-# Single-value settings that point at another Shellui service or public host.
-_SERVICE_URL_SETTINGS = (
-    'IDENTITY_SERVICE_URL',
-    'IDENTITY_JWKS_URL',
-    'EMAIL_SERVICE_URL',
-    'SHELLUI_WEBSITE_URL',
-    'SHELLUI_DOCS_URL',
-    'SHELLUI_PLAYGROUND_URL',
-    'SHELLUI_GITHUB_URL',
-    'SHELLUI_AI_URL',
-)
-_SERVICE_URL_LIST_SETTINGS = (
-    'CSRF_TRUSTED_ORIGINS',
-    'CORS_ALLOWED_ORIGINS',
-)
+# Single-value settings that name the identity service.
+_SERVICE_URL_SETTINGS = ('IDENTITY_SERVICE_URL', 'IDENTITY_ISSUER')
+_SERVICE_URL_LIST_SETTINGS = ('CSRF_TRUSTED_ORIGINS',)
 
 
 def registrable_domain(host: str | None) -> str | None:
@@ -59,36 +47,46 @@ def host_from_url(value: str | None) -> str | None:
     return host.lower().rstrip('.')
 
 
-def configured_service_urls() -> list[tuple[str, str]]:
-    pairs: list[tuple[str, str]] = []
+def configured_cookie_parent_hosts() -> list[str]:
+    """Hosts that must not share a cookie parent with hosted apps.
+
+    ``HOSTING_COOKIE_PARENT_HOSTS`` (identity and admin), plus the hosts in
+    ``IDENTITY_SERVICE_URL``, ``IDENTITY_ISSUER`` and ``CSRF_TRUSTED_ORIGINS``.
+    """
+    raw = getattr(settings, 'HOSTING_COOKIE_PARENT_HOSTS', None) or []
+    if isinstance(raw, str):
+        raw = [item.strip() for item in raw.split(',') if item.strip()]
+    candidates: list[str] = [str(item) for item in raw]
     for name in _SERVICE_URL_SETTINGS:
         value = getattr(settings, name, None)
         if value:
-            pairs.append((name, str(value)))
+            candidates.append(str(value))
     for name in _SERVICE_URL_LIST_SETTINGS:
-        for item in getattr(settings, name, None) or []:
-            text = str(item).strip()
-            if text:
-                pairs.append((name, text))
-    return pairs
+        candidates.extend(str(item) for item in (getattr(settings, name, None) or []))
+    hosts: list[str] = []
+    seen: set[str] = set()
+    for item in candidates:
+        text = item.strip()
+        if not text or text in seen:
+            continue
+        seen.add(text)
+        hosts.append(text)
+    return hosts
 
 
-def shared_parent_service_urls(
+def shared_cookie_parent_hosts(
     hosting_domain: str | None = None,
-) -> list[tuple[str, str, str]]:
-    """Return ``(setting, url, parent)`` rows that share a parent with hosting."""
+) -> list[tuple[str, str]]:
+    """Return ``(host, parent)`` rows that share a cookie parent with hosting."""
     parent = registrable_domain(hosting_domain if hosting_domain is not None else settings.HOSTING_APP_DOMAIN)
     if not parent:
         return []
-    matches: list[tuple[str, str, str]] = []
-    seen: set[tuple[str, str]] = set()
-    for name, url in configured_service_urls():
-        other = registrable_domain(host_from_url(url))
-        if other != parent:
+    matches: list[tuple[str, str]] = []
+    seen: set[str] = set()
+    for host in configured_cookie_parent_hosts():
+        other = registrable_domain(host_from_url(host))
+        if other != parent or host in seen:
             continue
-        key = (name, url)
-        if key in seen:
-            continue
-        seen.add(key)
-        matches.append((name, url, parent))
+        seen.add(host)
+        matches.append((host, parent))
     return matches

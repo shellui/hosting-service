@@ -9,23 +9,23 @@ class HostingConfig(AppConfig):
     def ready(self):
         from . import checks  # noqa: F401
 
-        self._warn_shared_parent_domain()
+        self._log_cookie_parent_check()
 
-    def _warn_shared_parent_domain(self):
+    def _log_cookie_parent_check(self):
         import logging
         import sys
 
         if not _is_long_running_server_process(sys.argv):
             return
-        from .checks import warn_shared_hosting_parent_domain
+        from .checks import shared_cookie_parent_error
 
         logger = logging.getLogger(__name__)
-        for warning in warn_shared_hosting_parent_domain(None):
-            logger.warning('%s Hint: %s', warning.msg, warning.hint)
+        for error in shared_cookie_parent_error(None):
+            logger.error('%s Hint: %s', error.msg, error.hint)
 
 
 def _is_long_running_server_process(argv: list[str]) -> bool:
-    """Log the domain warning when serving HTTP, not for one-off commands."""
+    """Log the cookie-parent check when serving HTTP, not for one-off commands."""
     if not argv:
         return False
     prog = argv[0].replace('\\', '/')
