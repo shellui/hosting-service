@@ -73,7 +73,7 @@ OPTIONAL = (
     Var('JWT_HS256_FALLBACK_SECRET', ''),
     Var('ALLOW_JWT_HS256_FALLBACK', 'false'),
     Var('HOSTING_APP_SCHEME', 'https', 'Public URLs and serving'),
-    Var('HOSTING_FRAME_ANCESTORS', "'none'", 'Hosted app framing and cookie parent'),
+    Var('HOSTING_FRAME_ANCESTORS', '', 'Hosted app framing and cookie parent'),
     Var('HOSTING_COOKIE_PARENT_HOSTS', ''),
     Var('HOSTING_ALLOW_ANY_HOST', 'false'),
     Var('HOSTING_DEBUG_OPEN', 'false'),

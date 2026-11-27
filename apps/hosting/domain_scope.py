@@ -12,6 +12,10 @@ from urllib.parse import urlsplit
 
 from django.conf import settings
 
+# Single-value settings that name the identity service.
+_SERVICE_URL_SETTINGS = ('IDENTITY_SERVICE_URL', 'IDENTITY_ISSUER')
+_SERVICE_URL_LIST_SETTINGS = ('CSRF_TRUSTED_ORIGINS',)
+
 
 def registrable_domain(host: str | None) -> str | None:
     """Return the parent registrable domain, or None for IPs and single labels."""
@@ -44,14 +48,25 @@ def host_from_url(value: str | None) -> str | None:
 
 
 def configured_cookie_parent_hosts() -> list[str]:
-    """Hosts from ``HOSTING_COOKIE_PARENT_HOSTS`` (identity and admin)."""
+    """Hosts that must not share a cookie parent with hosted apps.
+
+    ``HOSTING_COOKIE_PARENT_HOSTS`` (identity and admin), plus the hosts in
+    ``IDENTITY_SERVICE_URL``, ``IDENTITY_ISSUER`` and ``CSRF_TRUSTED_ORIGINS``.
+    """
     raw = getattr(settings, 'HOSTING_COOKIE_PARENT_HOSTS', None) or []
     if isinstance(raw, str):
         raw = [item.strip() for item in raw.split(',') if item.strip()]
+    candidates: list[str] = [str(item) for item in raw]
+    for name in _SERVICE_URL_SETTINGS:
+        value = getattr(settings, name, None)
+        if value:
+            candidates.append(str(value))
+    for name in _SERVICE_URL_LIST_SETTINGS:
+        candidates.extend(str(item) for item in (getattr(settings, name, None) or []))
     hosts: list[str] = []
     seen: set[str] = set()
-    for item in raw:
-        text = str(item).strip()
+    for item in candidates:
+        text = item.strip()
         if not text or text in seen:
             continue
         seen.add(text)

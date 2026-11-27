@@ -1,3 +1,5 @@
+import json
+
 from rest_framework.permissions import SAFE_METHODS, BasePermission
 
 # Write modes Identity puts on an agent access token. Anything else, including
@@ -50,3 +52,44 @@ class IsStaffOrCompanyOwner(BasePermission):
         # views with the company on the token. Direct REST never authenticates
         # an agent token onto this permission.
         return bool(getattr(user, 'agent_id', None) and getattr(user, 'company_id', None) is not None)
+
+
+class AgentLiveAuthority(BasePermission):
+    """Run the checks ``POST /mcp`` runs, for an agent on a route that accepts agent tokens.
+
+    Audience, rate limit, delegated live authority, revocation and the service scope. A
+    revoked agent, or one Identity cannot confirm, is refused here exactly as on ``/mcp``.
+    Non-agent callers pass through.
+    """
+
+    def has_permission(self, request, view):
+        user = getattr(request, 'user', None)
+        if not getattr(user, 'agent_id', None):
+            return True
+        from rest_framework import exceptions
+
+        from apps.hosting.mcp_context import reset_mcp_agent_claims, set_mcp_agent_claims
+        from apps.hosting.mcp_resource import audience_matches
+        from apps.hosting.mcp_views import _get_server
+
+        claims = dict(getattr(user, 'claims', None) or {})
+        django_request = getattr(request, '_request', request)
+        if not audience_matches(claims, django_request):
+            raise exceptions.PermissionDenied('forbidden')
+        token = set_mcp_agent_claims(claims)
+        try:
+            denial = _get_server().agent_gate(claims)
+        finally:
+            reset_mcp_agent_claims(token)
+        if denial is None:
+            return True
+        code = str(json.loads(denial.content or b'{}').get('error') or 'forbidden')
+        if denial.status_code == 429:
+            raise exceptions.Throttled()
+        if denial.status_code == 503:
+            error = exceptions.APIException(code)
+            error.status_code = 503
+            raise error
+        if denial.status_code == 401:
+            raise exceptions.AuthenticationFailed(code)
+        raise exceptions.PermissionDenied(code)

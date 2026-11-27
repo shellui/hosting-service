@@ -172,11 +172,28 @@ class ServeIntegrationTests(TestCase):
         self.assertEqual(response.status_code, 404)
         self.assertIn(b"This page doesn", self._body(response))
 
-    def test_hosted_app_frame_policy_defaults_to_none(self):
+    def test_hosted_app_sends_no_frame_policy_when_unset(self):
         response = self.client.get('/', HTTP_HOST=self.app_host)
         self.assertEqual(response.status_code, 200)
+        self.assertIsNone(response.get('Content-Security-Policy'))
+        self.assertIsNone(response.get('X-Frame-Options'))
+
+    @override_settings(HOSTING_FRAME_ANCESTORS="'none'")
+    def test_hosted_app_frame_policy_none_denies_framing(self):
+        response = self.client.get('/', HTTP_HOST=self.app_host)
         self.assertEqual(response['Content-Security-Policy'], "frame-ancestors 'none'")
         self.assertEqual(response['X-Frame-Options'], 'DENY')
+
+    @override_settings(HOSTING_FRAME_ANCESTORS='*')
+    def test_an_invalid_value_that_reaches_a_request_fails_closed(self):
+        response = self.client.get('/', HTTP_HOST=self.app_host)
+        self.assertEqual(response['Content-Security-Policy'], "frame-ancestors 'none'")
+        self.assertEqual(response['X-Frame-Options'], 'DENY')
+
+    @override_settings(HOSTING_FRAME_ANCESTORS="'self' https://shellui.com")
+    def test_frame_ancestors_accepts_self_and_exact_origins(self):
+        response = self.client.get('/', HTTP_HOST=self.app_host)
+        self.assertEqual(response['Content-Security-Policy'], "frame-ancestors 'self' https://shellui.com")
 
     @override_settings(HOSTING_FRAME_ANCESTORS='https://shellui.com')
     def test_hosted_frame_ancestors_follows_setting(self):
@@ -185,6 +202,7 @@ class ServeIntegrationTests(TestCase):
         self.assertEqual(response['Content-Security-Policy'], 'frame-ancestors https://shellui.com')
         self.assertIsNone(response.get('X-Frame-Options'))
 
+    @override_settings(HOSTING_FRAME_ANCESTORS="'none'")
     def test_hosted_frame_policy_replaces_a_loose_frame_ancestors(self):
         def view(request, path=''):
             response = HttpResponse('ok')
@@ -224,8 +242,8 @@ class ServeIntegrationTests(TestCase):
         self.assertIsNone(response.get('Cross-Origin-Embedder-Policy'))
         self.assertIsNone(response.get('Cross-Origin-Resource-Policy'))
         self.assertEqual(response['X-Content-Type-Options'], 'nosniff')
-        self.assertEqual(response['X-Frame-Options'], 'DENY')
-        self.assertEqual(response['Content-Security-Policy'], "frame-ancestors 'none'")
+        self.assertIsNone(response.get('X-Frame-Options'))
+        self.assertIsNone(response.get('Content-Security-Policy'))
 
         asset = self.client.get('/assets/app.js', HTTP_HOST=self.app_host)
         self.assertEqual(asset['Cross-Origin-Opener-Policy'], 'unsafe-none')

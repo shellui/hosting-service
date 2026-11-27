@@ -32,7 +32,7 @@ The Docker image sets `DEBUG=false`. Startup fails until these are set:
 | `IDENTITY_AUDIENCE` | JWT `aud` must match this value |
 | `IDENTITY_JWKS_FILE`, `IDENTITY_JWKS`, `IDENTITY_JWKS_URL`, or `IDENTITY_SERVICE_URL` | JWKS for JWT verification. Pin with `IDENTITY_JWKS_FILE` or `IDENTITY_JWKS`, or fetch from `IDENTITY_JWKS_URL` or `{IDENTITY_SERVICE_URL}/.well-known/jwks.json`. At least one must be set; the service does not fall back to localhost when `DEBUG=false` |
 | `HOSTING_APP_DOMAIN` | Apps domain, for example `shellui.app`, or `eu.shellui.app` for a region. Used in browse links, OAuth redirect sync, and `ALLOWED_HOSTS` |
-| `HOSTING_COOKIE_PARENT_HOSTS` | Identity and admin hostnames. `check --deploy` fails when this is empty. It also fails when one of those hosts shares a cookie parent with `HOSTING_APP_DOMAIN` |
+| `HOSTING_COOKIE_PARENT_HOSTS` or `IDENTITY_SERVICE_URL` | At least one host to compare with `HOSTING_APP_DOMAIN`. `check --deploy` fails when no identity or admin host is known. It also fails when one of them shares a cookie parent with `HOSTING_APP_DOMAIN` |
 
 `HOSTING_DEBUG_OPEN=true` is also refused while `DEBUG=false`. `JWT_HS256_FALLBACK_SECRET` is refused unless you also set `ALLOW_JWT_HS256_FALLBACK=true`.
 
@@ -80,8 +80,8 @@ See [JWT and claim trust](claim-trust.md).
 | --- | --- | --- |
 | `HOSTING_APP_DOMAIN` | `shellui.local` when `DEBUG=true`, else required | Domain written into API browse links |
 | `HOSTING_APP_SCHEME` | `http` when `DEBUG=true`, else `https` | Scheme of those links |
-| `HOSTING_FRAME_ANCESTORS` | `'none'` | CSP `frame-ancestors` source list for hosted apps. `'none'` also sends `X-Frame-Options: DENY` |
-| `HOSTING_COOKIE_PARENT_HOSTS` | empty | Comma-separated identity and admin hosts. Startup fails when one shares a cookie parent with `HOSTING_APP_DOMAIN`. Required when `DEBUG=false` (`check --deploy`) |
+| `HOSTING_FRAME_ANCESTORS` | unset | CSP `frame-ancestors` source list for hosted apps. Unset sends no `frame-ancestors` header. Set values are strict, see below |
+| `HOSTING_COOKIE_PARENT_HOSTS` | empty | Comma-separated identity and admin hosts, compared with `HOSTING_APP_DOMAIN` together with the hosts in `IDENTITY_SERVICE_URL`, `IDENTITY_ISSUER` and `CSRF_TRUSTED_ORIGINS`. Startup fails when one shares a cookie parent |
 | `HOSTING_ALLOW_ANY_HOST` | same as `DEBUG` | Accept any `Host` header. Leave this off in production |
 | `HOSTING_PREVIEW_TTL_DAYS` | `7` | Days added to `expires_at` when a preview finalize succeeds |
 | `HOSTING_SERVE_CACHE_TTL_SECONDS` | `45` | In-process cache of slug-to-app lookups. `0` disables it. Cleared on finalize and rollback |
@@ -93,9 +93,15 @@ See [JWT and claim trust](claim-trust.md).
 
 The public URL is `{scheme}://{slug}.{HOSTING_APP_DOMAIN}/`. Serving itself uses the first hostname label, not only this domain. `HOSTING_APP_DOMAIN` and `www.{HOSTING_APP_DOMAIN}` show the landing page. See [Preview sites and public URLs](preview-and-serving.md).
 
-Use a different registrable domain from identity-service and Django admin. `shellui.app` for hosted apps and `shellui.com` for identity and admin keeps a cookie set on an app host from reaching those services. Set `HOSTING_COOKIE_PARENT_HOSTS` to those identity and admin hostnames. `manage.py check` fails (`hosting.E001`) when `HOSTING_APP_DOMAIN` shares a cookie parent with one of them. `check --deploy` fails (`hosting.E002`) when the list is empty and `DEBUG=false`.
+Use a different registrable domain from identity-service and Django admin. `shellui.app` for hosted apps and `shellui.com` for identity and admin keeps a cookie set on an app host from reaching those services. Set `HOSTING_COOKIE_PARENT_HOSTS` to those identity and admin hostnames. `manage.py check` fails (`hosting.E001`) when `HOSTING_APP_DOMAIN` shares a cookie parent with one of them, or with the host of `IDENTITY_SERVICE_URL`, `IDENTITY_ISSUER` or an entry in `CSRF_TRUSTED_ORIGINS`. `check --deploy` fails (`hosting.E002`) when none of those names a host and `DEBUG=false`.
 
-`HOSTING_FRAME_ANCESTORS` is the CSP source list sent on hosted responses. The default is `'none'`, which also sends `X-Frame-Options: DENY`. Set it to the shell origins that may embed a hosted app, for example `https://shellui.com`.
+`HOSTING_FRAME_ANCESTORS` is the CSP `frame-ancestors` source list sent on hosted responses. Unset (the default) sends no `frame-ancestors` header, as before. When it is set, it is enforced and validated source by source, separated by spaces:
+
+- `'self'`
+- `'none'`, only on its own (it also sends `X-Frame-Options: DENY`)
+- exact `https` origins such as `https://shellui.com` or `https://shell.example.com:8443`
+
+`*`, bare schemes such as `https:`, wildcard hosts such as `https://*.shellui.app`, commas, `http` origins, paths, and `'none'` next to other sources are refused. An invalid value fails `manage.py check` (`hosting.E003`) and stops startup. Per-deployment frame settings are planned for a later release.
 
 ## Quotas
 
@@ -106,7 +112,7 @@ Use a different registrable domain from identity-service and Django admin. `shel
 | `HOSTING_MAX_UPLOAD_BYTES` | `100M` | Maximum gzip archive size |
 | `HOSTING_MAX_EXTRACT_FILES` | `5000` | Maximum regular files extracted from one archive |
 | `HOSTING_MAX_EXTRACT_MEMBERS` | `10000` | Maximum archive members (files, directories, and other headers) read from one archive |
-| `HOSTING_MAX_EXTRACT_BYTES` | `500M` | Maximum total uncompressed size |
+| `HOSTING_MAX_EXTRACT_BYTES` | `500M` | Maximum total uncompressed size. It counts every member, including ones that are skipped, and the gzip stream itself is cut off a little above it |
 | `HOSTING_ARTIFACT_UPLOAD_URL_EXPIRES` | `900` | Lifetime in seconds for MCP artifact upload URLs (presigned S3 or direct hosting PUT) |
 | `HOSTING_MAX_EXTRACT_FILE_BYTES` | same as the upload cap | Maximum size of one extracted file |
 | `DATA_UPLOAD_MAX_MEMORY_SIZE` | `12M` | Django in-memory limit for form and JSON bodies. Artifact uploads are streamed and only capped by `HOSTING_MAX_UPLOAD_BYTES` |

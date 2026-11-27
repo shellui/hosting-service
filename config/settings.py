@@ -623,8 +623,9 @@ HOSTING_MCP_RESOURCE = os.getenv('HOSTING_MCP_RESOURCE', '').strip().rstrip('/')
 HOSTING_APP_DOMAIN = os.getenv('HOSTING_APP_DOMAIN', '').strip().lstrip('.')
 # Identity and admin hosts. Startup fails when one shares a cookie parent with HOSTING_APP_DOMAIN.
 HOSTING_COOKIE_PARENT_HOSTS = _env_csv('HOSTING_COOKIE_PARENT_HOSTS', [])
-# CSP frame-ancestors source list for hosted apps. 'none' blocks framing.
-HOSTING_FRAME_ANCESTORS = os.getenv('HOSTING_FRAME_ANCESTORS', "'none'").strip() or "'none'"
+# CSP frame-ancestors source list for hosted apps. Unset sends no frame-ancestors header.
+# When set it is validated strictly at startup (hosting.E003): 'self', 'none' alone, or exact https origins.
+HOSTING_FRAME_ANCESTORS = os.getenv('HOSTING_FRAME_ANCESTORS', '').strip()
 if not HOSTING_APP_DOMAIN:
     if DEBUG:
         HOSTING_APP_DOMAIN = 'shellui.local'

@@ -35,16 +35,18 @@ def _set_cookie_has_domain(value: str) -> bool:
 
 
 def apply_hosted_frame_policy(response):
-    """Send the hosted ``frame-ancestors`` policy.
+    """Send the hosted ``frame-ancestors`` policy when ``HOSTING_FRAME_ANCESTORS`` is set.
 
-    A CSP already on the response keeps its other directives. Any
-    ``frame-ancestors`` source list on that header is replaced so a hosted
-    response cannot widen who may frame it. ``'none'`` also sets
-    ``X-Frame-Options: DENY`` for clients that ignore CSP.
+    Unset sends nothing and leaves the response as it was. When set, a CSP already on the
+    response keeps its other directives, and any ``frame-ancestors`` source list on that
+    header is replaced so a hosted response cannot widen who may frame it. ``'none'``
+    also sets ``X-Frame-Options: DENY`` for clients that ignore CSP.
     """
     from .checks import frame_ancestors_denies_all, frame_ancestors_sources
 
     sources = frame_ancestors_sources()
+    if sources is None:
+        return response
     directive = f'frame-ancestors {sources}'
     existing = response.headers.get('Content-Security-Policy')
     if existing:

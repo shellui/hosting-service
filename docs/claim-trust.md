@@ -40,7 +40,7 @@ A forged payload cannot pass unless it is signed by a key in the configured JWKS
 
 ## Agent access tokens
 
-Identity agent access tokens use `sub` `agent:{id}` and are accepted on `POST /mcp`. The filesystem artifact upload PUT that Shellui MCP returns also accepts that bearer. Other REST routes refuse it.
+Identity agent access tokens use `sub` `agent:{id}` and are accepted on `POST /mcp`. The filesystem artifact upload PUT that Shellui MCP returns also accepts that bearer, and it runs the same audience, rate limit, live authority and revocation checks as `POST /mcp`. Other REST routes refuse it.
 
 | Claim | Used for |
 | --- | --- |

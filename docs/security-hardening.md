@@ -60,9 +60,11 @@ When a cookie is marked Secure, its name uses the `__Host-` prefix: `__Host-sess
 
 Hosted app responses drop any `Set-Cookie` header that includes a Domain attribute. A host-only cookie stays on that app hostname. Put `HOSTING_APP_DOMAIN` on a different registrable domain from identity-service and Django admin. Serve apps on `shellui.app` and keep identity and admin on `shellui.com`.
 
-Set `HOSTING_COOKIE_PARENT_HOSTS` to the identity and admin hostnames (comma-separated). `manage.py check` fails (`hosting.E001`) when `HOSTING_APP_DOMAIN` shares a cookie parent with one of them. `check --deploy` fails (`hosting.E002`) when the list is empty and `DEBUG=false`.
+Set `HOSTING_COOKIE_PARENT_HOSTS` to the identity and admin hostnames (comma-separated). `manage.py check` fails (`hosting.E001`) when `HOSTING_APP_DOMAIN` shares a cookie parent with one of them, or with the host of `IDENTITY_SERVICE_URL`, `IDENTITY_ISSUER` or `CSRF_TRUSTED_ORIGINS`. `check --deploy` fails (`hosting.E002`) when none of those names a host and `DEBUG=false`.
 
-Hosted responses send `Content-Security-Policy: frame-ancestors 'none'` and `X-Frame-Options: DENY`. Set `HOSTING_FRAME_ANCESTORS` to the origins that may embed a hosted app, for example `https://shellui.com`. A hosted response cannot replace that `frame-ancestors` source list.
+When `HOSTING_FRAME_ANCESTORS` is set, hosted responses send exactly that `frame-ancestors` policy, and a hosted response cannot replace it. The value is validated strictly: `'self'`, `'none'` alone, or exact `https` origins. `*`, bare schemes and wildcard hosts are refused at startup (`hosting.E003`). Unset sends no `frame-ancestors` header.
+
+Deployment archives are untrusted. Extraction reads gzip only, through a reader with a hard cap on decompressed bytes, in tar stream mode. Every member counts toward the caps, including skipped ones, long-name headers have a size cap, and links and sparse members are never extracted. A truncated or corrupt archive, a repeated path, a file and folder with the same name, or an archive with no servable file marks the deployment failed and returns a 4xx.
 
 ## Postgres SSL
 

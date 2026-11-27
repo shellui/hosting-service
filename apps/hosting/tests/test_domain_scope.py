@@ -7,7 +7,7 @@ from apps.hosting.checks import (
     cookie_parent_hosts_required_in_production,
     shared_cookie_parent_error,
 )
-from apps.hosting.domain_scope import registrable_domain
+from apps.hosting.domain_scope import registrable_domain, shared_cookie_parent_hosts
 
 _ISOLATED = {
     'HOSTING_APP_DOMAIN': 'shellui.app',
@@ -77,11 +77,55 @@ class SharedCookieParentCheckTests(SimpleTestCase):
     def test_localhost_is_not_a_cookie_parent(self):
         self.assertEqual(shared_cookie_parent_error(None), [])
 
-    @override_settings(DEBUG=False, HOSTING_COOKIE_PARENT_HOSTS=[])
-    def test_production_requires_the_host_list(self):
+    @override_settings(
+        DEBUG=False,
+        HOSTING_COOKIE_PARENT_HOSTS=[],
+        IDENTITY_SERVICE_URL='',
+        IDENTITY_ISSUER='',
+        CSRF_TRUSTED_ORIGINS=[],
+    )
+    def test_production_requires_a_host_to_compare(self):
         errors = cookie_parent_hosts_required_in_production(None)
         self.assertEqual(len(errors), 1)
         self.assertEqual(errors[0].id, 'hosting.E002')
+
+    @override_settings(
+        DEBUG=False,
+        HOSTING_COOKIE_PARENT_HOSTS=[],
+        IDENTITY_SERVICE_URL='https://auth.shellui.com',
+    )
+    def test_the_identity_url_alone_satisfies_the_production_check(self):
+        self.assertEqual(cookie_parent_hosts_required_in_production(None), [])
+
+    @override_settings(
+        HOSTING_APP_DOMAIN='shellui.app',
+        HOSTING_COOKIE_PARENT_HOSTS=[],
+        IDENTITY_SERVICE_URL='',
+        IDENTITY_ISSUER='https://id.shellui.app',
+        CSRF_TRUSTED_ORIGINS=[],
+    )
+    def test_hosts_also_come_from_identity_issuer(self):
+        self.assertEqual([host for host, _ in shared_cookie_parent_hosts()], ['https://id.shellui.app'])
+
+    @override_settings(
+        HOSTING_APP_DOMAIN='shellui.app',
+        HOSTING_COOKIE_PARENT_HOSTS=[],
+        IDENTITY_SERVICE_URL='https://auth.shellui.app',
+        IDENTITY_ISSUER='',
+        CSRF_TRUSTED_ORIGINS=[],
+    )
+    def test_hosts_also_come_from_identity_service_url(self):
+        self.assertEqual([host for host, _ in shared_cookie_parent_hosts()], ['https://auth.shellui.app'])
+
+    @override_settings(
+        HOSTING_APP_DOMAIN='shellui.app',
+        HOSTING_COOKIE_PARENT_HOSTS=[],
+        IDENTITY_SERVICE_URL='',
+        IDENTITY_ISSUER='',
+        CSRF_TRUSTED_ORIGINS=['https://admin.shellui.app', 'https://admin.shellui.com'],
+    )
+    def test_hosts_also_come_from_csrf_trusted_origins(self):
+        self.assertEqual([host for host, _ in shared_cookie_parent_hosts()], ['https://admin.shellui.app'])
 
     @override_settings(DEBUG=True, HOSTING_COOKIE_PARENT_HOSTS=[])
     def test_debug_allows_an_empty_host_list(self):

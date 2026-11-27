@@ -272,3 +272,149 @@ class McpArtifactUploadFlowTests(TestCase):
         self.assertEqual(meta['backend'], 's3')
         self.assertEqual(meta['upload_url'], '[redacted]')
         self.assertNotIn('presigned-put', url_resp.content.decode())
+
+
+@override_settings(
+    **MCP_SIGNING_TEST_SETTINGS,
+    DEBUG=True,
+    JWT_HS256_FALLBACK_SECRET='test-secret',
+    ALLOW_JWT_HS256_FALLBACK=True,
+    IDENTITY_AUDIENCE='',
+    IDENTITY_ISSUER='',
+    IDENTITY_JWKS_URL='http://jwks.test/.well-known/jwks.json',
+    HOSTING_MCP_RESOURCE='http://127.0.0.1/mcp',
+    HOSTING_BACKEND='filesystem',
+    IDENTITY_SERVICE_URL='',
+)
+class DirectUploadAgentChecksTests(TestCase):
+    """The direct upload route runs the same agent checks as POST /mcp."""
+
+    company_id = 42
+
+    def setUp(self):
+        CompanyHostingAccess.objects.create(company_id=self.company_id, status=AccessStatus.APPROVED)
+        CompanyHostingAccess.objects.create(company_id=43, status=AccessStatus.APPROVED)
+        self.client = Client()
+        self.agent_id = str(uuid.uuid4())
+        _clear_revocation_cache(self.company_id)
+        _clear_revocation_cache(43)
+        jwks = patch('apps.authapi.authentication.get_jwks_client')
+        mock_jwks = jwks.start()
+        mock_jwks.return_value.get_signing_key.return_value = None
+        self.addCleanup(jwks.stop)
+        delegated = patch('apps.hosting.mcp_server.delegated_live_authority_state', return_value=('ok', True))
+        delegated.start()
+        self.addCleanup(delegated.stop)
+        from apps.hosting import mcp_views
+
+        mcp_views._server = None
+        app = App.objects.create(
+            name='direct-site', slug='direct01', company_id=self.company_id, display_name='D', created_by_id=1
+        )
+        dep_id = uuid.uuid4()
+        self.deployment = Deployment.objects.create(
+            id=dep_id,
+            app=app,
+            app_version='1.0.0',
+            shellui_version='0.5.0',
+            deployed_by_id=1,
+            storage_prefix=f'{app.id}/deployments/{dep_id}/',
+            status=DeploymentStatus.DRAFT,
+        )
+        self.path = reverse(
+            'hosting-deployment-upload', kwargs={'app_ref': app.slug, 'deployment_id': dep_id}
+        )
+
+    def _put(self, token: str):
+        return self.client.put(
+            self.path,
+            data=_site_tarball(),
+            content_type='application/gzip',
+            HTTP_AUTHORIZATION=f'Bearer {token}',
+        )
+
+    def _assert_nothing_stored(self):
+        from django.core.files.storage import default_storage
+
+        from apps.hosting.storage import artifact_key
+
+        self.deployment.refresh_from_db()
+        self.assertEqual(self.deployment.status, DeploymentStatus.DRAFT)
+        self.assertEqual(self.deployment.artifact_size, 0)
+        self.assertFalse(default_storage.exists(artifact_key(self.deployment)))
+
+    def test_a_live_full_agent_can_upload(self):
+        token = _agent_token(agent_id=self.agent_id, company_id=self.company_id, mcp_access='full')
+        with patch(
+            'apps.hosting.mcp_revocation.fetch_revocation_payload',
+            return_value={'revoked_agent_ids': []},
+        ):
+            response = self._put(token)
+        self.assertEqual(response.status_code, 200, response.content)
+
+    def test_a_revoked_agent_cannot_upload(self):
+        token = _agent_token(agent_id=self.agent_id, company_id=self.company_id, mcp_access='full')
+        with patch(
+            'apps.hosting.mcp_revocation.fetch_revocation_payload',
+            return_value={'revoked_agent_ids': [self.agent_id]},
+        ):
+            response = self._put(token)
+        self.assertEqual(response.status_code, 403, response.content)
+        self._assert_nothing_stored()
+
+    def test_the_upload_fails_closed_when_revocation_cannot_be_checked(self):
+        token = _agent_token(agent_id=self.agent_id, company_id=self.company_id, mcp_access='full')
+        with patch('apps.hosting.mcp_revocation.fetch_revocation_payload', return_value=None):
+            response = self._put(token)
+        self.assertEqual(response.status_code, 403, response.content)
+        self._assert_nothing_stored()
+
+    def test_the_same_revoked_agent_is_refused_on_mcp_too(self):
+        token = _agent_token(agent_id=self.agent_id, company_id=self.company_id, mcp_access='full')
+        body = {'jsonrpc': '2.0', 'id': 1, 'method': 'tools/list', 'params': {}}
+        with patch(
+            'apps.hosting.mcp_revocation.fetch_revocation_payload',
+            return_value={'revoked_agent_ids': [self.agent_id]},
+        ):
+            response = self.client.post(
+                reverse('mcp'),
+                data=json.dumps(body),
+                content_type='application/json',
+                HTTP_AUTHORIZATION=f'Bearer {token}',
+            )
+        self.assertEqual(response.status_code, 403)
+
+    def test_a_read_only_agent_cannot_upload(self):
+        token = _agent_token(agent_id=self.agent_id, company_id=self.company_id, mcp_access='read_only')
+        with patch(
+            'apps.hosting.mcp_revocation.fetch_revocation_payload',
+            return_value={'revoked_agent_ids': []},
+        ):
+            response = self._put(token)
+        self.assertEqual(response.status_code, 403, response.content)
+        self._assert_nothing_stored()
+
+    def test_an_agent_of_another_company_cannot_upload(self):
+        token = _agent_token(agent_id=self.agent_id, company_id=43, mcp_access='full')
+        with patch(
+            'apps.hosting.mcp_revocation.fetch_revocation_payload',
+            return_value={'revoked_agent_ids': []},
+        ):
+            response = self._put(token)
+        self.assertIn(response.status_code, (403, 404), response.content)
+        self._assert_nothing_stored()
+
+    def test_an_agent_token_for_the_wrong_audience_cannot_upload(self):
+        token = _agent_token(
+            agent_id=self.agent_id,
+            company_id=self.company_id,
+            mcp_access='full',
+            aud='http://other.example/mcp',
+        )
+        with patch(
+            'apps.hosting.mcp_revocation.fetch_revocation_payload',
+            return_value={'revoked_agent_ids': []},
+        ):
+            response = self._put(token)
+        self.assertEqual(response.status_code, 403, response.content)
+        self._assert_nothing_stored()
