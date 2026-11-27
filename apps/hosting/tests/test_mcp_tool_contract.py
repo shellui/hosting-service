@@ -17,6 +17,7 @@ from django.test import Client, TestCase, override_settings
 from django.urls import Resolver404, resolve, reverse
 from drf_spectacular.generators import SchemaGenerator
 from shellui_django.mcp.approval_summary import destination_paths
+from shellui_django.mcp.destinations import lint_destination_names
 from shellui_django.mcp.routing import materialize_openapi_path
 from shellui_django.mcp.write_gate import decide_write
 
@@ -37,6 +38,10 @@ DESTINATION_PATHS: dict[str, set[str]] = {
     'hosting_update_action_rules': {'url'},
     'hosting_create_apps_domains': {'hostname'},
 }
+
+# Write-tool arguments whose name looks like a destination but that are not one. Anything new that looks like a
+# destination must be marked `x-mcp-destination` (fix the serializer) or be added here with a reason.
+ALLOWED_UNMARKED: dict[str, set[str]] = {}
 
 # Locked risk sets. Changing a flag requires editing this list in the same change.
 READ_ONLY_TOOLS = frozenset(
@@ -267,6 +272,11 @@ class McpToolContractTests(TestCase):
         self.assertLessEqual(set(DESTINATION_PATHS), set(tools))
         for name, tool in tools.items():
             self.assertEqual(destination_paths(tool['inputSchema']), DESTINATION_PATHS.get(name, set()), name)
+
+    def test_fields_named_like_destinations_are_marked_or_allow_listed(self):
+        tools = published_mcp_tools(SchemaGenerator().get_schema(request=None, public=True))
+        self.assertTrue(all(tool['_meta'].get('destinations_declared') is True for tool in tools))
+        self.assertEqual(lint_destination_names(tools, allow=ALLOWED_UNMARKED), [])
 
     def test_enum_parameters_are_in_the_openapi_schema_and_the_tool(self):
         schema = SchemaGenerator().get_schema(request=None, public=True)

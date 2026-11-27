@@ -132,7 +132,7 @@ def _flat_input_schema(
 def published_mcp_tools(schema: dict[str, Any]) -> list[dict[str, Any]]:
     """Tools/list payload plus ``_meta`` for dispatch."""
     published: list[dict[str, Any]] = []
-    for tool in apply_gateway_mcp_names(tools_from_schema(schema)):
+    for tool in apply_gateway_mcp_names(tools_from_schema(schema, destinations_declared=True)):
         meta = tool.get('_meta') if isinstance(tool.get('_meta'), dict) else {}
         operation_id = str(meta.get('operationId') or '')
         spec = MCP_SPECS[operation_id]
