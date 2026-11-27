@@ -6,7 +6,7 @@ hosting-service deploys and serves Shellui apps, one subdomain per site. Shellui
 
 The production image on Docker Hub is:
 
-- **Base**: `python:3.14-slim`
+- **Base**: `python:3.15-slim`
 - **Port**: 8000
 - **Entrypoint**: `/app/tools/docker-entrypoint.sh`
 - **App user**: `appuser` (non-root)
