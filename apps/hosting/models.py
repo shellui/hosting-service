@@ -158,7 +158,7 @@ class AppCustomDomain(models.Model):
             models.UniqueConstraint(fields=['hostname'], name='hosting_custom_domain_hostname_global_uniq'),
         ]
         indexes = [
-            models.Index(fields=['app', 'status']),
+            models.Index(fields=['app', 'status'], name='hosting_appc_app_id_status_idx'),
         ]
         ordering = ['hostname']
 
@@ -189,7 +189,8 @@ class AppEnvironmentVariable(models.Model):
 class HostedAppRequestLog(models.Model):
     """Bounded HTTP access log lines recorded on the app hostname only."""
 
-    id = models.BigAutoField(primary_key=True)
+    # Same definition as migration 0008, so the model and the migration history agree.
+    id = models.BigAutoField(auto_created=True, primary_key=True, serialize=False)
     app = models.ForeignKey(App, on_delete=models.CASCADE, related_name='request_logs')
     created_at = models.DateTimeField(default=timezone.now, db_index=True)
     method = models.CharField(max_length=16)
@@ -199,6 +200,6 @@ class HostedAppRequestLog(models.Model):
 
     class Meta:
         indexes = [
-            models.Index(fields=['app', '-created_at']),
+            models.Index(fields=['app', '-created_at'], name='hosting_hoste_app_created_idx'),
         ]
         ordering = ['-created_at', '-id']
