@@ -16,7 +16,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.authapi.mcp_openapi import mcp_tool
-from apps.authapi.permissions import IsAuthenticatedPrincipal, IsStaffOrCompanyOwner
+from apps.authapi.permissions import AgentLiveAuthority, IsAuthenticatedPrincipal, IsStaffOrCompanyOwner
 from apps.hosting.openapi_admin import (
     ADMIN_API_ERRORS,
     APP_REF_PATH,
@@ -517,7 +517,8 @@ class DeploymentListCreateView(APIView):
 
 
 class DeploymentUploadView(APIView):
-    permission_classes = [IsAuthenticatedPrincipal]
+    # An agent token reaches this route as well as /mcp, so it gets the same live checks.
+    permission_classes = [IsAuthenticatedPrincipal, AgentLiveAuthority]
     deploy_token_methods = ('PUT', 'POST')
     rate_limit_scope = 'upload'
     throttle_classes = [HostingScopeThrottle]

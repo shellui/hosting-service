@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import re
 from typing import Any
 
 import jwt
@@ -15,6 +16,37 @@ from .principal import HostingPrincipal, principal_from_claims
 logger = logging.getLogger(__name__)
 
 _GENERIC_TOKEN_DETAIL = 'Token is invalid or could not be verified against identity JWKS.'
+
+# Filesystem artifact upload is the byte channel Shellui MCP returns when the
+# archive does not go to object storage. It is not a general REST route.
+_AGENT_UPLOAD_PATH = re.compile(r'^/hosting/v1/apps/[^/]+/deployments/[^/]+/upload$')
+
+
+def _request_path(request) -> str:
+    path = getattr(request, 'path', '') or ''
+    if not path:
+        inner = getattr(request, '_request', None)
+        path = getattr(inner, 'path', '') if inner is not None else ''
+    path = path.split('?', 1)[0]
+    if len(path) > 1 and path.endswith('/'):
+        path = path[:-1]
+    return path
+
+
+def agent_bearer_route_allowed(request) -> bool:
+    """Agent access tokens are accepted on POST /mcp and the direct artifact upload."""
+    method = str(getattr(request, 'method', '') or '').upper()
+    path = _request_path(request)
+    if method == 'POST' and path == '/mcp':
+        return True
+    if method in {'PUT', 'POST'} and _AGENT_UPLOAD_PATH.match(path):
+        return True
+    return False
+
+
+def _is_refresh_token(claims: dict) -> bool:
+    kind = str(claims.get('token_type') or claims.get('token_use') or '').strip().lower()
+    return kind == 'refresh'
 
 
 def _safe_jwt_meta(raw_token: str) -> dict[str, Any]:
@@ -123,6 +155,10 @@ class IdentityJWKSAuthentication(authentication.BaseAuthentication):
             raw_token = parts[1]
 
         principal = self.authenticate_credentials(raw_token)
+        if getattr(principal, 'agent_id', None) and not agent_bearer_route_allowed(request):
+            raise exceptions.AuthenticationFailed(
+                'Agent access tokens are not accepted on this route.'
+            )
         token_auth: str | dict = principal.claims if getattr(principal, 'agent_id', None) else raw_token
         return (principal, token_auth)
 
@@ -174,6 +210,10 @@ class IdentityJWKSAuthentication(authentication.BaseAuthentication):
 
     def authenticate_credentials(self, raw_token: str) -> HostingPrincipal:
         claims = self._decode_token(raw_token)
+        if _is_refresh_token(claims):
+            raise exceptions.AuthenticationFailed(
+                'Refresh tokens are not accepted as bearer tokens.'
+            )
         try:
             return principal_from_claims(claims)
         except ValueError as exc:
