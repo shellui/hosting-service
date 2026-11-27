@@ -1261,10 +1261,8 @@
             "type": "string"
           },
           "slug": {
-            "additionalProperties": true,
             "description": "Optional preview slug. Omit to allocate a new slug.",
-            "properties": {},
-            "type": "object"
+            "type": "string"
           }
         },
         "required": [
@@ -2021,10 +2019,9 @@
             "type": "string"
           },
           "url": {
-            "additionalProperties": true,
             "description": "HTTPS endpoint that receives the signed webhook.",
-            "properties": {},
-            "type": "object"
+            "format": "uri",
+            "type": "string"
           }
         },
         "required": [
