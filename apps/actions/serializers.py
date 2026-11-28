@@ -1,4 +1,5 @@
 from rest_framework import serializers
+from shellui_django.mcp.fields import McpDestinationURLField
 
 from apps.authapi.mcp_fields import McpSecretCharField
 from apps.actions.models import ActionRule
@@ -26,7 +27,7 @@ class ActionRuleWriteSerializer(serializers.Serializer):
         help_text='When false, the rule does not send webhooks.',
     )
 
-    url = serializers.URLField(
+    url = McpDestinationURLField(
         required=False,
         allow_blank=True,
         help_text='HTTPS endpoint that receives the signed webhook.',
@@ -63,7 +64,7 @@ class ActionRuleCreateSerializer(ActionRuleWriteSerializer):
         max_length=128,
         help_text='Shellui Actions event id this rule subscribes to.',
     )
-    url = serializers.URLField(help_text='HTTPS endpoint that receives the signed webhook.')
+    url = McpDestinationURLField(help_text='HTTPS endpoint that receives the signed webhook.')
 
     def validate_event_type(self, value):
         if not is_webhook_event(value):

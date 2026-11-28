@@ -16,6 +16,8 @@ from unittest.mock import patch
 from django.test import Client, TestCase, override_settings
 from django.urls import Resolver404, resolve, reverse
 from drf_spectacular.generators import SchemaGenerator
+from shellui_django.mcp.approval_summary import destination_paths
+from shellui_django.mcp.destinations import lint_destination_names
 from shellui_django.mcp.routing import materialize_openapi_path
 from shellui_django.mcp.write_gate import decide_write
 
@@ -28,6 +30,18 @@ from apps.hosting.tests.signing_helpers import MCP_SIGNING_TEST_SETTINGS
 from apps.hosting.tests.test_mcp import _agent_token, _clear_revocation_cache
 
 CONTRACT_PATH = Path(__file__).resolve().parent / 'fixtures' / 'mcp_tools_contract.json'
+
+# Properties that name where a call sends something. Each must carry `x-mcp-destination` (on the items
+# for a list) so the gateway shows it first in the approval prompt.
+DESTINATION_PATHS: dict[str, set[str]] = {
+    'hosting_create_action_rules': {'url'},
+    'hosting_update_action_rules': {'url'},
+    'hosting_create_apps_domains': {'hostname'},
+}
+
+# Write-tool arguments whose name looks like a destination but that are not one. Anything new that looks like a
+# destination must be marked `x-mcp-destination` (fix the serializer) or be added here with a reason.
+ALLOWED_UNMARKED: dict[str, set[str]] = {}
 
 # Locked risk sets. Changing a flag requires editing this list in the same change.
 READ_ONLY_TOOLS = frozenset(
@@ -252,6 +266,17 @@ class McpToolContractTests(TestCase):
             self.assertEqual(MCP_EXPLICIT_REGISTRY[operation_id]['read_only'], meta['read_only'], name)
             self.assertEqual(MCP_SPECS[operation_id].destructive, meta['destructive'], name)
             self.assertEqual(bool(meta['read_only']), MCP_SPECS[operation_id].side_effects.startswith('Read-only'), name)
+
+    def test_destination_properties_are_marked_for_the_approval_prompt(self):
+        tools = {tool['name']: tool for tool in published_mcp_tools(SchemaGenerator().get_schema(request=None, public=True))}
+        self.assertLessEqual(set(DESTINATION_PATHS), set(tools))
+        for name, tool in tools.items():
+            self.assertEqual(destination_paths(tool['inputSchema']), DESTINATION_PATHS.get(name, set()), name)
+
+    def test_fields_named_like_destinations_are_marked_or_allow_listed(self):
+        tools = published_mcp_tools(SchemaGenerator().get_schema(request=None, public=True))
+        self.assertTrue(all(tool['_meta'].get('destinations_declared') is True for tool in tools))
+        self.assertEqual(lint_destination_names(tools, allow=ALLOWED_UNMARKED), [])
 
     def test_enum_parameters_are_in_the_openapi_schema_and_the_tool(self):
         schema = SchemaGenerator().get_schema(request=None, public=True)

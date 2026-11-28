@@ -23,6 +23,11 @@ See for sample https://raw.githubusercontent.com/favoloso/conventional-changelog
 
 ## [Unreleased]
 
+### 🚨 Changed
+
+- Request fields that name a destination are marked `x-mcp-destination` in the OpenAPI schema and the MCP tool schemas: custom domain `hostname` and the action rule `url`. The gateway reads the marker to show those values first and in full on the approval prompt. No request or response changes. Needs `shellui-django` 0.9.0.
+- The contract test fails when a new write-tool argument named like a destination (`*url`, `*uri`, `*host`, `*email`, `*domain`, `*origin`, `redirect*`, `callback*`) is neither marked `x-mcp-destination` nor on a short allow-list, and the tools now declare `destinations_declared` so the approval prompt does not warn about them. No request or response changes.
+
 ### 🔒 Security
 
 - Agent access tokens authenticate `POST /mcp` and the direct artifact upload Shellui MCP returns for a filesystem backend. Other REST routes refuse them. The principal uses `owner_user_id` when the token has one, and is never a company owner or staff. A missing `mcp_access` claim is read-only. A bearer token with `token_type` `refresh` is refused.

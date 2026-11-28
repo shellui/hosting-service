@@ -23,6 +23,8 @@ x-mcp:
 ```
 
 Response fields may use `x-mcp-secret` (never return plaintext to agents) or `x-mcp-sensitive` (mask in read-safe modes).
+Request fields that say where a call sends something carry `x-mcp-destination: true`. The gateway shows those values first, in full, when a person approves the call. Here they are: `hostname` (custom domains) and the action rule `url`. Declare a new field with `McpDestinationCharField`, `McpDestinationEmailField` or `McpDestinationURLField` from `shellui_django.mcp.fields` (for a list, use them as the `child`), and add its path to `DESTINATION_PATHS` in `apps/hosting/tests/test_mcp_tool_contract.py`.
+
 
 ## Agent-visible hosting APIs
 

@@ -1,6 +1,7 @@
 """DRF serializers for OpenAPI documentation."""
 
 from rest_framework import serializers
+from shellui_django.mcp.fields import McpDestinationCharField
 
 from apps.authapi.mcp_fields import McpSecretCharField, McpSensitiveCharField
 
@@ -191,7 +192,7 @@ class CustomDomainSerializer(serializers.Serializer):
 
 
 class CustomDomainCreateSerializer(serializers.Serializer):
-    hostname = serializers.CharField(
+    hostname = McpDestinationCharField(
         max_length=253,
         help_text='Fully qualified hostname (not under the default app hosting domain).',
     )
