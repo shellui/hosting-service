@@ -28,6 +28,13 @@ See for sample https://raw.githubusercontent.com/favoloso/conventional-changelog
 - Request fields that name a destination are marked `x-mcp-destination` in the OpenAPI schema and the MCP tool schemas: custom domain `hostname` and the action rule `url`. The gateway reads the marker to show those values first and in full on the approval prompt. No request or response changes. Needs `shellui-django` 0.9.0.
 - The contract test fails when a new write-tool argument named like a destination (`*url`, `*uri`, `*host`, `*email`, `*domain`, `*origin`, `redirect*`, `callback*`) is neither marked `x-mcp-destination` nor on a short allow-list, and the tools now declare `destinations_declared` so the approval prompt does not warn about them. No request or response changes.
 
+- `HOSTING_FRAME_ANCESTORS` is unset by default, and unset sends no `frame-ancestors` header, as before. When set, hosted responses send exactly that policy (`'none'` also sends `X-Frame-Options: DENY`) and a hosted response cannot replace it.
+- An archive that is not gzip, or that has no servable file, is now refused.
+- `shellui-django` 0.9.0 with Django 6.1.3, Django REST framework 3.18.3 and drf-spectacular 0.30.0. The shellui-django pins are exact, so these move together.
+- gunicorn 27.0.1. A request whose `Transfer-Encoding` does not end with `chunked` (for example `identity` alone) now gets HTTP 400. No gunicorn setting changed.
+- Django 6.1 requires PostgreSQL 15 or newer, and drops 14. Check the database of any deployment before upgrading. CI runs PostgreSQL 18.
+- drf-spectacular 0.30 describes blank URL and slug fields as `oneOf` (the field's format or an empty string) in the OpenAPI schema. Generated clients and the published schema see that change. The API itself does not change.
+
 ### 🔒 Security
 
 - Agent access tokens authenticate `POST /mcp` and the direct artifact upload Shellui MCP returns for a filesystem backend. Other REST routes refuse them. The principal uses `owner_user_id` when the token has one, and is never a company owner or staff. A missing `mcp_access` claim is read-only. A bearer token with `token_type` `refresh` is refused.
@@ -37,15 +44,6 @@ See for sample https://raw.githubusercontent.com/favoloso/conventional-changelog
 - `HOSTING_FRAME_ANCESTORS` is validated source by source and fails the startup check (`hosting.E003`) when it is not strict. Allowed: `'self'`, `'none'` on its own, and exact `https` origins. Refused: `*`, bare schemes, wildcard hosts such as `https://*.shellui.app`, commas, `http` origins, paths, and `'none'` mixed with other sources. Per-deployment frame settings come in a later change.
 - `manage.py check` fails (`hosting.E001`) when `HOSTING_APP_DOMAIN` shares a cookie parent with a host in `HOSTING_COOKIE_PARENT_HOSTS`, `IDENTITY_SERVICE_URL`, `IDENTITY_ISSUER` or `CSRF_TRUSTED_ORIGINS`. `check --deploy` fails (`hosting.E002`) when none of those names a host and `DEBUG=false`.
 - Django 6.1.3 includes the Django security releases of October and November 2026, among them a fix for memory use when parsing large multipart uploads.
-
-### 🚨 Changed
-
-- `HOSTING_FRAME_ANCESTORS` is unset by default, and unset sends no `frame-ancestors` header, as before. When set, hosted responses send exactly that policy (`'none'` also sends `X-Frame-Options: DENY`) and a hosted response cannot replace it.
-- An archive that is not gzip, or that has no servable file, is now refused.
-- `shellui-django` 0.9.0 with Django 6.1.3, Django REST framework 3.18.3 and drf-spectacular 0.30.0. The shellui-django pins are exact, so these move together.
-- gunicorn 27.0.1. A request whose `Transfer-Encoding` does not end with `chunked` (for example `identity` alone) now gets HTTP 400. No gunicorn setting changed.
-- Django 6.1 requires PostgreSQL 15 or newer, and drops 14. Check the database of any deployment before upgrading. CI runs PostgreSQL 18.
-- drf-spectacular 0.30 describes blank URL and slug fields as `oneOf` (the field's format or an empty string) in the OpenAPI schema. Generated clients and the published schema see that change. The API itself does not change.
 
 ### 🏗 Chore
 
