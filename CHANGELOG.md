@@ -21,7 +21,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 See for sample https://raw.githubusercontent.com/favoloso/conventional-changelog-emoji/master/CHANGELOG.md
 -->
 
-## [Unreleased]
+## [0.13.0] - 2026-11-28
 
 ### 🚨 Changed
 
@@ -42,7 +42,7 @@ See for sample https://raw.githubusercontent.com/favoloso/conventional-changelog
 
 - `HOSTING_FRAME_ANCESTORS` is unset by default, and unset sends no `frame-ancestors` header, as before. When set, hosted responses send exactly that policy (`'none'` also sends `X-Frame-Options: DENY`) and a hosted response cannot replace it.
 - An archive that is not gzip, or that has no servable file, is now refused.
-- `shellui-django` 0.8.0 with Django 6.1.3, Django REST framework 3.18.3 and drf-spectacular 0.30.0. The shellui-django pins are exact, so these move together.
+- `shellui-django` 0.9.0 with Django 6.1.3, Django REST framework 3.18.3 and drf-spectacular 0.30.0. The shellui-django pins are exact, so these move together.
 - gunicorn 27.0.1. A request whose `Transfer-Encoding` does not end with `chunked` (for example `identity` alone) now gets HTTP 400. No gunicorn setting changed.
 - Django 6.1 requires PostgreSQL 15 or newer, and drops 14. Check the database of any deployment before upgrading. CI runs PostgreSQL 18.
 - drf-spectacular 0.30 describes blank URL and slug fields as `oneOf` (the field's format or an empty string) in the OpenAPI schema. Generated clients and the published schema see that change. The API itself does not change.
