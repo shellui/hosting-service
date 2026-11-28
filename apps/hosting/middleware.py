@@ -34,6 +34,39 @@ def _set_cookie_has_domain(value: str) -> bool:
     return False
 
 
+def apply_hosted_frame_policy(response):
+    """Send the hosted ``frame-ancestors`` policy when ``HOSTING_FRAME_ANCESTORS`` is set.
+
+    Unset sends nothing and leaves the response as it was. When set, a CSP already on the
+    response keeps its other directives, and any ``frame-ancestors`` source list on that
+    header is replaced so a hosted response cannot widen who may frame it. ``'none'``
+    also sets ``X-Frame-Options: DENY`` for clients that ignore CSP.
+    """
+    from .checks import frame_ancestors_denies_all, frame_ancestors_sources
+
+    sources = frame_ancestors_sources()
+    if sources is None:
+        return response
+    directive = f'frame-ancestors {sources}'
+    existing = response.headers.get('Content-Security-Policy')
+    if existing:
+        kept = []
+        for part in str(existing).split(';'):
+            piece = part.strip()
+            if not piece or piece.lower().startswith('frame-ancestors'):
+                continue
+            kept.append(piece)
+        kept.append(directive)
+        response.headers['Content-Security-Policy'] = '; '.join(kept)
+    else:
+        response['Content-Security-Policy'] = directive
+    if frame_ancestors_denies_all(sources):
+        response['X-Frame-Options'] = 'DENY'
+    elif response.get('X-Frame-Options'):
+        del response['X-Frame-Options']
+    return response
+
+
 def strip_parent_domain_cookies(response):
     """Remove Set-Cookie values that carry a Domain attribute.
 
@@ -51,7 +84,7 @@ def strip_parent_domain_cookies(response):
 
 
 class HostedAppCookieScopeMiddleware:
-    """Drop parent-domain cookies on hosted app responses."""
+    """Drop parent-domain cookies and apply the frame policy on hosted app responses."""
 
     def __init__(self, get_response):
         self.get_response = get_response
@@ -60,6 +93,7 @@ class HostedAppCookieScopeMiddleware:
         response = self.get_response(request)
         if slug_from_host(request.get_host()):
             strip_parent_domain_cookies(response)
+            apply_hosted_frame_policy(response)
         return response
 
 

@@ -950,7 +950,8 @@
           "url": {
             "description": "HTTPS endpoint that receives the signed webhook.",
             "format": "uri",
-            "type": "string"
+            "type": "string",
+            "x-mcp-destination": true
           }
         },
         "required": [
@@ -1149,7 +1150,8 @@
           },
           "hostname": {
             "description": "Fully qualified hostname (not under the default app hosting domain).",
-            "type": "string"
+            "type": "string",
+            "x-mcp-destination": true
           }
         },
         "required": [
@@ -2021,7 +2023,8 @@
           "url": {
             "description": "HTTPS endpoint that receives the signed webhook.",
             "format": "uri",
-            "type": "string"
+            "type": "string",
+            "x-mcp-destination": true
           }
         },
         "required": [

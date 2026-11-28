@@ -23,6 +23,8 @@ x-mcp:
 ```
 
 Response fields may use `x-mcp-secret` (never return plaintext to agents) or `x-mcp-sensitive` (mask in read-safe modes).
+Request fields that say where a call sends something carry `x-mcp-destination: true`. The gateway shows those values first, in full, when a person approves the call. Here they are: `hostname` (custom domains) and the action rule `url`. Declare a new field with `McpDestinationCharField`, `McpDestinationEmailField` or `McpDestinationURLField` from `shellui_django.mcp.fields` (for a list, use them as the `child`), and add its path to `DESTINATION_PATHS` in `apps/hosting/tests/test_mcp_tool_contract.py`.
+
 
 ## Agent-visible hosting APIs
 
@@ -82,7 +84,7 @@ A successful consume step is not inferred from HTTP status alone. Identity must 
 
 ## Deploy a site end to end
 
-Use a company-owner agent token with the `hosting` scope and write access (`mcp_access` `full` or approved `ask` writes). Each step is an MCP `tools/call` except the byte upload, which uses HTTPS PUT outside JSON-RPC.
+Use an agent access token with the `hosting` scope and write access (`mcp_access` `full` or approved `ask` writes). The token is not a company-owner credential. Each step is an MCP `tools/call` except the byte upload, which uses HTTPS PUT outside JSON-RPC. That PUT is the only other route that accepts the agent bearer. Other REST routes refuse it. A missing `mcp_access` claim is read-only.
 
 1. **Register or pick a site** - `hosting_create_apps` or `hosting_create_preview` (preview) or `hosting_list_apps` / `hosting_get_apps`.
 2. **Open a draft deployment** - `hosting_create_apps_deployments` with `app_version` and `shellui_version`.
